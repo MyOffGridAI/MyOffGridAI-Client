@@ -7,21 +7,20 @@ import 'package:myoffgridai_client/features/auth/device_not_setup_screen.dart';
 import 'package:myoffgridai_client/features/auth/login_screen.dart';
 import 'package:myoffgridai_client/features/auth/register_screen.dart';
 import 'package:myoffgridai_client/features/auth/users_screen.dart';
+import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
+import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
+import 'package:myoffgridai_client/features/insights/insights_screen.dart';
+import 'package:myoffgridai_client/features/inventory/inventory_screen.dart';
+import 'package:myoffgridai_client/features/knowledge/document_detail_screen.dart';
+import 'package:myoffgridai_client/features/knowledge/knowledge_screen.dart';
+import 'package:myoffgridai_client/features/memory/memory_screen.dart';
+import 'package:myoffgridai_client/features/privacy/privacy_screen.dart';
+import 'package:myoffgridai_client/features/sensors/add_sensor_screen.dart';
+import 'package:myoffgridai_client/features/sensors/sensor_detail_screen.dart';
+import 'package:myoffgridai_client/features/sensors/sensors_screen.dart';
+import 'package:myoffgridai_client/features/skills/skills_screen.dart';
+import 'package:myoffgridai_client/features/system/system_screen.dart';
 import 'package:myoffgridai_client/shared/widgets/app_shell.dart';
-
-/// Stub screen used for MC-002 feature placeholders.
-class _StubScreen extends StatelessWidget {
-  final String title;
-  const _StubScreen({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: const Center(child: Text('Coming soon')),
-    );
-  }
-}
 
 /// Creates the application [GoRouter] with auth guards and device status checks.
 ///
@@ -74,49 +73,65 @@ GoRouter createRouter(Ref ref) {
         routes: [
           GoRoute(
             path: AppConstants.routeHome,
-            builder: (context, state) => const _StubScreen(title: 'Chat'),
+            builder: (context, state) => const ChatListScreen(),
           ),
           GoRoute(
             path: AppConstants.routeChat,
-            builder: (context, state) => const _StubScreen(title: 'Chat'),
+            builder: (context, state) => const ChatListScreen(),
           ),
           GoRoute(
             path: AppConstants.routeChatConversation,
-            builder: (context, state) => _StubScreen(
-              title: 'Conversation ${state.pathParameters['conversationId'] ?? ''}',
+            builder: (context, state) => ChatConversationScreen(
+              conversationId: state.pathParameters['conversationId'] ?? '',
             ),
           ),
           GoRoute(
             path: AppConstants.routeMemory,
-            builder: (context, state) => const _StubScreen(title: 'Memory'),
+            builder: (context, state) => const MemoryScreen(),
           ),
           GoRoute(
             path: AppConstants.routeKnowledge,
-            builder: (context, state) => const _StubScreen(title: 'Knowledge'),
+            builder: (context, state) => const KnowledgeScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeKnowledgeDetail,
+            builder: (context, state) => DocumentDetailScreen(
+              documentId: state.pathParameters['documentId'] ?? '',
+            ),
           ),
           GoRoute(
             path: AppConstants.routeSkills,
-            builder: (context, state) => const _StubScreen(title: 'Skills'),
+            builder: (context, state) => const SkillsScreen(),
           ),
           GoRoute(
             path: AppConstants.routeInventory,
-            builder: (context, state) => const _StubScreen(title: 'Inventory'),
+            builder: (context, state) => const InventoryScreen(),
           ),
           GoRoute(
             path: AppConstants.routeSensors,
-            builder: (context, state) => const _StubScreen(title: 'Sensors'),
+            builder: (context, state) => const SensorsScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeSensorAdd,
+            builder: (context, state) => const AddSensorScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeSensorDetail,
+            builder: (context, state) => SensorDetailScreen(
+              sensorId: state.pathParameters['sensorId'] ?? '',
+            ),
           ),
           GoRoute(
             path: AppConstants.routeInsights,
-            builder: (context, state) => const _StubScreen(title: 'Insights'),
+            builder: (context, state) => const InsightsScreen(),
           ),
           GoRoute(
             path: AppConstants.routePrivacy,
-            builder: (context, state) => const _StubScreen(title: 'Privacy'),
+            builder: (context, state) => const PrivacyScreen(),
           ),
           GoRoute(
             path: AppConstants.routeSystem,
-            builder: (context, state) => const _StubScreen(title: 'System'),
+            builder: (context, state) => const SystemScreen(),
           ),
           GoRoute(
             path: AppConstants.routeUsers,

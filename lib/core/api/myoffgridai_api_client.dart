@@ -87,6 +87,20 @@ class MyOffGridAIApiClient {
     }
   }
 
+  /// Performs a PATCH request to [path] with optional [data] body.
+  Future<T> patch<T>(
+    String path, {
+    dynamic data,
+    T Function(dynamic)? fromJson,
+  }) async {
+    try {
+      final response = await _dio.patch<dynamic>(path, data: data);
+      return _handleResponse<T>(response, fromJson);
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
   /// Performs a DELETE request to [path].
   Future<void> delete(String path) async {
     try {

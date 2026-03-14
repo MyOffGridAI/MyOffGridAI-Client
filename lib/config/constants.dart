@@ -26,7 +26,7 @@ class AppConstants {
   static const String memoryBasePath = '/api/memory';
   static const String knowledgeBasePath = '/api/knowledge';
   static const String skillsBasePath = '/api/skills';
-  static const String inventoryBasePath = '/api/inventory';
+  static const String inventoryBasePath = '/api/skills/inventory';
   static const String sensorsBasePath = '/api/sensors';
   static const String insightsBasePath = '/api/insights';
   static const String notificationsBasePath = '/api/notifications';
@@ -48,6 +48,9 @@ class AppConstants {
   static const String routePrivacy = '/privacy';
   static const String routeSystem = '/system';
   static const String routeUsers = '/users';
+  static const String routeKnowledgeDetail = '/knowledge/:documentId';
+  static const String routeSensorDetail = '/sensors/:sensorId';
+  static const String routeSensorAdd = '/sensors/add';
   static const String routeDeviceNotSetup = '/device-not-setup';
 
   // Pagination

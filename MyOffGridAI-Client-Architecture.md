@@ -1,8 +1,8 @@
 # MyOffGridAI-Client -- Architecture Specification
 
 **Generated:** 2026-03-14
-**Phase:** 9 -- Flutter Client Core
-**Version:** 1.0.0
+**Phase:** 10 -- Flutter Client Features (MC-002)
+**Version:** 2.0.0
 
 ---
 
@@ -44,7 +44,7 @@ lib/
 │   └── router.dart                     -- GoRouter with auth guards
 ├── core/
 │   ├── api/
-│   │   ├── myoffgridai_api_client.dart -- Dio client with JWT interceptors
+│   │   ├── myoffgridai_api_client.dart -- Dio client with JWT interceptors (GET/POST/PUT/PATCH/DELETE)
 │   │   ├── api_exception.dart          -- Typed API exceptions
 │   │   ├── api_response.dart           -- Server ApiResponse<T> mirror
 │   │   └── providers.dart              -- System status, health, notification providers
@@ -52,25 +52,60 @@ lib/
 │   │   ├── auth_service.dart           -- Login, logout, register, refresh
 │   │   ├── auth_state.dart             -- Riverpod AsyncNotifier for auth
 │   │   └── secure_storage_service.dart -- flutter_secure_storage wrapper
-│   └── models/
-│       ├── user_model.dart             -- UserSummaryDto mirror
-│       └── page_response.dart          -- Spring Page<T> mirror
+│   ├── models/
+│   │   ├── user_model.dart             -- UserSummaryDto mirror
+│   │   ├── page_response.dart          -- Spring Page<T> mirror
+│   │   ├── conversation_model.dart     -- ConversationModel + ConversationSummaryModel
+│   │   ├── message_model.dart          -- MessageModel (USER/ASSISTANT/SYSTEM roles)
+│   │   ├── memory_model.dart           -- MemoryModel + MemorySearchResultModel
+│   │   ├── knowledge_document_model.dart -- KnowledgeDocumentModel + KnowledgeSearchResultModel
+│   │   ├── skill_model.dart            -- SkillModel + SkillExecutionModel
+│   │   ├── inventory_item_model.dart   -- InventoryItemModel + InventoryCategory
+│   │   ├── sensor_model.dart           -- SensorModel + SensorReadingModel + SensorTestResultModel
+│   │   ├── insight_model.dart          -- InsightModel + InsightCategory
+│   │   ├── notification_model.dart     -- NotificationModel + NotificationType
+│   │   ├── privacy_models.dart         -- FortressStatusModel, SovereigntyReportModel, AuditLogModel
+│   │   └── system_models.dart          -- SystemStatusModel, OllamaModelInfoModel, ActiveModelInfo
+│   └── services/
+│       ├── chat_service.dart           -- ChatService + conversationsProvider + messagesProvider
+│       ├── memory_service.dart         -- MemoryService + memoriesProvider
+│       ├── knowledge_service.dart      -- KnowledgeService + knowledgeDocumentsProvider
+│       ├── skills_service.dart         -- SkillsService + skillsProvider
+│       ├── inventory_service.dart      -- InventoryService + inventoryProvider
+│       ├── sensor_service.dart         -- SensorService + sensorsProvider
+│       ├── insight_service.dart        -- InsightService + insightsProvider
+│       ├── notification_service.dart   -- NotificationService + notificationsProvider
+│       ├── privacy_service.dart        -- PrivacyService + fortressStatusProvider
+│       ├── system_service.dart         -- SystemService + systemStatusDetailProvider + ollamaModelsProvider
+│       └── user_service.dart           -- UserService + usersListProvider
 ├── features/
 │   ├── auth/
 │   │   ├── login_screen.dart           -- Login with server URL config
 │   │   ├── register_screen.dart        -- User registration
 │   │   ├── device_not_setup_screen.dart-- Setup wizard redirect
-│   │   └── users_screen.dart           -- User management (OWNER/ADMIN)
-│   ├── chat/                           -- MC-002
-│   ├── memory/                         -- MC-002
-│   ├── knowledge/                      -- MC-002
-│   ├── skills/                         -- MC-002
-│   ├── inventory/                      -- MC-002
-│   ├── sensors/                        -- MC-002
-│   ├── insights/                       -- MC-002
-│   ├── proactive/                      -- MC-002
-│   ├── privacy/                        -- MC-002
-│   └── system/                         -- MC-002
+│   │   └── users_screen.dart           -- User management (role change, deactivate, delete)
+│   ├── chat/
+│   │   ├── chat_list_screen.dart       -- Conversation list with FAB, swipe-to-delete
+│   │   └── chat_conversation_screen.dart -- Message list with input bar
+│   ├── memory/
+│   │   └── memory_screen.dart          -- Memory list with search, importance filter, detail sheet
+│   ├── knowledge/
+│   │   ├── knowledge_screen.dart       -- Document list with upload, status icons
+│   │   └── document_detail_screen.dart -- Document metadata, edit display name
+│   ├── skills/
+│   │   └── skills_screen.dart          -- Skills grid with detail sheet, execute button
+│   ├── inventory/
+│   │   └── inventory_screen.dart       -- Inventory list with category filter, add/edit dialogs
+│   ├── sensors/
+│   │   ├── sensors_screen.dart         -- Sensor card grid with toggle switches
+│   │   ├── sensor_detail_screen.dart   -- Sensor info + fl_chart historical readings
+│   │   └── add_sensor_screen.dart      -- Sensor registration form with connection test
+│   ├── insights/
+│   │   └── insights_screen.dart        -- Tabbed insights + notifications, generate button
+│   ├── privacy/
+│   │   └── privacy_screen.dart         -- Fortress toggle, sovereignty report, audit log (3 tabs)
+│   └── system/
+│       └── system_screen.dart          -- System status, Ollama health, model list
 └── shared/
     ├── widgets/
     │   ├── app_shell.dart              -- Responsive scaffold + navigation
@@ -82,8 +117,8 @@ lib/
     │   ├── system_status_bar.dart      -- Ollama status + notifications
     │   └── notification_badge.dart     -- Unread count badge
     └── utils/
-        ├── date_formatter.dart         -- Relative/full/short date formatting
-        ├── size_formatter.dart         -- Byte size formatting
+        ├── date_formatter.dart         -- Static: formatRelative, formatFull, formatDate
+        ├── size_formatter.dart         -- Static: formatBytes
         └── platform_utils.dart         -- Mobile/web/tablet detection
 ```
 
@@ -96,17 +131,20 @@ lib/
 | `/login` | LoginScreen | No | None |
 | `/register` | RegisterScreen | No | None |
 | `/device-not-setup` | DeviceNotSetupScreen | No | None |
-| `/` | AppShell -> Chat (stub) | Yes | None |
-| `/chat` | ChatListScreen (stub) | Yes | None |
-| `/chat/:conversationId` | ChatConversationScreen (stub) | Yes | None |
-| `/memory` | MemoryScreen (stub) | Yes | None |
-| `/knowledge` | KnowledgeScreen (stub) | Yes | None |
-| `/skills` | SkillsScreen (stub) | Yes | None |
-| `/inventory` | InventoryScreen (stub) | Yes | None |
-| `/sensors` | SensorsScreen (stub) | Yes | None |
-| `/insights` | InsightsScreen (stub) | Yes | None |
-| `/privacy` | PrivacyScreen (stub) | Yes | None |
-| `/system` | SystemScreen (stub) | Yes | None |
+| `/` | AppShell -> ChatListScreen | Yes | None |
+| `/chat` | ChatListScreen | Yes | None |
+| `/chat/:conversationId` | ChatConversationScreen | Yes | None |
+| `/memory` | MemoryScreen | Yes | None |
+| `/knowledge` | KnowledgeScreen | Yes | None |
+| `/knowledge/:documentId` | DocumentDetailScreen | Yes | None |
+| `/skills` | SkillsScreen | Yes | None |
+| `/inventory` | InventoryScreen | Yes | None |
+| `/sensors` | SensorsScreen | Yes | None |
+| `/sensors/add` | AddSensorScreen | Yes | None |
+| `/sensors/:sensorId` | SensorDetailScreen | Yes | None |
+| `/insights` | InsightsScreen | Yes | None |
+| `/privacy` | PrivacyScreen | Yes | None |
+| `/system` | SystemScreen | Yes | None |
 | `/users` | UsersScreen | Yes | OWNER, ADMIN |
 
 ---
@@ -145,6 +183,26 @@ lib/
 │ polls /api/system/    │ │ polls /api/models │ │ polls /api/notif. │
 │ status every 10s      │ │ /health every 60s │ │ /unread-count 30s │
 └──────────────────────┘ └──────────────────┘ └──────────────────┘
+
+          Domain Service Providers (auto-dispose):
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ chatService      │ │ memoryService    │ │ knowledgeService │
+│ conversationsProv│ │ memoriesProvider  │ │ knowledgeDocsProv│
+│ messagesProv(id) │ │                  │ │                  │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ skillsService    │ │ inventoryService │ │ sensorService    │
+│ skillsProvider   │ │ inventoryProvider│ │ sensorsProvider   │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ insightService   │ │ notifService     │ │ privacyService   │
+│ insightsProvider  │ │ notifsProvider   │ │ fortressProvider  │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+┌─────────────────┐ ┌─────────────────┐
+│ systemService    │ │ userService      │
+│ statusDetailProv │ │ usersListProv    │
+│ ollamaModelsProv │ │                  │
+└─────────────────┘ └─────────────────┘
 ```
 
 ---
@@ -179,25 +237,15 @@ Request
 └─────────────────────┘
 ```
 
-### Token Refresh Flow
+### HTTP Methods
 
-```
-Request returns 401
-    │
-    ▼
-Is this the /auth/refresh or /auth/login endpoint?
-    │                                        │
-    YES                                      NO
-    │                                        │
-    ▼                                        ▼
-Pass error through                 POST /api/auth/refresh
-(prevent infinite loop)                │
-                                       ├── Success: store new tokens,
-                                       │            retry original request
-                                       │
-                                       └── Failure: clear all tokens,
-                                                    pass error through
-```
+| Method | Use Case |
+|--------|----------|
+| GET | List/fetch resources |
+| POST | Create resources, send messages, upload files |
+| PUT | Update resources |
+| PATCH | Toggle skill enabled state |
+| DELETE | Remove resources, wipe data |
 
 ---
 
@@ -235,33 +283,6 @@ GoRouter redirect
   └── Check /users route: require OWNER/ADMIN role
 ```
 
-### Login
-
-```
-User enters credentials
-  │
-  ▼
-AuthNotifier.login(username, password)
-  ├── state = AsyncLoading
-  ├── AuthService.login()
-  │   ├── POST /api/auth/login
-  │   ├── Parse AuthResponse
-  │   └── SecureStorageService.saveTokens()
-  ├── state = AsyncData(UserModel)
-  └── GoRouter navigates to /
-```
-
-### Logout
-
-```
-AuthNotifier.logout()
-  ├── AuthService.logout()
-  │   ├── POST /api/auth/logout (best-effort)
-  │   └── SecureStorageService.clearTokens()
-  ├── state = AsyncData(null)
-  └── GoRouter redirects to /login
-```
-
 ---
 
 ## 7. Responsive Layout Strategy
@@ -293,52 +314,129 @@ AuthNotifier.logout()
 
 ---
 
-## 8. Theme System
+## 8. Server API Alignment
 
-### Color Palette
+### Auth Endpoints
 
-| Token | Light | Dark |
-|-------|-------|------|
-| Primary | #2D5016 (forest green) | #2D5016 |
-| Primary Container | #4A7C2F | #4A7C2F |
-| Secondary | #8B5E1A (warm amber) | #8B5E1A |
-| Background | #F5F0E8 (parchment) | #1A1A14 |
-| Surface | #FFFFFF | #242418 |
-| Error | #CF6679 | #CF6679 |
-| On Primary | #FFFFFF | #FFFFFF |
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| Login | POST /api/auth/login | ApiResponse<AuthResponse> |
+| Register | POST /api/auth/register | ApiResponse<AuthResponse> |
+| Refresh | POST /api/auth/refresh | ApiResponse<AuthResponse> |
+| Logout | POST /api/auth/logout | ApiResponse<Void> |
 
-### Persistence
+### Chat Endpoints
 
-- Theme preference stored via `SecureStorageService` (key: `theme_preference`)
-- Values: `light`, `dark`, `system`
-- Managed by `ThemeNotifier` (Riverpod `StateNotifier<ThemeMode>`)
-- Default: `system` (follows OS preference)
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Conversations | GET /api/chat/conversations | ApiResponse<List<ConversationSummaryDto>> |
+| Create Conversation | POST /api/chat/conversations | ApiResponse<ConversationDto> |
+| Get Conversation | GET /api/chat/conversations/{id} | ApiResponse<ConversationDto> |
+| Delete Conversation | DELETE /api/chat/conversations/{id} | ApiResponse<Void> |
+| Archive Conversation | PUT /api/chat/conversations/{id}/archive | ApiResponse<Void> |
+| List Messages | GET /api/chat/conversations/{id}/messages | ApiResponse<List<MessageDto>> |
+| Send Message | POST /api/chat/conversations/{id}/messages | ApiResponse<MessageDto> |
 
----
+### Memory Endpoints
 
-## 9. Platform Adaptations
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Memories | GET /api/memory | ApiResponse<List<MemoryDto>> |
+| Get Memory | GET /api/memory/{id} | ApiResponse<MemoryDto> |
+| Delete Memory | DELETE /api/memory/{id} | ApiResponse<Void> |
+| Update Tags | PUT /api/memory/{id}/tags | ApiResponse<MemoryDto> |
+| Update Importance | PUT /api/memory/{id}/importance | ApiResponse<MemoryDto> |
+| Search | POST /api/memory/search | ApiResponse<List<MemorySearchResultDto>> |
+| Export | GET /api/memory/export | ApiResponse<List<MemoryDto>> |
 
-| Feature | iOS | Android | Web |
-|---------|-----|---------|-----|
-| Token Storage | Keychain (first_unlock) | EncryptedSharedPreferences | Browser storage |
-| Local Network | NSLocalNetworkUsageDescription in Info.plist | INTERNET + usesCleartextTraffic | Standard fetch |
-| Navigation | BottomNav (< 600px) | BottomNav (< 600px) | NavigationRail |
-| Touch Targets | Standard (48px) | Standard (48px) | Standard (48px) |
+### Knowledge Endpoints
 
----
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Documents | GET /api/knowledge/documents | ApiResponse<List<KnowledgeDocumentDto>> |
+| Get Document | GET /api/knowledge/documents/{id} | ApiResponse<KnowledgeDocumentDto> |
+| Upload Document | POST /api/knowledge/documents (multipart) | ApiResponse<KnowledgeDocumentDto> |
+| Update Display Name | PUT /api/knowledge/documents/{id}/display-name | ApiResponse<KnowledgeDocumentDto> |
+| Delete Document | DELETE /api/knowledge/documents/{id} | ApiResponse<Void> |
+| Retry Processing | POST /api/knowledge/documents/{id}/retry | ApiResponse<KnowledgeDocumentDto> |
+| Search | POST /api/knowledge/search | ApiResponse<List<KnowledgeSearchResultDto>> |
 
-## 10. Server API Alignment
+### Skills Endpoints
 
-### Auth Endpoints (OpenAPI verified)
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Skills | GET /api/skills | ApiResponse<List<SkillDto>> |
+| Get Skill | GET /api/skills/{id} | ApiResponse<SkillDto> |
+| Toggle Skill | PATCH /api/skills/{id}/toggle | ApiResponse<SkillDto> |
+| Execute Skill | POST /api/skills/execute | ApiResponse<SkillExecutionDto> |
+| List Executions | GET /api/skills/executions | ApiResponse<Page<SkillExecutionDto>> |
 
-| Client Action | Server Endpoint | Request | Response |
-|--------------|-----------------|---------|----------|
-| Login | POST /api/auth/login | LoginRequest | ApiResponse<AuthResponse> |
-| Register | POST /api/auth/register | RegisterRequest | ApiResponse<AuthResponse> |
-| Refresh | POST /api/auth/refresh | RefreshRequest | ApiResponse<AuthResponse> |
-| Logout | POST /api/auth/logout | Authorization header | ApiResponse<Void> |
+### Inventory Endpoints
 
-### User Endpoints (OpenAPI verified)
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Items | GET /api/skills/inventory | ApiResponse<List<InventoryItemDto>> |
+| Create Item | POST /api/skills/inventory | ApiResponse<InventoryItemDto> |
+| Update Item | PUT /api/skills/inventory/{id} | ApiResponse<InventoryItemDto> |
+| Delete Item | DELETE /api/skills/inventory/{id} | ApiResponse<Void> |
+
+### Sensor Endpoints
+
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Sensors | GET /api/sensors | ApiResponse<List<SensorDto>> |
+| Get Sensor | GET /api/sensors/{id} | ApiResponse<SensorDto> |
+| Create Sensor | POST /api/sensors | ApiResponse<SensorDto> |
+| Delete Sensor | DELETE /api/sensors/{id} | ApiResponse<Void> |
+| Start Sensor | POST /api/sensors/{id}/start | ApiResponse<Void> |
+| Stop Sensor | POST /api/sensors/{id}/stop | ApiResponse<Void> |
+| Get Latest Reading | GET /api/sensors/{id}/readings/latest | ApiResponse<SensorReadingDto> |
+| Get History | GET /api/sensors/{id}/readings | ApiResponse<List<SensorReadingDto>> |
+| Update Thresholds | PUT /api/sensors/{id}/thresholds | ApiResponse<SensorDto> |
+| Test Connection | POST /api/sensors/test-connection | ApiResponse<SensorTestResult> |
+| List Ports | GET /api/sensors/available-ports | ApiResponse<List<String>> |
+
+### Insight Endpoints
+
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Insights | GET /api/insights | ApiResponse<List<InsightDto>> |
+| Generate Insights | POST /api/insights/generate | ApiResponse<List<InsightDto>> |
+| Mark as Read | PUT /api/insights/{id}/read | ApiResponse<Void> |
+| Dismiss | PUT /api/insights/{id}/dismiss | ApiResponse<Void> |
+| Unread Count | GET /api/insights/unread-count | ApiResponse<Integer> |
+
+### Notification Endpoints
+
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| List Notifications | GET /api/notifications | ApiResponse<List<NotificationDto>> |
+| Mark as Read | PUT /api/notifications/{id}/read | ApiResponse<Void> |
+| Mark All Read | PUT /api/notifications/read-all | ApiResponse<Void> |
+| Delete | DELETE /api/notifications/{id} | ApiResponse<Void> |
+| Unread Count | GET /api/notifications/unread-count | ApiResponse<Integer> |
+
+### Privacy Endpoints
+
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| Fortress Status | GET /api/privacy/fortress/status | ApiResponse<FortressStatus> |
+| Enable Fortress | POST /api/privacy/fortress/enable | ApiResponse<FortressStatus> |
+| Disable Fortress | POST /api/privacy/fortress/disable | ApiResponse<FortressStatus> |
+| Sovereignty Report | GET /api/privacy/sovereignty-report | ApiResponse<SovereigntyReport> |
+| Audit Logs | GET /api/privacy/audit-logs | ApiResponse<List<AuditLogDto>> |
+| Wipe Self Data | DELETE /api/privacy/wipe/self | ApiResponse<WipeResult> |
+
+### System Endpoints
+
+| Client Action | Server Endpoint | Response |
+|--------------|-----------------|----------|
+| System Status | GET /api/system/status | ApiResponse<SystemStatusDto> |
+| Model Health | GET /api/models/health | ApiResponse<OllamaHealthDto> |
+| List Models | GET /api/models | ApiResponse<List<OllamaModelInfo>> |
+| Active Model | GET /api/models/active | ApiResponse<ActiveModelDto> |
+
+### User Endpoints
 
 | Client Action | Server Endpoint | Response |
 |--------------|-----------------|----------|
@@ -348,17 +446,9 @@ AuthNotifier.logout()
 | Deactivate | PUT /api/users/{id}/deactivate | ApiResponse<Void> |
 | Delete User | DELETE /api/users/{id} | ApiResponse<Void> |
 
-### System Endpoints
-
-| Client Action | Server Endpoint | Response |
-|--------------|-----------------|----------|
-| System Status | GET /api/system/status | ApiResponse<SystemStatusDto> |
-| Model Health | GET /api/models/health | ApiResponse<OllamaHealthDto> |
-| Active Model | GET /api/models/active | ApiResponse<ActiveModelDto> |
-
 ---
 
-## 11. Security
+## 9. Security
 
 - JWT tokens stored exclusively in `flutter_secure_storage`
   - iOS: Keychain with `KeychainAccessibility.first_unlock`
@@ -371,22 +461,45 @@ AuthNotifier.logout()
 
 ---
 
-## 12. Test Coverage
+## 10. Test Coverage
 
 | Category | Test File | Tests |
 |----------|-----------|-------|
+| ConversationModel | test/core/models/conversation_model_test.dart | 4 |
+| MessageModel | test/core/models/message_model_test.dart | 4 |
+| MemoryModel | test/core/models/memory_model_test.dart | 6 |
+| KnowledgeDocumentModel | test/core/models/knowledge_document_model_test.dart | 6 |
+| SkillModel | test/core/models/skill_model_test.dart | 5 |
+| InventoryItemModel | test/core/models/inventory_item_model_test.dart | 7 |
+| SensorModel | test/core/models/sensor_model_test.dart | 7 |
+| InsightModel | test/core/models/insight_model_test.dart | 3 |
+| NotificationModel | test/core/models/notification_model_test.dart | 3 |
+| PrivacyModels | test/core/models/privacy_models_test.dart | 8 |
+| SystemModels | test/core/models/system_models_test.dart | 5 |
+| PageResponse | test/core/models/page_response_test.dart | 3 |
+| ApiClient/Models | test/core/api/myoffgridai_api_client_test.dart | 8 |
+| AuthState | test/core/auth/auth_state_test.dart | 4 |
+| ChatListScreen | test/features/chat/chat_list_screen_test.dart | 4 |
+| ChatConversationScreen | test/features/chat/chat_conversation_screen_test.dart | 4 |
+| MemoryScreen | test/features/memory/memory_screen_test.dart | 5 |
+| KnowledgeScreen | test/features/knowledge/knowledge_screen_test.dart | 4 |
+| SkillsScreen | test/features/skills/skills_screen_test.dart | 3 |
+| InventoryScreen | test/features/inventory/inventory_screen_test.dart | 5 |
+| SensorsScreen | test/features/sensors/sensors_screen_test.dart | 5 |
+| AddSensorScreen | test/features/sensors/add_sensor_screen_test.dart | 8 |
+| InsightsScreen | test/features/insights/insights_screen_test.dart | 5 |
+| PrivacyScreen | test/features/privacy/privacy_screen_test.dart | 5 |
+| SystemScreen | test/features/system/system_screen_test.dart | 8 |
+| UsersScreen | test/features/auth/users_screen_test.dart | 6 |
+| LoginScreen | test/features/auth/login_screen_test.dart | 6 |
+| RegisterScreen | test/features/auth/register_screen_test.dart | 4 |
+| DeviceNotSetupScreen | test/features/auth/device_not_setup_screen_test.dart | 4 |
 | LoadingIndicator | test/shared/widgets/loading_indicator_test.dart | 5 |
 | ErrorView | test/shared/widgets/error_view_test.dart | 4 |
 | EmptyStateView | test/shared/widgets/empty_state_view_test.dart | 3 |
 | ConfirmationDialog | test/shared/widgets/confirmation_dialog_test.dart | 3 |
 | ConnectionLostBanner | test/shared/widgets/connection_lost_banner_test.dart | 3 |
 | NotificationBadge | test/shared/widgets/notification_badge_test.dart | 4 |
-| LoginScreen | test/features/auth/login_screen_test.dart | 6 |
-| RegisterScreen | test/features/auth/register_screen_test.dart | 4 |
-| DeviceNotSetupScreen | test/features/auth/device_not_setup_screen_test.dart | 4 |
-| AuthState | test/core/auth/auth_state_test.dart | 4 |
-| ApiClient/Models | test/core/api/myoffgridai_api_client_test.dart | 8 |
 | DateFormatter | test/shared/utils/date_formatter_test.dart | 7 |
 | SizeFormatter | test/shared/utils/size_formatter_test.dart | 6 |
-| PageResponse | test/core/models/page_response_test.dart | 3 |
-| **Total** | | **65** (after randomized expansion) |
+| **Total** | | **189** |
