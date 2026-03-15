@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/providers.dart';
+import 'package:myoffgridai_client/core/models/system_models.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/shared/widgets/notification_badge.dart';
 
@@ -30,6 +31,7 @@ class SystemStatusBar extends ConsumerWidget {
     final healthAsync = ref.watch(modelHealthProvider);
     final unreadAsync = ref.watch(unreadCountProvider);
     final modelsAsync = ref.watch(ollamaModelsProvider);
+    final aiSettingsAsync = ref.watch(aiSettingsProvider);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -57,13 +59,47 @@ class SystemStatusBar extends ConsumerWidget {
                 PopupMenuButton<String>(
                   tooltip: 'Available models',
                   offset: const Offset(0, 30),
-                  onSelected: (model) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Model switching coming soon'),
-                        duration: AppConstants.snackBarDuration,
-                      ),
-                    );
+                  onSelected: (model) async {
+                    try {
+                      final currentSettings =
+                          aiSettingsAsync.valueOrNull;
+                      final service = ref.read(systemServiceProvider);
+                      await service.updateAiSettings(
+                        AiSettingsModel(
+                          modelName: model,
+                          temperature:
+                              currentSettings?.temperature ?? 0.7,
+                          similarityThreshold:
+                              currentSettings?.similarityThreshold ??
+                                  0.45,
+                          memoryTopK:
+                              currentSettings?.memoryTopK ?? 5,
+                          ragMaxContextTokens:
+                              currentSettings?.ragMaxContextTokens ??
+                                  2048,
+                        ),
+                      );
+                      ref.invalidate(aiSettingsProvider);
+                      ref.invalidate(modelHealthProvider);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Switched to $model'),
+                            duration: AppConstants.snackBarDuration,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Failed to switch model'),
+                            duration: AppConstants.snackBarDuration,
+                          ),
+                        );
+                      }
+                    }
                   },
                   itemBuilder: (context) {
                     final models = modelsAsync.valueOrNull ?? [];
@@ -75,8 +111,11 @@ class SystemStatusBar extends ConsumerWidget {
                         ),
                       ];
                     }
+                    final activeModel =
+                        aiSettingsAsync.valueOrNull?.modelName ??
+                            health.activeModel;
                     return models.map((model) {
-                      final isActive = model.name == health.activeModel;
+                      final isActive = model.name == activeModel;
                       return PopupMenuItem<String>(
                         value: model.name,
                         child: Row(

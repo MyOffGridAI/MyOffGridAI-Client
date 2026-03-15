@@ -231,6 +231,7 @@ class _AiMemoryTab extends ConsumerStatefulWidget {
 }
 
 class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
+  String _modelName = '';
   double _temperature = 0.7;
   double _similarityThreshold = 0.45;
   int _memoryTopK = 5;
@@ -262,6 +263,7 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
       ),
       data: (settings) {
         if (!_loaded) {
+          _modelName = settings.modelName;
           _temperature = settings.temperature;
           _similarityThreshold = settings.similarityThreshold;
           _memoryTopK = settings.memoryTopK;
@@ -269,9 +271,68 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
           _loaded = true;
         }
 
+        final modelsAsync = ref.watch(ollamaModelsProvider);
+
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Model selector
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Active Model',
+                      style:
+                          Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                    ),
+                    const SizedBox(height: 8),
+                    modelsAsync.when(
+                      data: (models) {
+                        final items = models
+                            .map((m) => DropdownMenuItem<String>(
+                                  value: m.name,
+                                  child: Text(
+                                    m.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ))
+                            .toList();
+                        // Ensure current value is in the list
+                        final hasValue =
+                            models.any((m) => m.name == _modelName);
+                        return DropdownButtonFormField<String>(
+                          initialValue: hasValue ? _modelName : null,
+                          hint: const Text('Select a model'),
+                          isExpanded: true,
+                          items: items,
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() => _modelName = v);
+                            }
+                          },
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                        );
+                      },
+                      loading: () => const Center(
+                          child: CircularProgressIndicator()),
+                      error: (_, __) =>
+                          const Text('Failed to load models'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
             // Temperature
             _buildSliderCard(
               context,
@@ -430,11 +491,14 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
     try {
       final service = ref.read(systemServiceProvider);
       await service.updateAiSettings(AiSettingsModel(
+        modelName: _modelName,
         temperature: _temperature,
         similarityThreshold: _similarityThreshold,
         memoryTopK: _memoryTopK,
         ragMaxContextTokens: _ragMaxContextTokens,
       ));
+      ref.invalidate(aiSettingsProvider);
+      ref.invalidate(modelHealthProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('AI settings saved successfully')),

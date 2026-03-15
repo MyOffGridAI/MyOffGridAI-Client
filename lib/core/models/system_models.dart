@@ -59,12 +59,14 @@ class OllamaModelInfoModel {
 ///
 /// Mirrors the server's AiSettingsDto.
 class AiSettingsModel {
+  final String modelName;
   final double temperature;
   final double similarityThreshold;
   final int memoryTopK;
   final int ragMaxContextTokens;
 
   const AiSettingsModel({
+    this.modelName = '',
     this.temperature = 0.7,
     this.similarityThreshold = 0.45,
     this.memoryTopK = 5,
@@ -74,6 +76,7 @@ class AiSettingsModel {
   /// Creates an [AiSettingsModel] from a JSON map.
   factory AiSettingsModel.fromJson(Map<String, dynamic> json) {
     return AiSettingsModel(
+      modelName: json['modelName'] as String? ?? '',
       temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
       similarityThreshold:
           (json['similarityThreshold'] as num?)?.toDouble() ?? 0.45,
@@ -84,6 +87,7 @@ class AiSettingsModel {
 
   /// Converts this model to a JSON map for API requests.
   Map<String, dynamic> toJson() => {
+        'modelName': modelName,
         'temperature': temperature,
         'similarityThreshold': similarityThreshold,
         'memoryTopK': memoryTopK,
