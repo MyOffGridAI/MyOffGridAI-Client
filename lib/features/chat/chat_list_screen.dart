@@ -2,154 +2,158 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
-import 'package:myoffgridai_client/core/models/conversation_model.dart';
+import 'package:myoffgridai_client/core/auth/auth_state.dart';
+import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
-import 'package:myoffgridai_client/shared/utils/date_formatter.dart';
-import 'package:myoffgridai_client/shared/widgets/empty_state_view.dart';
-import 'package:myoffgridai_client/shared/widgets/error_view.dart';
-import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
-/// Displays the list of chat conversations.
+/// Claude-style centered welcome page with greeting and input box.
 ///
-/// Shows active conversations with last message previews. Provides a FAB
-/// to start new conversations and swipe-to-delete for existing ones.
-class ChatListScreen extends ConsumerWidget {
+/// Replaces the previous conversation list since conversations are now
+/// listed in the NavigationPanel sidebar. Typing in the input box creates
+/// a new conversation and navigates to the chat view.
+class ChatListScreen extends ConsumerStatefulWidget {
   /// Creates a [ChatListScreen].
   const ChatListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final conversationsAsync = ref.watch(conversationsProvider);
+  ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
+}
+
+class _ChatListScreenState extends ConsumerState<ChatListScreen> {
+  final _controller = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authAsync = ref.watch(authStateProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Conversations')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _createConversation(context, ref),
-        child: const Icon(Icons.add),
-      ),
-      body: conversationsAsync.when(
-        loading: () => const LoadingIndicator(),
-        error: (error, _) => ErrorView(
-          title: 'Failed to load conversations',
-          message: error is ApiException
-              ? error.message
-              : 'An unexpected error occurred.',
-          onRetry: () => ref.invalidate(conversationsProvider),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ── Greeting ──
+              authAsync.when(
+                data: (user) => Text(
+                  '${_greeting()}, ${user?.displayName ?? 'there'}!',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                loading: () => Text(
+                  '${_greeting()}!',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                error: (_, __) => Text(
+                  '${_greeting()}!',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'How can I help you today?',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.5),
+                    ),
+              ),
+              const SizedBox(height: 32),
+
+              // ── Input Box ──
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: TextField(
+                  controller: _controller,
+                  enabled: !_sending,
+                  decoration: InputDecoration(
+                    hintText: 'Ask anything...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: _sending
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send),
+                      onPressed:
+                          _sending ? null : () => _startConversation(),
+                    ),
+                  ),
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: _sending ? null : (_) => _startConversation(),
+                ),
+              ),
+            ],
+          ),
         ),
-        data: (conversations) {
-          if (conversations.isEmpty) {
-            return const EmptyStateView(
-              icon: Icons.chat_bubble_outline,
-              title: 'No conversations yet',
-              subtitle: 'Tap + to start a new conversation',
-            );
-          }
-          return ListView.builder(
-            itemCount: conversations.length,
-            itemBuilder: (context, index) {
-              final conv = conversations[index];
-              return _ConversationTile(
-                conversation: conv,
-                onTap: () => context.go('/chat/${conv.id}'),
-                onDelete: () => _deleteConversation(context, ref, conv.id),
-              );
-            },
-          );
-        },
       ),
     );
   }
 
-  Future<void> _createConversation(BuildContext context, WidgetRef ref) async {
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  Future<void> _startConversation() async {
+    final content = _controller.text.trim();
+    if (content.isEmpty) return;
+
+    setState(() => _sending = true);
     try {
       final service = ref.read(chatServiceProvider);
       final conv = await service.createConversation();
       ref.invalidate(conversationsProvider);
-      if (context.mounted) {
+
+      if (mounted) {
         context.go('/chat/${conv.id}');
       }
+
+      // Send the message after navigation
+      ref
+          .read(chatMessagesNotifierProvider(conv.id).notifier)
+          .sendMessage(content);
     } on ApiException catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message)),
         );
       }
-    }
-  }
-
-  Future<void> _deleteConversation(
-    BuildContext context,
-    WidgetRef ref,
-    String conversationId,
-  ) async {
-    try {
-      final service = ref.read(chatServiceProvider);
-      await service.deleteConversation(conversationId);
-      ref.invalidate(conversationsProvider);
-    } on ApiException catch (e) {
-      if (context.mounted) {
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
+          const SnackBar(content: Text('Failed to start conversation')),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
     }
-  }
-}
-
-class _ConversationTile extends StatelessWidget {
-  final ConversationSummaryModel conversation;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
-
-  const _ConversationTile({
-    required this.conversation,
-    required this.onTap,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Dismissible(
-      key: Key(conversation.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Theme.of(context).colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      onDismissed: (_) => onDelete(),
-      child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.chat_bubble_outline)),
-        title: Text(
-          conversation.title ?? 'New Conversation',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: conversation.lastMessagePreview != null
-            ? Text(
-                conversation.lastMessagePreview!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (conversation.updatedAt != null)
-              Text(
-                DateFormatter.formatRelative(DateTime.parse(conversation.updatedAt!)),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            Text(
-              '${conversation.messageCount} msgs',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        onTap: onTap,
-      ),
-    );
   }
 }

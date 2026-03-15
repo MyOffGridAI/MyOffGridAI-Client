@@ -41,6 +41,25 @@ class SystemService {
     final data = response['data'] as Map<String, dynamic>;
     return ActiveModelInfo.fromJson(data);
   }
+
+  /// Gets the current AI and memory settings.
+  Future<AiSettingsModel> getAiSettings() async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.systemBasePath}/ai-settings',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return AiSettingsModel.fromJson(data);
+  }
+
+  /// Updates AI and memory settings.
+  Future<AiSettingsModel> updateAiSettings(AiSettingsModel settings) async {
+    final response = await _client.put<Map<String, dynamic>>(
+      '${AppConstants.systemBasePath}/ai-settings',
+      data: settings.toJson(),
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return AiSettingsModel.fromJson(data);
+  }
 }
 
 /// Riverpod provider for [SystemService].
@@ -61,4 +80,11 @@ final ollamaModelsProvider =
     FutureProvider.autoDispose<List<OllamaModelInfoModel>>((ref) async {
   final service = ref.watch(systemServiceProvider);
   return service.listModels();
+});
+
+/// Provider for AI and memory settings.
+final aiSettingsProvider =
+    FutureProvider.autoDispose<AiSettingsModel>((ref) async {
+  final service = ref.watch(systemServiceProvider);
+  return service.getAiSettings();
 });
