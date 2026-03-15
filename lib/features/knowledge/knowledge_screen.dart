@@ -290,17 +290,7 @@ class _DocumentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: Key(document.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Theme.of(context).colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      onDismissed: (_) => onDelete(),
-      child: ListTile(
+    return ListTile(
         leading: _statusIcon(document.status),
         title: Text(
           document.displayName ?? document.filename,
@@ -327,15 +317,15 @@ class _DocumentTile extends StatelessWidget {
                 onPressed: onRetry,
                 tooltip: 'Retry processing',
               ),
-            if (document.uploadedAt != null)
-              Text(
-                document.uploadedAt ?? '',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+            IconButton(
+              icon: Icon(Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error),
+              onPressed: onDelete,
+              tooltip: 'Delete document',
+            ),
           ],
         ),
         onTap: onTap,
-      ),
     );
   }
 

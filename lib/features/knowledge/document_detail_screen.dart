@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
 import 'package:myoffgridai_client/core/services/knowledge_service.dart';
 import 'package:myoffgridai_client/shared/utils/date_formatter.dart';
 import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
+import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
@@ -39,7 +41,20 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
     final docAsync = ref.watch(_documentProvider(widget.documentId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Document Details')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/knowledge'),
+        ),
+        title: const Text('Document Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete document',
+            onPressed: () => _deleteDocument(),
+          ),
+        ],
+      ),
       body: docAsync.when(
         loading: () => const LoadingIndicator(),
         error: (error, _) => ErrorView(
@@ -142,6 +157,31 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteDocument() async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Document',
+      message: 'This document and all its chunks will be permanently deleted.',
+      isDestructive: true,
+    );
+    if (confirmed != true) return;
+
+    try {
+      final service = ref.read(knowledgeServiceProvider);
+      await service.deleteDocument(widget.documentId);
+      ref.invalidate(knowledgeDocumentsProvider);
+      if (mounted) {
+        context.go('/knowledge');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
   }
 
   Future<void> _editDisplayName(KnowledgeDocumentModel doc) async {
