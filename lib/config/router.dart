@@ -9,16 +9,17 @@ import 'package:myoffgridai_client/features/auth/register_screen.dart';
 import 'package:myoffgridai_client/features/auth/users_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
-import 'package:myoffgridai_client/features/chat/chat_shell.dart';
 import 'package:myoffgridai_client/features/insights/insights_screen.dart';
 import 'package:myoffgridai_client/features/inventory/inventory_screen.dart';
 import 'package:myoffgridai_client/features/knowledge/document_detail_screen.dart';
 import 'package:myoffgridai_client/features/knowledge/knowledge_screen.dart';
 import 'package:myoffgridai_client/features/memory/memory_screen.dart';
 import 'package:myoffgridai_client/features/privacy/privacy_screen.dart';
+import 'package:myoffgridai_client/features/search/search_screen.dart';
 import 'package:myoffgridai_client/features/sensors/add_sensor_screen.dart';
 import 'package:myoffgridai_client/features/sensors/sensor_detail_screen.dart';
 import 'package:myoffgridai_client/features/sensors/sensors_screen.dart';
+import 'package:myoffgridai_client/features/settings/settings_screen.dart';
 import 'package:myoffgridai_client/features/skills/skills_screen.dart';
 import 'package:myoffgridai_client/features/system/system_screen.dart';
 import 'package:myoffgridai_client/shared/widgets/app_shell.dart';
@@ -72,28 +73,31 @@ GoRouter createRouter(Ref ref) {
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
-          // Chat routes wrapped in ChatShell for sidebar
-          ShellRoute(
-            builder: (context, state, child) => ChatShell(child: child),
-            routes: [
-              GoRoute(
-                path: AppConstants.routeHome,
-                builder: (context, state) => const ChatListScreen(),
-              ),
-              GoRoute(
-                path: AppConstants.routeChat,
-                builder: (context, state) => const ChatListScreen(),
-              ),
-              GoRoute(
-                path: AppConstants.routeChatConversation,
-                builder: (context, state) => ChatConversationScreen(
-                  conversationId:
-                      state.pathParameters['conversationId'] ?? '',
-                ),
-              ),
-            ],
+          // Chat routes — no longer wrapped in ChatShell;
+          // sidebar is now part of NavigationPanel inside AppShell.
+          GoRoute(
+            path: AppConstants.routeHome,
+            builder: (context, state) => const ChatListScreen(),
           ),
-          // Non-chat routes (no sidebar)
+          GoRoute(
+            path: AppConstants.routeChat,
+            builder: (context, state) => const ChatListScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeChatConversation,
+            builder: (context, state) => ChatConversationScreen(
+              conversationId:
+                  state.pathParameters['conversationId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: AppConstants.routeSettings,
+            builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeSearch,
+            builder: (context, state) => const SearchScreen(),
+          ),
           GoRoute(
             path: AppConstants.routeMemory,
             builder: (context, state) => const MemoryScreen(),

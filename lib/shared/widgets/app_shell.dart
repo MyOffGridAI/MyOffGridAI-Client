@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/shared/widgets/connection_lost_banner.dart';
+import 'package:myoffgridai_client/shared/widgets/navigation_panel.dart';
 import 'package:myoffgridai_client/shared/widgets/system_status_bar.dart';
 
 /// Responsive scaffold with adaptive navigation for MyOffGridAI.
 ///
-/// Uses [BottomNavigationBar] on mobile (< 600px) and [NavigationRail]
-/// on tablet/web (>= 600px). Includes [SystemStatusBar] at the top
+/// Uses [BottomNavigationBar] on mobile (< 600px) and [NavigationPanel]
+/// on desktop (>= 600px). Includes [SystemStatusBar] at the top
 /// and [ConnectionLostBanner] when the server is unreachable.
 class AppShell extends ConsumerStatefulWidget {
   /// The child widget rendered in the content area (from GoRouter).
@@ -69,39 +70,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ? widget.child
                 : Row(
                     children: [
-                      NavigationRail(
-                        selectedIndex: _selectedIndex,
-                        onDestinationSelected: _onDestinationSelected,
-                        labelType: NavigationRailLabelType.all,
-                        destinations: const [
-                          NavigationRailDestination(
-                            icon: Icon(Icons.chat_bubble_outline),
-                            selectedIcon: Icon(Icons.chat_bubble),
-                            label: Text('Chat'),
-                          ),
-                          NavigationRailDestination(
-                            icon: Icon(Icons.psychology_outlined),
-                            selectedIcon: Icon(Icons.psychology),
-                            label: Text('Memory'),
-                          ),
-                          NavigationRailDestination(
-                            icon: Icon(Icons.library_books_outlined),
-                            selectedIcon: Icon(Icons.library_books),
-                            label: Text('Knowledge'),
-                          ),
-                          NavigationRailDestination(
-                            icon: Icon(Icons.sensors),
-                            selectedIcon: Icon(Icons.sensors),
-                            label: Text('Sensors'),
-                          ),
-                          NavigationRailDestination(
-                            icon: Icon(Icons.more_horiz),
-                            selectedIcon: Icon(Icons.more_horiz),
-                            label: Text('More'),
-                          ),
-                        ],
+                      NavigationPanel(
+                        onOpenMoreDrawer: () =>
+                            Scaffold.of(context).openEndDrawer(),
                       ),
-                      const VerticalDivider(thickness: 1, width: 1),
                       Expanded(child: widget.child),
                     ],
                   ),

@@ -56,6 +56,8 @@ class AppConstants {
   static const String routeKnowledgeDetail = '/knowledge/:documentId';
   static const String routeSensorDetail = '/sensors/:sensorId';
   static const String routeSensorAdd = '/sensors/add';
+  static const String routeSettings = '/settings';
+  static const String routeSearch = '/search';
   static const String routeDeviceNotSetup = '/device-not-setup';
 
   // Pagination
@@ -68,9 +70,12 @@ class AppConstants {
   static const double mobileBreakpoint = 600;
   static const double tabletBreakpoint = 1200;
 
-  // Sidebar
-  static const double sidebarExpandedWidth = 280.0;
-  static const double sidebarCollapsedWidth = 60.0;
+  // Navigation panel
+  static const double navPanelExpandedWidth = 280.0;
+  static const double navPanelCollapsedWidth = 72.0;
+  // Legacy aliases
+  static const double sidebarExpandedWidth = navPanelExpandedWidth;
+  static const double sidebarCollapsedWidth = navPanelCollapsedWidth;
 
   // Polling intervals
   static const Duration connectionPollInterval = Duration(seconds: 10);

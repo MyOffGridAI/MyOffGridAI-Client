@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
+import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 
 /// Manages messages for a single conversation with optimistic updates.
 ///
@@ -21,9 +22,10 @@ class ChatMessagesNotifier
   ///
   /// 1. Appends a temporary user bubble so the UI updates instantly.
   /// 2. Sets the thinking flag so the thinking indicator shows.
-  /// 3. Calls the API.
+  /// 3. Calls the API with a stopwatch running for response timing.
   /// 4. On success: re-fetches messages from server and clears thinking.
-  /// 5. On error: removes the temp message, clears thinking, rethrows.
+  /// 5. Schedules a delayed re-fetch to pick up async title generation.
+  /// 6. On error: removes the temp message, clears thinking, rethrows.
   Future<void> sendMessage(String content) async {
     final conversationId = arg;
     final tempId = 'temp-${DateTime.now().millisecondsSinceEpoch}';
@@ -46,7 +48,15 @@ class ChatMessagesNotifier
 
     try {
       final service = ref.read(chatServiceProvider);
+
+      // Track response time
+      final stopwatch = Stopwatch()..start();
       await service.sendMessage(conversationId, content);
+      stopwatch.stop();
+
+      // Store response time for display on the AI bubble
+      ref.read(responseTimeProvider(conversationId).notifier).state =
+          stopwatch.elapsed;
 
       // Re-fetch from server to get persisted messages + assistant response
       final messages = await service.listMessages(conversationId);
@@ -54,6 +64,13 @@ class ChatMessagesNotifier
 
       // Refresh conversation list (title may have changed)
       ref.invalidate(conversationsProvider);
+
+      // Delayed re-fetch to pick up async title generation (~3s later)
+      Future.delayed(const Duration(seconds: 3), () {
+        if (ref.exists(conversationsProvider)) {
+          ref.invalidate(conversationsProvider);
+        }
+      });
     } catch (e) {
       // Remove temp message on error
       final current = state.valueOrNull ?? [];

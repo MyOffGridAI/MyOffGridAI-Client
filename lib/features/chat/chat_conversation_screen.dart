@@ -8,6 +8,12 @@ import 'package:myoffgridai_client/features/chat/widgets/thinking_indicator.dart
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
+/// Provider for the response time of the latest AI response per conversation.
+final responseTimeProvider =
+    StateProvider.autoDispose.family<Duration?, String>((ref, conversationId) {
+  return null;
+});
+
 /// Chat conversation screen showing messages and input field.
 ///
 /// Displays messages in a scrollable list with the input field at the
@@ -44,47 +50,73 @@ class _ChatConversationScreenState
         ref.watch(chatMessagesNotifierProvider(widget.conversationId));
     final isThinking =
         ref.watch(aiThinkingProvider(widget.conversationId));
+    final responseTime =
+        ref.watch(responseTimeProvider(widget.conversationId));
 
-    return Column(
-      children: [
-        Expanded(
-          child: messagesAsync.when(
-            loading: () => const LoadingIndicator(),
-            error: (error, _) => ErrorView(
-              title: 'Failed to load messages',
-              message: error is ApiException
-                  ? error.message
-                  : 'An unexpected error occurred.',
-              onRetry: () => ref.invalidate(
-                  chatMessagesNotifierProvider(widget.conversationId)),
-            ),
-            data: (messages) {
-              final itemCount = messages.length + (isThinking ? 1 : 0);
-              if (messages.isEmpty && !isThinking) {
-                return const Center(
-                  child: Text('Send a message to start the conversation'),
+    // Get conversation title from the conversations list
+    final conversationsAsync = ref.watch(conversationsProvider);
+    final title = conversationsAsync.whenOrNull(
+      data: (conversations) {
+        final match = conversations
+            .where((c) => c.id == widget.conversationId)
+            .toList();
+        return match.isNotEmpty ? match.first.title : null;
+      },
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title ?? 'New Conversation'),
+        automaticallyImplyLeading: false,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: messagesAsync.when(
+              loading: () => const LoadingIndicator(),
+              error: (error, _) => ErrorView(
+                title: 'Failed to load messages',
+                message: error is ApiException
+                    ? error.message
+                    : 'An unexpected error occurred.',
+                onRetry: () => ref.invalidate(
+                    chatMessagesNotifierProvider(widget.conversationId)),
+              ),
+              data: (messages) {
+                final itemCount = messages.length + (isThinking ? 1 : 0);
+                if (messages.isEmpty && !isThinking) {
+                  return const Center(
+                    child: Text('Send a message to start the conversation'),
+                  );
+                }
+                return ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: itemCount,
+                  itemBuilder: (context, index) {
+                    // Index 0 = bottom of list (most recent)
+                    if (isThinking && index == 0) {
+                      return const ThinkingIndicatorBubble();
+                    }
+                    final msgIndex = isThinking ? index - 1 : index;
+                    final msg = messages[messages.length - 1 - msgIndex];
+                    // Show response time only on the last assistant message
+                    final isLastAssistant = msg.isAssistant &&
+                        msgIndex == 0 &&
+                        !isThinking;
+                    return _MessageBubble(
+                      message: msg,
+                      responseTime: isLastAssistant ? responseTime : null,
+                    );
+                  },
                 );
-              }
-              return ListView.builder(
-                controller: _scrollController,
-                reverse: true,
-                padding: const EdgeInsets.all(16),
-                itemCount: itemCount,
-                itemBuilder: (context, index) {
-                  // Index 0 = bottom of list (most recent)
-                  if (isThinking && index == 0) {
-                    return const ThinkingIndicatorBubble();
-                  }
-                  final msgIndex = isThinking ? index - 1 : index;
-                  final msg = messages[messages.length - 1 - msgIndex];
-                  return _MessageBubble(message: msg);
-                },
-              );
-            },
+              },
+            ),
           ),
-        ),
-        _buildInputBar(context),
-      ],
+          _buildInputBar(context),
+        ],
+      ),
     );
   }
 
@@ -156,8 +188,9 @@ class _ChatConversationScreenState
 
 class _MessageBubble extends StatelessWidget {
   final MessageModel message;
+  final Duration? responseTime;
 
-  const _MessageBubble({required this.message});
+  const _MessageBubble({required this.message, this.responseTime});
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +214,17 @@ class _MessageBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (responseTime != null && !isUser)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'thought for ${(responseTime!.inMilliseconds / 1000).toStringAsFixed(1)}s',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
             SelectableText(
               message.content,
               style: TextStyle(

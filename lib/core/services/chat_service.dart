@@ -77,6 +77,22 @@ class ChatService {
     return ConversationModel.fromJson(data);
   }
 
+  /// Searches conversations by title.
+  Future<List<ConversationSummaryModel>> searchConversations(
+    String query,
+  ) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.chatBasePath}/conversations/search',
+      queryParams: {'q': query},
+    );
+    final data = response['data'] as List<dynamic>?;
+    if (data == null) return [];
+    return data
+        .map((e) =>
+            ConversationSummaryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Lists messages in a conversation with pagination.
   Future<List<MessageModel>> listMessages(
     String conversationId, {

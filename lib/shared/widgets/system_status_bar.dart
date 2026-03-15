@@ -3,21 +3,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/providers.dart';
+import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/shared/widgets/notification_badge.dart';
 
 /// Compact bar displayed below the app bar showing Ollama status and notifications.
 ///
-/// Shows a green/red status dot for Ollama availability, the active model name,
-/// and the unread notification count. Tapping the notification count navigates
-/// to the Insights screen.
+/// Shows a green/red status dot for Ollama availability, a dropdown of
+/// available models (visual only), and the unread notification count.
+/// Tapping the notification count navigates to the Insights screen.
 class SystemStatusBar extends ConsumerWidget {
   /// Creates a [SystemStatusBar].
   const SystemStatusBar({super.key});
+
+  String _formatSize(int bytes) {
+    if (bytes >= 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+    }
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
+    }
+    return '${(bytes / 1024).toStringAsFixed(0)} KB';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final healthAsync = ref.watch(modelHealthProvider);
     final unreadAsync = ref.watch(unreadCountProvider);
+    final modelsAsync = ref.watch(ollamaModelsProvider);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -42,9 +54,77 @@ class SystemStatusBar extends ConsumerWidget {
                   color: health.available ? Colors.green : Colors.red,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  health.activeModel ?? 'No model',
-                  style: Theme.of(context).textTheme.bodySmall,
+                PopupMenuButton<String>(
+                  tooltip: 'Available models',
+                  offset: const Offset(0, 30),
+                  onSelected: (model) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Model switching coming soon'),
+                        duration: AppConstants.snackBarDuration,
+                      ),
+                    );
+                  },
+                  itemBuilder: (context) {
+                    final models = modelsAsync.valueOrNull ?? [];
+                    if (models.isEmpty) {
+                      return [
+                        const PopupMenuItem<String>(
+                          enabled: false,
+                          child: Text('No models available'),
+                        ),
+                      ];
+                    }
+                    return models.map((model) {
+                      final isActive = model.name == health.activeModel;
+                      return PopupMenuItem<String>(
+                        value: model.name,
+                        child: Row(
+                          children: [
+                            if (isActive)
+                              const Icon(Icons.check, size: 16)
+                            else
+                              const SizedBox(width: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                model.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatSize(model.size),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList();
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        health.activeModel ?? 'No model',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

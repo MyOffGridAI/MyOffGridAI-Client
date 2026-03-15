@@ -8,32 +8,132 @@ import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/shared/utils/date_formatter.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 
-/// Collapsible sidebar listing previous conversations.
+/// Unified navigation panel combining nav items, conversation list,
+/// search shortcut, and settings into a single Claude-style sidebar.
 ///
-/// Shows conversation titles, last message previews, and relative dates
-/// when expanded. In collapsed mode shows only avatar icons with tooltips.
-/// Each tile has an ellipsis menu with Rename and Delete actions.
-class ChatSidebar extends ConsumerWidget {
-  /// Creates a [ChatSidebar].
-  const ChatSidebar({super.key});
+/// Replaces the old [NavigationRail] + [ChatSidebar] two-column layout.
+/// Supports expand/collapse with smooth [AnimatedContainer] transition.
+class NavigationPanel extends ConsumerStatefulWidget {
+  /// Callback to open the "More" end drawer from the parent [Scaffold].
+  final VoidCallback onOpenMoreDrawer;
+
+  /// Creates a [NavigationPanel].
+  const NavigationPanel({super.key, required this.onOpenMoreDrawer});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NavigationPanel> createState() => _NavigationPanelState();
+}
+
+class _NavigationPanelState extends ConsumerState<NavigationPanel> {
+  @override
+  Widget build(BuildContext context) {
     final isCollapsed = ref.watch(sidebarCollapsedProvider);
     final conversationsAsync = ref.watch(conversationsProvider);
     final currentLocation = GoRouterState.of(context).matchedLocation;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return AnimatedContainer(
       duration: AppConstants.animationDuration,
       width: isCollapsed
-          ? AppConstants.sidebarCollapsedWidth
-          : AppConstants.sidebarExpandedWidth,
+          ? AppConstants.navPanelCollapsedWidth
+          : AppConstants.navPanelExpandedWidth,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(
+          right: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+        ),
+      ),
       child: Column(
         children: [
+          // ── Header with collapse toggle ──
           _buildHeader(context, ref, isCollapsed),
           const Divider(height: 1),
-          _buildNewConversationButton(context, ref, isCollapsed),
+
+          // ── New Chat button ──
+          _buildNewChatButton(context, ref, isCollapsed),
           const Divider(height: 1),
+
+          // ── Search shortcut ──
+          _buildNavItem(
+            context,
+            icon: Icons.search,
+            label: 'Search',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeSearch,
+            onTap: () => context.go(AppConstants.routeSearch),
+          ),
+          const Divider(height: 1),
+
+          // ── Navigation section ──
+          if (!isCollapsed)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Navigation',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+          _buildNavItem(
+            context,
+            icon: Icons.psychology_outlined,
+            selectedIcon: Icons.psychology,
+            label: 'Memory',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeMemory,
+            onTap: () => context.go(AppConstants.routeMemory),
+          ),
+          _buildNavItem(
+            context,
+            icon: Icons.library_books_outlined,
+            selectedIcon: Icons.library_books,
+            label: 'Knowledge',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeKnowledge ||
+                currentLocation.startsWith('/knowledge/'),
+            onTap: () => context.go(AppConstants.routeKnowledge),
+          ),
+          _buildNavItem(
+            context,
+            icon: Icons.sensors,
+            label: 'Sensors',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeSensors ||
+                currentLocation.startsWith('/sensors'),
+            onTap: () => context.go(AppConstants.routeSensors),
+          ),
+          _buildNavItem(
+            context,
+            icon: Icons.more_horiz,
+            label: 'More',
+            isCollapsed: isCollapsed,
+            isSelected: false,
+            onTap: widget.onOpenMoreDrawer,
+          ),
+          const Divider(height: 1),
+
+          // ── Conversations section (Expanded) ──
+          if (!isCollapsed)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Conversations',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: conversationsAsync.when(
               loading: () => const Center(
@@ -54,19 +154,29 @@ class ChatSidebar extends ConsumerWidget {
                 itemBuilder: (context, index) {
                   final conv = conversations[index];
                   final isSelected = currentLocation == '/chat/${conv.id}';
-                  return _ConversationSidebarTile(
+                  return _ConversationTile(
                     conversation: conv,
                     isSelected: isSelected,
                     isCollapsed: isCollapsed,
                     onTap: () => context.go('/chat/${conv.id}'),
-                    onRename: () =>
-                        _showRenameDialog(context, ref, conv),
-                    onDelete: () =>
-                        _confirmDelete(context, ref, conv.id),
+                    onRename: () => _showRenameDialog(context, ref, conv),
+                    onDelete: () => _confirmDelete(context, ref, conv.id),
                   );
                 },
               ),
             ),
+          ),
+
+          // ── Settings pinned at bottom ──
+          const Divider(height: 1),
+          _buildNavItem(
+            context,
+            icon: Icons.settings_outlined,
+            selectedIcon: Icons.settings,
+            label: 'Settings',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeSettings,
+            onTap: () => context.go(AppConstants.routeSettings),
           ),
         ],
       ),
@@ -82,9 +192,9 @@ class ChatSidebar extends ConsumerWidget {
           children: [
             IconButton(
               icon: Icon(
-                isCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                isCollapsed ? Icons.menu : Icons.menu_open,
               ),
-              tooltip: isCollapsed ? 'Expand sidebar' : 'Collapse sidebar',
+              tooltip: isCollapsed ? 'Expand panel' : 'Collapse panel',
               onPressed: () => ref
                   .read(sidebarCollapsedProvider.notifier)
                   .state = !isCollapsed,
@@ -93,7 +203,7 @@ class ChatSidebar extends ConsumerWidget {
               const SizedBox(width: 4),
               const Expanded(
                 child: Text(
-                  'Conversations',
+                  'MyOffGrid AI',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -105,7 +215,7 @@ class ChatSidebar extends ConsumerWidget {
     );
   }
 
-  Widget _buildNewConversationButton(
+  Widget _buildNewChatButton(
     BuildContext context,
     WidgetRef ref,
     bool isCollapsed,
@@ -129,6 +239,67 @@ class ChatSidebar extends ConsumerWidget {
           label: const Text('New Chat'),
           onPressed: () => _createConversation(context, ref),
         ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context, {
+    required IconData icon,
+    IconData? selectedIcon,
+    required String label,
+    required bool isCollapsed,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final effectiveIcon = isSelected ? (selectedIcon ?? icon) : icon;
+
+    if (isCollapsed) {
+      return Tooltip(
+        message: label,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              effectiveIcon,
+              color: isSelected ? colorScheme.onPrimaryContainer : null,
+            ),
+            onPressed: onTap,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 4),
+      decoration: BoxDecoration(
+        color: isSelected ? colorScheme.primaryContainer : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        visualDensity: VisualDensity.compact,
+        leading: Icon(
+          effectiveIcon,
+          size: 20,
+          color: isSelected ? colorScheme.onPrimaryContainer : null,
+        ),
+        title: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected ? colorScheme.onPrimaryContainer : null,
+          ),
+        ),
+        onTap: onTap,
       ),
     );
   }
@@ -221,7 +392,6 @@ class ChatSidebar extends ConsumerWidget {
         await service.deleteConversation(conversationId);
         ref.invalidate(conversationsProvider);
 
-        // Navigate away if viewing the deleted conversation
         if (context.mounted) {
           final location = GoRouterState.of(context).matchedLocation;
           if (location == '/chat/$conversationId') {
@@ -239,7 +409,7 @@ class ChatSidebar extends ConsumerWidget {
   }
 }
 
-class _ConversationSidebarTile extends StatelessWidget {
+class _ConversationTile extends StatelessWidget {
   final ConversationSummaryModel conversation;
   final bool isSelected;
   final bool isCollapsed;
@@ -247,7 +417,7 @@ class _ConversationSidebarTile extends StatelessWidget {
   final VoidCallback onRename;
   final VoidCallback onDelete;
 
-  const _ConversationSidebarTile({
+  const _ConversationTile({
     required this.conversation,
     required this.isSelected,
     required this.isCollapsed,
