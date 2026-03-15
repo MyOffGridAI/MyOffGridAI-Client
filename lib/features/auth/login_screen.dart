@@ -52,37 +52,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    try {
-      await ref.read(authStateProvider.notifier).login(
-            _usernameController.text.trim(),
-            _passwordController.text,
-          );
-      if (mounted) {
-        context.go(AppConstants.routeHome);
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            duration: AppConstants.snackBarDuration,
-          ),
+    await ref.read(authStateProvider.notifier).login(
+          _usernameController.text.trim(),
+          _passwordController.text,
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            duration: AppConstants.snackBarDuration,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+
+    if (!mounted) return;
+
+    final authState = ref.read(authStateProvider);
+    if (authState.hasError) {
+      final error = authState.error;
+      final message = error is ApiException
+          ? error.message
+          : error?.toString() ?? 'An unexpected error occurred';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: AppConstants.snackBarDuration,
+        ),
+      );
+    } else {
+      context.go(AppConstants.routeHome);
     }
+
+    setState(() => _isLoading = false);
   }
 
   Future<void> _showServerUrlDialog() async {
