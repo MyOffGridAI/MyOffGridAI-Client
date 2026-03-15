@@ -48,13 +48,21 @@ class _ChatConversationScreenState
   void initState() {
     super.initState();
     if (widget.initialMessage != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref
-              .read(chatMessagesNotifierProvider(widget.conversationId).notifier)
-              .sendMessage(widget.initialMessage!);
-        }
-      });
+      _sendInitialMessage();
+    }
+  }
+
+  /// Waits for the notifier's initial build to complete, then sends
+  /// the welcome-screen message. Awaiting the build prevents it from
+  /// overwriting the optimistic user bubble with an empty list.
+  Future<void> _sendInitialMessage() async {
+    await ref.read(
+      chatMessagesNotifierProvider(widget.conversationId).future,
+    );
+    if (mounted) {
+      ref
+          .read(chatMessagesNotifierProvider(widget.conversationId).notifier)
+          .sendMessage(widget.initialMessage!);
     }
   }
 
