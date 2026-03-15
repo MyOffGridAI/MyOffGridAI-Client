@@ -332,13 +332,11 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename Conversation'),
+        title: const Text('Rename chat'),
         content: TextField(
           controller: controller,
           autofocus: true,
-          maxLength: 100,
           decoration: const InputDecoration(
-            labelText: 'Title',
             border: OutlineInputBorder(),
           ),
           onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
@@ -348,9 +346,9 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Rename'),
+            child: const Text('Save'),
           ),
         ],
       ),
