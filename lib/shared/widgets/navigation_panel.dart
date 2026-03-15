@@ -149,21 +149,29 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
                   onPressed: () => ref.invalidate(conversationsProvider),
                 ),
               ),
-              data: (conversations) => ListView.builder(
-                itemCount: conversations.length,
-                itemBuilder: (context, index) {
-                  final conv = conversations[index];
-                  final isSelected = currentLocation == '/chat/${conv.id}';
-                  return _ConversationTile(
-                    conversation: conv,
-                    isSelected: isSelected,
-                    isCollapsed: isCollapsed,
-                    onTap: () => context.go('/chat/${conv.id}'),
-                    onRename: () => _showRenameDialog(context, ref, conv),
-                    onDelete: () => _confirmDelete(context, ref, conv.id),
-                  );
-                },
-              ),
+              data: (conversations) {
+                // Capture the stable State context for dialogs — the
+                // ListView.builder context can become invalid after a
+                // PopupMenuButton route pops.
+                final stableContext = this.context;
+                return ListView.builder(
+                  itemCount: conversations.length,
+                  itemBuilder: (context, index) {
+                    final conv = conversations[index];
+                    final isSelected = currentLocation == '/chat/${conv.id}';
+                    return _ConversationTile(
+                      conversation: conv,
+                      isSelected: isSelected,
+                      isCollapsed: isCollapsed,
+                      onTap: () => context.go('/chat/${conv.id}'),
+                      onRename: () =>
+                          _showRenameDialog(stableContext, ref, conv),
+                      onDelete: () =>
+                          _confirmDelete(stableContext, ref, conv.id),
+                    );
+                  },
+                );
+              },
             ),
           ),
 
