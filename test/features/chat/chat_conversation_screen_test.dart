@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
-import 'package:myoffgridai_client/core/services/chat_service.dart';
+import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 
 void main() {
@@ -13,10 +13,14 @@ void main() {
     }) {
       return ProviderScope(
         overrides: [
-          messagesProvider.overrideWith((ref, id) => messages),
+          chatMessagesNotifierProvider.overrideWith(
+            () => _FakeChatMessagesNotifier(messages),
+          ),
         ],
         child: MaterialApp(
-          home: ChatConversationScreen(conversationId: conversationId),
+          home: Scaffold(
+            body: ChatConversationScreen(conversationId: conversationId),
+          ),
         ),
       );
     }
@@ -58,11 +62,23 @@ void main() {
       expect(find.text('Hello! How can I help?'), findsOneWidget);
     });
 
-    testWidgets('shows app bar title', (tester) async {
+    testWidgets('shows empty state text', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
 
-      expect(find.text('Conversation'), findsOneWidget);
+      expect(
+        find.text('Send a message to start the conversation'),
+        findsOneWidget,
+      );
     });
   });
+}
+
+class _FakeChatMessagesNotifier extends ChatMessagesNotifier {
+  final List<MessageModel> _messages;
+
+  _FakeChatMessagesNotifier(this._messages);
+
+  @override
+  Future<List<MessageModel>> build(String arg) async => _messages;
 }

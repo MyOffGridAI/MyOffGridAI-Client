@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
+import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
+import 'package:myoffgridai_client/features/chat/widgets/thinking_indicator.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
 /// Chat conversation screen showing messages and input field.
 ///
 /// Displays messages in a scrollable list with the input field at the
-/// bottom. Supports sending messages with a loading state while the
-/// AI responds.
+/// bottom. User messages appear instantly (optimistic update) and an
+/// animated thinking indicator shows while the AI responds.
 class ChatConversationScreen extends ConsumerStatefulWidget {
   /// The conversation ID to display.
   final String conversationId;
@@ -38,45 +40,51 @@ class _ChatConversationScreenState
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(messagesProvider(widget.conversationId));
+    final messagesAsync =
+        ref.watch(chatMessagesNotifierProvider(widget.conversationId));
+    final isThinking =
+        ref.watch(aiThinkingProvider(widget.conversationId));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Conversation')),
-      body: Column(
-        children: [
-          Expanded(
-            child: messagesAsync.when(
-              loading: () => const LoadingIndicator(),
-              error: (error, _) => ErrorView(
-                title: 'Failed to load messages',
-                message: error is ApiException
-                    ? error.message
-                    : 'An unexpected error occurred.',
-                onRetry: () => ref
-                    .invalidate(messagesProvider(widget.conversationId)),
-              ),
-              data: (messages) {
-                if (messages.isEmpty) {
-                  return const Center(
-                    child: Text('Send a message to start the conversation'),
-                  );
-                }
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[messages.length - 1 - index];
-                    return _MessageBubble(message: msg);
-                  },
-                );
-              },
+    return Column(
+      children: [
+        Expanded(
+          child: messagesAsync.when(
+            loading: () => const LoadingIndicator(),
+            error: (error, _) => ErrorView(
+              title: 'Failed to load messages',
+              message: error is ApiException
+                  ? error.message
+                  : 'An unexpected error occurred.',
+              onRetry: () => ref.invalidate(
+                  chatMessagesNotifierProvider(widget.conversationId)),
             ),
+            data: (messages) {
+              final itemCount = messages.length + (isThinking ? 1 : 0);
+              if (messages.isEmpty && !isThinking) {
+                return const Center(
+                  child: Text('Send a message to start the conversation'),
+                );
+              }
+              return ListView.builder(
+                controller: _scrollController,
+                reverse: true,
+                padding: const EdgeInsets.all(16),
+                itemCount: itemCount,
+                itemBuilder: (context, index) {
+                  // Index 0 = bottom of list (most recent)
+                  if (isThinking && index == 0) {
+                    return const ThinkingIndicatorBubble();
+                  }
+                  final msgIndex = isThinking ? index - 1 : index;
+                  final msg = messages[messages.length - 1 - msgIndex];
+                  return _MessageBubble(message: msg);
+                },
+              );
+            },
           ),
-          _buildInputBar(context),
-        ],
-      ),
+        ),
+        _buildInputBar(context),
+      ],
     );
   }
 
@@ -129,10 +137,9 @@ class _ChatConversationScreenState
     _messageController.clear();
 
     try {
-      final service = ref.read(chatServiceProvider);
-      await service.sendMessage(widget.conversationId, content);
-      ref.invalidate(messagesProvider(widget.conversationId));
-      ref.invalidate(conversationsProvider);
+      await ref
+          .read(chatMessagesNotifierProvider(widget.conversationId).notifier)
+          .sendMessage(content);
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/constants.dart';
-import 'package:myoffgridai_client/core/api/api_response.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/conversation_model.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
@@ -65,6 +64,19 @@ class ChatService {
     );
   }
 
+  /// Renames a conversation by [conversationId] with a new [title].
+  Future<ConversationModel> renameConversation(
+    String conversationId,
+    String title,
+  ) async {
+    final response = await _client.put<Map<String, dynamic>>(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/title',
+      data: {'title': title},
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return ConversationModel.fromJson(data);
+  }
+
   /// Lists messages in a conversation with pagination.
   Future<List<MessageModel>> listMessages(
     String conversationId, {
@@ -82,8 +94,8 @@ class ChatService {
         .toList();
   }
 
-  /// Sends a message (non-streaming) and returns the response.
-  Future<ApiResponse<dynamic>> sendMessage(
+  /// Sends a message (non-streaming) and returns the assistant's response.
+  Future<MessageModel> sendMessage(
     String conversationId,
     String content, {
     bool stream = false,
@@ -92,7 +104,8 @@ class ChatService {
       '${AppConstants.chatBasePath}/conversations/$conversationId/messages',
       data: {'content': content, 'stream': stream},
     );
-    return ApiResponse.fromJson(response, null);
+    final data = response['data'] as Map<String, dynamic>;
+    return MessageModel.fromJson(data);
   }
 }
 
@@ -115,3 +128,12 @@ final messagesProvider = FutureProvider.autoDispose
   final service = ref.watch(chatServiceProvider);
   return service.listMessages(conversationId);
 });
+
+/// Provider tracking AI thinking state per conversation.
+final aiThinkingProvider =
+    StateProvider.autoDispose.family<bool, String>((ref, conversationId) {
+  return false;
+});
+
+/// Provider for sidebar collapsed state.
+final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);

@@ -9,6 +9,7 @@ import 'package:myoffgridai_client/features/auth/register_screen.dart';
 import 'package:myoffgridai_client/features/auth/users_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
+import 'package:myoffgridai_client/features/chat/chat_shell.dart';
 import 'package:myoffgridai_client/features/insights/insights_screen.dart';
 import 'package:myoffgridai_client/features/inventory/inventory_screen.dart';
 import 'package:myoffgridai_client/features/knowledge/document_detail_screen.dart';
@@ -71,20 +72,28 @@ GoRouter createRouter(Ref ref) {
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
-          GoRoute(
-            path: AppConstants.routeHome,
-            builder: (context, state) => const ChatListScreen(),
+          // Chat routes wrapped in ChatShell for sidebar
+          ShellRoute(
+            builder: (context, state, child) => ChatShell(child: child),
+            routes: [
+              GoRoute(
+                path: AppConstants.routeHome,
+                builder: (context, state) => const ChatListScreen(),
+              ),
+              GoRoute(
+                path: AppConstants.routeChat,
+                builder: (context, state) => const ChatListScreen(),
+              ),
+              GoRoute(
+                path: AppConstants.routeChatConversation,
+                builder: (context, state) => ChatConversationScreen(
+                  conversationId:
+                      state.pathParameters['conversationId'] ?? '',
+                ),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppConstants.routeChat,
-            builder: (context, state) => const ChatListScreen(),
-          ),
-          GoRoute(
-            path: AppConstants.routeChatConversation,
-            builder: (context, state) => ChatConversationScreen(
-              conversationId: state.pathParameters['conversationId'] ?? '',
-            ),
-          ),
+          // Non-chat routes (no sidebar)
           GoRoute(
             path: AppConstants.routeMemory,
             builder: (context, state) => const MemoryScreen(),
