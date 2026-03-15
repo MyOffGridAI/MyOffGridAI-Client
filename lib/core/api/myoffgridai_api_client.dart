@@ -39,6 +39,13 @@ class MyOffGridAIApiClient {
   @visibleForTesting
   Dio get dio => _dio;
 
+  /// Updates the base URL for all subsequent requests.
+  ///
+  /// Called when the user changes the server URL at runtime via the login screen.
+  void updateBaseUrl(String newBaseUrl) {
+    _dio.options.baseUrl = newBaseUrl;
+  }
+
   /// The Riverpod [Ref], used for invalidating auth state on token failure.
   Ref get ref => _ref;
 

@@ -61,16 +61,23 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
   }
 
   /// Logs in with [username] and [password], updating state on success.
+  ///
+  /// Rethrows errors so callers (e.g. LoginScreen) can display them.
   Future<void> login(String username, String password) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authService = ref.read(authServiceProvider);
       final response = await authService.login(username, password);
-      return response.user;
-    });
+      state = AsyncData(response.user);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   /// Registers a new user account and updates state on success.
+  ///
+  /// Rethrows errors so callers (e.g. RegisterScreen) can display them.
   Future<void> register({
     required String username,
     required String displayName,
@@ -78,7 +85,7 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
     String? email,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authService = ref.read(authServiceProvider);
       final response = await authService.register(
         username: username,
@@ -86,8 +93,11 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
         password: password,
         email: email,
       );
-      return response.user;
-    });
+      state = AsyncData(response.user);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   /// Logs out the current user and clears the auth state.

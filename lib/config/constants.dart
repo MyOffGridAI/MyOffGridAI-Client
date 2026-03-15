@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// All application-wide constants for MyOffGridAI-Client.
 ///
 /// No magic strings or numbers anywhere else in the codebase.
@@ -6,7 +8,10 @@ class AppConstants {
   AppConstants._();
 
   // Server connection
-  static const String defaultServerUrl = 'http://offgrid.local:8080';
+  // Web runs in the browser on the dev machine — use localhost.
+  // Native apps (iOS/Android) connect over the network to the appliance.
+  static const String defaultServerUrl =
+      kIsWeb ? 'http://localhost:8080' : 'http://offgrid.local:8080';
   static const String devServerUrl = 'http://localhost:8080';
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 120);

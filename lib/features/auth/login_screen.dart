@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
+import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 
@@ -114,6 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final storage = ref.read(secureStorageProvider);
       await storage.saveServerUrl(newUrl);
       await storage.clearTokens();
+      ref.read(apiClientProvider).updateBaseUrl(newUrl);
       if (mounted) {
         setState(() => _serverUrl = newUrl);
       }
