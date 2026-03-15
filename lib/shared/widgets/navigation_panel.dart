@@ -234,7 +234,7 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
         child: IconButton(
           icon: const Icon(Icons.add),
           tooltip: 'New conversation',
-          onPressed: () => _createConversation(context, ref),
+          onPressed: () => context.go(AppConstants.routeChat),
         ),
       );
     }
@@ -245,7 +245,7 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
         child: FilledButton.icon(
           icon: const Icon(Icons.add, size: 18),
           label: const Text('New Chat'),
-          onPressed: () => _createConversation(context, ref),
+          onPressed: () => context.go(AppConstants.routeChat),
         ),
       ),
     );
@@ -310,23 +310,6 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
         onTap: onTap,
       ),
     );
-  }
-
-  Future<void> _createConversation(BuildContext context, WidgetRef ref) async {
-    try {
-      final service = ref.read(chatServiceProvider);
-      final conv = await service.createConversation();
-      ref.invalidate(conversationsProvider);
-      if (context.mounted) {
-        context.go('/chat/${conv.id}');
-      }
-    } on ApiException catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
-      }
-    }
   }
 
   Future<void> _showRenameDialog(
