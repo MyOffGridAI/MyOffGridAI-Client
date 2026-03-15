@@ -23,8 +23,15 @@ class ChatConversationScreen extends ConsumerStatefulWidget {
   /// The conversation ID to display.
   final String conversationId;
 
+  /// Optional initial message to send on mount (from welcome screen).
+  final String? initialMessage;
+
   /// Creates a [ChatConversationScreen] for the given [conversationId].
-  const ChatConversationScreen({super.key, required this.conversationId});
+  const ChatConversationScreen({
+    super.key,
+    required this.conversationId,
+    this.initialMessage,
+  });
 
   @override
   ConsumerState<ChatConversationScreen> createState() =>
@@ -36,6 +43,20 @@ class _ChatConversationScreenState
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialMessage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref
+              .read(chatMessagesNotifierProvider(widget.conversationId).notifier)
+              .sendMessage(widget.initialMessage!);
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
-import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
 
 /// Claude-style centered welcome page with greeting and input box.
@@ -153,13 +152,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       ref.invalidate(conversationsProvider);
 
       if (mounted) {
-        context.go('/chat/${conv.id}');
+        context.go('/chat/${conv.id}', extra: content);
       }
-
-      // Send the message after navigation
-      ref
-          .read(chatMessagesNotifierProvider(conv.id).notifier)
-          .sendMessage(content);
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

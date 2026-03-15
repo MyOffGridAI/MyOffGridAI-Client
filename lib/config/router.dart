@@ -77,17 +77,24 @@ GoRouter createRouter(Ref ref) {
           // sidebar is now part of NavigationPanel inside AppShell.
           GoRoute(
             path: AppConstants.routeHome,
-            builder: (context, state) => const ChatListScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ChatListScreen(),
+            ),
           ),
           GoRoute(
             path: AppConstants.routeChat,
-            builder: (context, state) => const ChatListScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ChatListScreen(),
+            ),
           ),
           GoRoute(
             path: AppConstants.routeChatConversation,
-            builder: (context, state) => ChatConversationScreen(
-              conversationId:
-                  state.pathParameters['conversationId'] ?? '',
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: ChatConversationScreen(
+                conversationId:
+                    state.pathParameters['conversationId'] ?? '',
+                initialMessage: state.extra as String?,
+              ),
             ),
           ),
           GoRoute(
