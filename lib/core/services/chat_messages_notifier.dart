@@ -65,12 +65,15 @@ class ChatMessagesNotifier
       // Refresh conversation list (title may have changed)
       ref.invalidate(conversationsProvider);
 
-      // Delayed re-fetch to pick up async title generation (~3s later)
-      Future.delayed(const Duration(seconds: 3), () {
-        if (ref.exists(conversationsProvider)) {
-          ref.invalidate(conversationsProvider);
-        }
-      });
+      // Staggered re-fetches to pick up async title generation.
+      // Ollama title generation can take varying time depending on load.
+      for (final delay in [3, 6, 10]) {
+        Future.delayed(Duration(seconds: delay), () {
+          if (ref.exists(conversationsProvider)) {
+            ref.invalidate(conversationsProvider);
+          }
+        });
+      }
     } catch (e) {
       // Remove temp message on error
       final current = state.valueOrNull ?? [];

@@ -435,7 +435,9 @@ class _ConversationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final title = conversation.title ?? 'New Conversation';
+    final title = (conversation.title != null && conversation.title!.isNotEmpty)
+        ? conversation.title!
+        : 'New Conversation';
 
     if (isCollapsed) {
       return Tooltip(
