@@ -64,6 +64,8 @@ class AiSettingsModel {
   final double similarityThreshold;
   final int memoryTopK;
   final int ragMaxContextTokens;
+  final int contextSize;
+  final int contextMessageLimit;
 
   const AiSettingsModel({
     this.modelName = '',
@@ -71,6 +73,8 @@ class AiSettingsModel {
     this.similarityThreshold = 0.45,
     this.memoryTopK = 5,
     this.ragMaxContextTokens = 2048,
+    this.contextSize = 4096,
+    this.contextMessageLimit = 20,
   });
 
   /// Creates an [AiSettingsModel] from a JSON map.
@@ -82,6 +86,8 @@ class AiSettingsModel {
           (json['similarityThreshold'] as num?)?.toDouble() ?? 0.45,
       memoryTopK: json['memoryTopK'] as int? ?? 5,
       ragMaxContextTokens: json['ragMaxContextTokens'] as int? ?? 2048,
+      contextSize: json['contextSize'] as int? ?? 4096,
+      contextMessageLimit: json['contextMessageLimit'] as int? ?? 20,
     );
   }
 
@@ -92,6 +98,8 @@ class AiSettingsModel {
         'similarityThreshold': similarityThreshold,
         'memoryTopK': memoryTopK,
         'ragMaxContextTokens': ragMaxContextTokens,
+        'contextSize': contextSize,
+        'contextMessageLimit': contextMessageLimit,
       };
 }
 

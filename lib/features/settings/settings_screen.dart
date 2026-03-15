@@ -238,6 +238,8 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
   double _similarityThreshold = 0.45;
   int _memoryTopK = 5;
   int _ragMaxContextTokens = 2048;
+  int _contextSize = 4096;
+  int _contextMessageLimit = 20;
   bool _loaded = false;
   bool _saving = false;
 
@@ -270,6 +272,8 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
           _similarityThreshold = settings.similarityThreshold;
           _memoryTopK = settings.memoryTopK;
           _ragMaxContextTokens = settings.ragMaxContextTokens;
+          _contextSize = settings.contextSize;
+          _contextMessageLimit = settings.contextMessageLimit;
           _loaded = true;
         }
 
@@ -394,6 +398,38 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
               onChanged: (v) =>
                   setState(() => _ragMaxContextTokens = (v / 256).round() * 256),
             ),
+            const SizedBox(height: 12),
+
+            // Context Size (Ollama num_ctx)
+            _buildSliderCard(
+              context,
+              title: 'Context Size',
+              value: _contextSize.toDouble(),
+              min: 1024,
+              max: 32768,
+              divisions: 31,
+              labelLeft: 'Compact',
+              labelRight: 'Maximum',
+              displayValue: '$_contextSize tokens',
+              onChanged: (v) =>
+                  setState(() => _contextSize = (v / 1024).round() * 1024),
+            ),
+            const SizedBox(height: 12),
+
+            // Context Message Limit
+            _buildSliderCard(
+              context,
+              title: 'Context Message Limit',
+              value: _contextMessageLimit.toDouble(),
+              min: 5,
+              max: 100,
+              divisions: 19,
+              labelLeft: '5',
+              labelRight: '100',
+              displayValue: '$_contextMessageLimit messages per conversation',
+              onChanged: (v) =>
+                  setState(() => _contextMessageLimit = (v / 5).round() * 5),
+            ),
             const SizedBox(height: 24),
 
             // Save button
@@ -498,6 +534,8 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
         similarityThreshold: _similarityThreshold,
         memoryTopK: _memoryTopK,
         ragMaxContextTokens: _ragMaxContextTokens,
+        contextSize: _contextSize,
+        contextMessageLimit: _contextMessageLimit,
       ));
       ref.invalidate(aiSettingsProvider);
       ref.invalidate(modelHealthProvider);
