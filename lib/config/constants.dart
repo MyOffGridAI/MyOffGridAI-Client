@@ -33,6 +33,7 @@ class AppConstants {
   static const String skillsBasePath = '/api/skills';
   static const String inventoryBasePath = '/api/skills/inventory';
   static const String sensorsBasePath = '/api/sensors';
+  static const String eventsBasePath = '/api/events';
   static const String insightsBasePath = '/api/insights';
   static const String notificationsBasePath = '/api/notifications';
   static const String privacyBasePath = '/api/privacy';
@@ -49,6 +50,7 @@ class AppConstants {
   static const String routeSkills = '/skills';
   static const String routeInventory = '/inventory';
   static const String routeSensors = '/sensors';
+  static const String routeEvents = '/events';
   static const String routeInsights = '/insights';
   static const String routePrivacy = '/privacy';
   static const String routeSystem = '/system';

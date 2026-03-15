@@ -101,6 +101,16 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
           ),
           _buildNavItem(
             context,
+            icon: Icons.event_outlined,
+            selectedIcon: Icons.event,
+            label: 'Events',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeEvents ||
+                currentLocation.startsWith('/events'),
+            onTap: () => context.go(AppConstants.routeEvents),
+          ),
+          _buildNavItem(
+            context,
             icon: Icons.sensors,
             label: 'Sensors',
             isCollapsed: isCollapsed,

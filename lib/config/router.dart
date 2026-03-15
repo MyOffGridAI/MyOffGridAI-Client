@@ -19,6 +19,7 @@ import 'package:myoffgridai_client/features/privacy/privacy_screen.dart';
 import 'package:myoffgridai_client/features/search/search_screen.dart';
 import 'package:myoffgridai_client/features/sensors/add_sensor_screen.dart';
 import 'package:myoffgridai_client/features/sensors/sensor_detail_screen.dart';
+import 'package:myoffgridai_client/features/events/events_screen.dart';
 import 'package:myoffgridai_client/features/sensors/sensors_screen.dart';
 import 'package:myoffgridai_client/features/settings/settings_screen.dart';
 import 'package:myoffgridai_client/features/skills/skills_screen.dart';
@@ -151,6 +152,10 @@ GoRouter createRouter(Ref ref) {
             builder: (context, state) => SensorDetailScreen(
               sensorId: state.pathParameters['sensorId'] ?? '',
             ),
+          ),
+          GoRoute(
+            path: AppConstants.routeEvents,
+            builder: (context, state) => const EventsScreen(),
           ),
           GoRoute(
             path: AppConstants.routeInsights,

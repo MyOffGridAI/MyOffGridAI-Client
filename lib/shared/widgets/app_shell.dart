@@ -153,6 +153,14 @@ class _AppShellState extends ConsumerState<AppShell> {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.event),
+            title: const Text('Events'),
+            onTap: () {
+              Navigator.pop(context);
+              context.go(AppConstants.routeEvents);
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.shield_outlined),
             title: const Text('Privacy'),
             onTap: () {
