@@ -51,6 +51,26 @@ class SystemService {
     return AiSettingsModel.fromJson(data);
   }
 
+  /// Gets the current file storage settings.
+  Future<StorageSettingsModel> getStorageSettings() async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.systemBasePath}/storage-settings',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return StorageSettingsModel.fromJson(data);
+  }
+
+  /// Updates file storage settings.
+  Future<StorageSettingsModel> updateStorageSettings(
+      StorageSettingsModel settings) async {
+    final response = await _client.put<Map<String, dynamic>>(
+      '${AppConstants.systemBasePath}/storage-settings',
+      data: settings.toJson(),
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return StorageSettingsModel.fromJson(data);
+  }
+
   /// Updates AI and memory settings.
   Future<AiSettingsModel> updateAiSettings(AiSettingsModel settings) async {
     final response = await _client.put<Map<String, dynamic>>(
@@ -87,4 +107,11 @@ final aiSettingsProvider =
     FutureProvider.autoDispose<AiSettingsModel>((ref) async {
   final service = ref.watch(systemServiceProvider);
   return service.getAiSettings();
+});
+
+/// Provider for file storage settings.
+final storageSettingsProvider =
+    FutureProvider.autoDispose<StorageSettingsModel>((ref) async {
+  final service = ref.watch(systemServiceProvider);
+  return service.getStorageSettings();
 });

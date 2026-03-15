@@ -95,6 +95,39 @@ class AiSettingsModel {
       };
 }
 
+/// File storage settings and disk usage.
+///
+/// Mirrors the server's StorageSettingsDto.
+class StorageSettingsModel {
+  final String knowledgeStoragePath;
+  final int totalSpaceMb;
+  final int usedSpaceMb;
+  final int freeSpaceMb;
+
+  const StorageSettingsModel({
+    this.knowledgeStoragePath = '/var/myoffgridai/knowledge',
+    this.totalSpaceMb = 0,
+    this.usedSpaceMb = 0,
+    this.freeSpaceMb = 0,
+  });
+
+  /// Creates a [StorageSettingsModel] from a JSON map.
+  factory StorageSettingsModel.fromJson(Map<String, dynamic> json) {
+    return StorageSettingsModel(
+      knowledgeStoragePath:
+          json['knowledgeStoragePath'] as String? ?? '/var/myoffgridai/knowledge',
+      totalSpaceMb: json['totalSpaceMb'] as int? ?? 0,
+      usedSpaceMb: json['usedSpaceMb'] as int? ?? 0,
+      freeSpaceMb: json['freeSpaceMb'] as int? ?? 0,
+    );
+  }
+
+  /// Converts this model to a JSON map for API requests.
+  Map<String, dynamic> toJson() => {
+        'knowledgeStoragePath': knowledgeStoragePath,
+      };
+}
+
 /// Active model information.
 ///
 /// Mirrors the server's ActiveModelDto.

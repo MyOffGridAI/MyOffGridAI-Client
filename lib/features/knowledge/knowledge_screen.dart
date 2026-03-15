@@ -1,3 +1,5 @@
+import 'package:cross_file/cross_file.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,7 +26,10 @@ class KnowledgeScreen extends ConsumerStatefulWidget {
 }
 
 class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
+  static const _allowedExtensions = ['pdf', 'txt', 'md', 'doc', 'docx'];
+
   bool _isUploading = false;
+  bool _isDragging = false;
 
   @override
   Widget build(BuildContext context) {
@@ -43,38 +48,134 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
               )
             : const Icon(Icons.upload_file),
       ),
-      body: docsAsync.when(
-        loading: () => const LoadingIndicator(),
-        error: (error, _) => ErrorView(
-          title: 'Failed to load documents',
-          message: error is ApiException
-              ? error.message
-              : 'An unexpected error occurred.',
-          onRetry: () => ref.invalidate(knowledgeDocumentsProvider),
-        ),
-        data: (docs) {
-          if (docs.isEmpty) {
-            return const EmptyStateView(
-              icon: Icons.library_books_outlined,
-              title: 'Knowledge Vault is empty',
-              subtitle: 'Upload documents to teach your AI',
-            );
-          }
-          return ListView.builder(
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              return _DocumentTile(
-                document: doc,
-                onTap: () => context.go('/knowledge/${doc.id}'),
-                onDelete: () => _deleteDocument(doc.id),
-                onRetry: doc.isFailed ? () => _retryProcessing(doc.id) : null,
-              );
-            },
-          );
+      body: DropTarget(
+        onDragEntered: (_) => setState(() => _isDragging = true),
+        onDragExited: (_) => setState(() => _isDragging = false),
+        onDragDone: (details) {
+          setState(() => _isDragging = false);
+          _handleDroppedFiles(details.files);
         },
+        child: Stack(
+          children: [
+            docsAsync.when(
+              loading: () => const LoadingIndicator(),
+              error: (error, _) => ErrorView(
+                title: 'Failed to load documents',
+                message: error is ApiException
+                    ? error.message
+                    : 'An unexpected error occurred.',
+                onRetry: () => ref.invalidate(knowledgeDocumentsProvider),
+              ),
+              data: (docs) {
+                if (docs.isEmpty) {
+                  return const EmptyStateView(
+                    icon: Icons.library_books_outlined,
+                    title: 'Knowledge Vault is empty',
+                    subtitle: 'Upload documents to teach your AI',
+                  );
+                }
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    return _DocumentTile(
+                      document: doc,
+                      onTap: () => context.go('/knowledge/${doc.id}'),
+                      onDelete: () => _deleteDocument(doc.id),
+                      onRetry:
+                          doc.isFailed ? () => _retryProcessing(doc.id) : null,
+                    );
+                  },
+                );
+              },
+            ),
+            if (_isDragging)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.1),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.upload_file,
+                          size: 48,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Drop files here',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _handleDroppedFiles(List<XFile> files) async {
+    final validFiles = files.where((f) {
+      final ext = f.name.split('.').last.toLowerCase();
+      return _allowedExtensions.contains(ext);
+    }).toList();
+
+    if (validFiles.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('No supported files. Use PDF, TXT, MD, DOC, or DOCX.')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isUploading = true);
+    int uploaded = 0;
+    try {
+      final service = ref.read(knowledgeServiceProvider);
+      for (final file in validFiles) {
+        final bytes = await file.readAsBytes();
+        await service.uploadDocument(file.name, bytes);
+        uploaded++;
+      }
+      ref.invalidate(knowledgeDocumentsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$uploaded file(s) uploaded successfully')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  uploaded > 0
+                      ? '$uploaded uploaded, then failed: ${e.message}'
+                      : e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
   }
 
   Future<void> _uploadDocument() async {

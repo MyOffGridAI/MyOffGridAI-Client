@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
@@ -21,11 +22,30 @@ class ChatListScreen extends ConsumerStatefulWidget {
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   final _controller = TextEditingController();
+  late final FocusNode _focusNode;
   bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.enter &&
+            !HardwareKeyboard.instance.isShiftPressed &&
+            !_sending) {
+          _startConversation();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+    );
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -79,7 +99,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 constraints: const BoxConstraints(maxWidth: 600),
                 child: TextField(
                   controller: _controller,
+                  focusNode: _focusNode,
                   enabled: !_sending,
+                  minLines: 1,
+                  maxLines: 20,
+                  keyboardType: TextInputType.multiline,
                   decoration: InputDecoration(
                     hintText: 'Ask anything...',
                     border: OutlineInputBorder(
@@ -102,8 +126,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           _sending ? null : () => _startConversation(),
                     ),
                   ),
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: _sending ? null : (_) => _startConversation(),
                 ),
               ),
             ],

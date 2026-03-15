@@ -25,7 +25,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -44,6 +44,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           tabs: const [
             Tab(text: 'General'),
             Tab(text: 'AI & Memory'),
+            Tab(text: 'File Storage'),
           ],
         ),
       ),
@@ -52,6 +53,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         children: [
           _GeneralTab(),
           const _AiMemoryTab(),
+          const _FileStorageTab(),
         ],
       ),
     );
@@ -514,6 +516,180 @@ class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to save AI settings')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+}
+
+/// The File Storage tab for configuring the server-side knowledge storage path.
+class _FileStorageTab extends ConsumerStatefulWidget {
+  const _FileStorageTab();
+
+  @override
+  ConsumerState<_FileStorageTab> createState() => _FileStorageTabState();
+}
+
+class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
+  final _pathController = TextEditingController();
+  bool _loaded = false;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _pathController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final storageAsync = ref.watch(storageSettingsProvider);
+
+    return storageAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Failed to load storage settings',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => ref.invalidate(storageSettingsProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (settings) {
+        if (!_loaded) {
+          _pathController.text = settings.knowledgeStoragePath;
+          _loaded = true;
+        }
+
+        final totalMb = settings.totalSpaceMb;
+        final usedMb = settings.usedSpaceMb;
+        final freeMb = settings.freeSpaceMb;
+        final usagePercent = totalMb > 0 ? usedMb / totalMb : 0.0;
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // ── Storage Directory ──
+            _buildSectionHeader(context, 'Storage Directory'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _pathController,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.folder),
+                    labelText: 'Knowledge storage path',
+                    border: OutlineInputBorder(),
+                    helperText: 'Absolute path on the server filesystem',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Disk Usage ──
+            _buildSectionHeader(context, 'Disk Usage'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value: usagePercent,
+                      minHeight: 8,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Total: ${_formatMb(totalMb)}'),
+                        Text('Used: ${_formatMb(usedMb)}'),
+                        Text('Free: ${_formatMb(freeMb)}'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Save button ──
+            Center(
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _saveSettings,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
+                label: Text(_saving ? 'Saving...' : 'Save'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+
+  String _formatMb(int mb) {
+    if (mb >= 1024) {
+      return '${(mb / 1024).toStringAsFixed(1)} GB';
+    }
+    return '$mb MB';
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() => _saving = true);
+    try {
+      final service = ref.read(systemServiceProvider);
+      await service.updateStorageSettings(StorageSettingsModel(
+        knowledgeStoragePath: _pathController.text.trim(),
+      ));
+      ref.invalidate(storageSettingsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Storage settings saved successfully')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to save storage settings')),
         );
       }
     } finally {
