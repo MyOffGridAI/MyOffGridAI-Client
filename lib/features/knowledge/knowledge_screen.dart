@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
 import 'package:myoffgridai_client/core/services/knowledge_service.dart';
+import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/empty_state_view.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
@@ -151,9 +152,22 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
     setState(() => _isUploading = true);
     int uploaded = 0;
     try {
+      final storageSettings = await ref.read(storageSettingsProvider.future);
+      final maxBytes = storageSettings.maxUploadSizeMb * 1024 * 1024;
       final service = ref.read(knowledgeServiceProvider);
       for (final file in validFiles) {
         final bytes = await file.readAsBytes();
+        if (bytes.length > maxBytes) {
+          final fileSizeMb = (bytes.length / (1024 * 1024)).ceil();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      'File too large (${file.name}: $fileSizeMb MB). Maximum allowed: ${storageSettings.maxUploadSizeMb} MB')),
+            );
+          }
+          continue;
+        }
         await service.uploadDocument(file.name, bytes);
         uploaded++;
       }
@@ -191,6 +205,19 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
 
     setState(() => _isUploading = true);
     try {
+      final storageSettings = await ref.read(storageSettingsProvider.future);
+      final maxBytes = storageSettings.maxUploadSizeMb * 1024 * 1024;
+      if (file.bytes!.length > maxBytes) {
+        final fileSizeMb = (file.bytes!.length / (1024 * 1024)).ceil();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'File too large ($fileSizeMb MB). Maximum allowed: ${storageSettings.maxUploadSizeMb} MB')),
+          );
+        }
+        return;
+      }
       final service = ref.read(knowledgeServiceProvider);
       await service.uploadDocument(file.name, file.bytes!);
       ref.invalidate(knowledgeDocumentsProvider);

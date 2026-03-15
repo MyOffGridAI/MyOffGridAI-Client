@@ -119,6 +119,50 @@ void main() {
     });
   });
 
+  group('StorageSettingsModel', () {
+    test('parses from JSON with all fields including maxUploadSizeMb', () {
+      final json = {
+        'knowledgeStoragePath': '/data/knowledge',
+        'totalSpaceMb': 50000,
+        'usedSpaceMb': 20000,
+        'freeSpaceMb': 30000,
+        'maxUploadSizeMb': 50,
+      };
+
+      final model = StorageSettingsModel.fromJson(json);
+
+      expect(model.knowledgeStoragePath, '/data/knowledge');
+      expect(model.totalSpaceMb, 50000);
+      expect(model.usedSpaceMb, 20000);
+      expect(model.freeSpaceMb, 30000);
+      expect(model.maxUploadSizeMb, 50);
+    });
+
+    test('handles missing fields with defaults', () {
+      final json = <String, dynamic>{};
+
+      final model = StorageSettingsModel.fromJson(json);
+
+      expect(model.knowledgeStoragePath, '/var/myoffgridai/knowledge');
+      expect(model.totalSpaceMb, 0);
+      expect(model.usedSpaceMb, 0);
+      expect(model.freeSpaceMb, 0);
+      expect(model.maxUploadSizeMb, 25);
+    });
+
+    test('toJson includes knowledgeStoragePath and maxUploadSizeMb', () {
+      const model = StorageSettingsModel(
+        knowledgeStoragePath: '/custom/path',
+        maxUploadSizeMb: 75,
+      );
+
+      final json = model.toJson();
+
+      expect(json['knowledgeStoragePath'], '/custom/path');
+      expect(json['maxUploadSizeMb'], 75);
+    });
+  });
+
   group('ActiveModelInfo', () {
     test('parses from JSON', () {
       final json = {

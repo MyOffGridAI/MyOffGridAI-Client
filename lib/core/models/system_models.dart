@@ -111,12 +111,14 @@ class StorageSettingsModel {
   final int totalSpaceMb;
   final int usedSpaceMb;
   final int freeSpaceMb;
+  final int maxUploadSizeMb;
 
   const StorageSettingsModel({
     this.knowledgeStoragePath = '/var/myoffgridai/knowledge',
     this.totalSpaceMb = 0,
     this.usedSpaceMb = 0,
     this.freeSpaceMb = 0,
+    this.maxUploadSizeMb = 25,
   });
 
   /// Creates a [StorageSettingsModel] from a JSON map.
@@ -127,12 +129,14 @@ class StorageSettingsModel {
       totalSpaceMb: json['totalSpaceMb'] as int? ?? 0,
       usedSpaceMb: json['usedSpaceMb'] as int? ?? 0,
       freeSpaceMb: json['freeSpaceMb'] as int? ?? 0,
+      maxUploadSizeMb: json['maxUploadSizeMb'] as int? ?? 25,
     );
   }
 
   /// Converts this model to a JSON map for API requests.
   Map<String, dynamic> toJson() => {
         'knowledgeStoragePath': knowledgeStoragePath,
+        'maxUploadSizeMb': maxUploadSizeMb,
       };
 }
 

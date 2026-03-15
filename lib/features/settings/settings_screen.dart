@@ -574,6 +574,7 @@ class _FileStorageTab extends ConsumerStatefulWidget {
 
 class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
   final _pathController = TextEditingController();
+  int _maxUploadSizeMb = 25;
   bool _loaded = false;
   bool _saving = false;
 
@@ -608,6 +609,7 @@ class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
       data: (settings) {
         if (!_loaded) {
           _pathController.text = settings.knowledgeStoragePath;
+          _maxUploadSizeMb = settings.maxUploadSizeMb;
           _loaded = true;
         }
 
@@ -663,6 +665,74 @@ class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // ── Max Upload Size ──
+            _buildSectionHeader(context, 'Max Upload Size'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Per-file limit',
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        Text(
+                          '$_maxUploadSizeMb MB per file',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: _maxUploadSizeMb.toDouble(),
+                      min: 1,
+                      max: 100,
+                      divisions: 99,
+                      onChanged: (v) =>
+                          setState(() => _maxUploadSizeMb = v.round()),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '1 MB',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                        ),
+                        Text(
+                          '100 MB',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
 
             // ── Save button ──
@@ -710,6 +780,7 @@ class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
       final service = ref.read(systemServiceProvider);
       await service.updateStorageSettings(StorageSettingsModel(
         knowledgeStoragePath: _pathController.text.trim(),
+        maxUploadSizeMb: _maxUploadSizeMb,
       ));
       ref.invalidate(storageSettingsProvider);
       if (mounted) {
