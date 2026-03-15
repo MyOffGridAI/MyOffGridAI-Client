@@ -117,6 +117,21 @@ class MyOffGridAIApiClient {
     }
   }
 
+  /// Performs a GET request to [path] and returns raw bytes.
+  ///
+  /// Used for downloading files where the response is binary data.
+  Future<List<int>> getBytes(String path) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        path,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? [];
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
   /// Performs a multipart POST request to [path] with [formData].
   Future<T> postMultipart<T>(
     String path,

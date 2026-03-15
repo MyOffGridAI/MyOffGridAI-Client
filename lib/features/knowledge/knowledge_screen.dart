@@ -27,7 +27,9 @@ class KnowledgeScreen extends ConsumerStatefulWidget {
 }
 
 class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
-  static const _allowedExtensions = ['pdf', 'txt', 'md', 'doc', 'docx'];
+  static const _allowedExtensions = [
+    'pdf', 'txt', 'md', 'doc', 'docx', 'xlsx', 'xls', 'pptx', 'ppt'
+  ];
 
   bool _isUploading = false;
   bool _isDragging = false;
@@ -37,7 +39,16 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
     final docsAsync = ref.watch(knowledgeDocumentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Knowledge Vault')),
+      appBar: AppBar(
+        title: const Text('Knowledge Vault'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.note_add),
+            tooltip: 'Create new document',
+            onPressed: () => context.go('/knowledge/new'),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _isUploading ? null : _uploadDocument,
         child: _isUploading
@@ -143,7 +154,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('No supported files. Use PDF, TXT, MD, DOC, or DOCX.')),
+              content: Text('No supported files. Use PDF, TXT, MD, DOC, DOCX, XLSX, XLS, PPTX, or PPT.')),
         );
       }
       return;
@@ -195,7 +206,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
   Future<void> _uploadDocument() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'txt', 'md', 'doc', 'docx'],
+      allowedExtensions: _allowedExtensions,
       withData: true,
     );
     if (result == null || result.files.isEmpty) return;

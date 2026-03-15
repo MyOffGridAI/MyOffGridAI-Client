@@ -98,6 +98,49 @@ class KnowledgeService {
             KnowledgeSearchResultModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// Retrieves the content of a document for viewing or editing.
+  Future<DocumentContentModel> getDocumentContent(String documentId) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.knowledgeBasePath}/$documentId/content',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return DocumentContentModel.fromJson(data);
+  }
+
+  /// Downloads the original file of a document as raw bytes.
+  Future<List<int>> downloadDocument(String documentId) async {
+    final response = await _client.getBytes(
+      '${AppConstants.knowledgeBasePath}/$documentId/download',
+    );
+    return response;
+  }
+
+  /// Creates a new document from the rich text editor.
+  Future<KnowledgeDocumentModel> createDocument({
+    required String title,
+    required String content,
+  }) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '${AppConstants.knowledgeBasePath}/create',
+      data: {'title': title, 'content': content},
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return KnowledgeDocumentModel.fromJson(data);
+  }
+
+  /// Updates the content of a document from the rich text editor.
+  Future<KnowledgeDocumentModel> updateDocumentContent(
+    String documentId,
+    String content,
+  ) async {
+    final response = await _client.put<Map<String, dynamic>>(
+      '${AppConstants.knowledgeBasePath}/$documentId/content',
+      data: {'content': content},
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return KnowledgeDocumentModel.fromJson(data);
+  }
 }
 
 /// Riverpod provider for [KnowledgeService].
@@ -112,3 +155,12 @@ final knowledgeDocumentsProvider =
   final service = ref.watch(knowledgeServiceProvider);
   return service.listDocuments();
 });
+
+/// Provider for a document's content.
+final documentContentProvider =
+    FutureProvider.autoDispose.family<DocumentContentModel, String>(
+  (ref, documentId) async {
+    final service = ref.watch(knowledgeServiceProvider);
+    return service.getDocumentContent(documentId);
+  },
+);

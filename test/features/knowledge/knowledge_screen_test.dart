@@ -62,5 +62,12 @@ void main() {
 
       expect(find.text('Knowledge Vault'), findsOneWidget);
     });
+
+    testWidgets('shows create new button in app bar', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.note_add), findsOneWidget);
+    });
   });
 }

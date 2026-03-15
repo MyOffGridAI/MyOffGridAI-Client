@@ -54,6 +54,8 @@ class AppConstants {
   static const String routeSystem = '/system';
   static const String routeUsers = '/users';
   static const String routeKnowledgeDetail = '/knowledge/:documentId';
+  static const String routeKnowledgeNew = '/knowledge/new';
+  static const String routeKnowledgeEdit = '/knowledge/:documentId/edit';
   static const String routeSensorDetail = '/sensors/:sensorId';
   static const String routeSensorAdd = '/sensors/add';
   static const String routeSettings = '/settings';

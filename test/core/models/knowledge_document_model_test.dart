@@ -3,7 +3,8 @@ import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
 
 void main() {
   group('KnowledgeDocumentModel', () {
-    test('parses from JSON with all fields', () {
+    test('parses from JSON with all fields including hasContent and editable',
+        () {
       final json = {
         'id': 'doc-1',
         'filename': 'guide.pdf',
@@ -15,6 +16,8 @@ void main() {
         'chunkCount': 42,
         'uploadedAt': '2026-03-14T10:00:00Z',
         'processedAt': '2026-03-14T10:05:00Z',
+        'hasContent': true,
+        'editable': false,
       };
 
       final model = KnowledgeDocumentModel.fromJson(json);
@@ -26,6 +29,8 @@ void main() {
       expect(model.fileSizeBytes, 1024000);
       expect(model.status, 'INDEXED');
       expect(model.chunkCount, 42);
+      expect(model.hasContent, isTrue);
+      expect(model.editable, isFalse);
     });
 
     test('handles missing optional fields with defaults', () {
@@ -37,6 +42,20 @@ void main() {
       expect(model.fileSizeBytes, 0);
       expect(model.status, 'PENDING');
       expect(model.chunkCount, 0);
+      expect(model.hasContent, isFalse);
+      expect(model.editable, isFalse);
+    });
+
+    test('hasContent true when JSON field is true', () {
+      final model = KnowledgeDocumentModel.fromJson(
+          {'id': '1', 'hasContent': true});
+      expect(model.hasContent, isTrue);
+    });
+
+    test('editable true when JSON field is true', () {
+      final model =
+          KnowledgeDocumentModel.fromJson({'id': '1', 'editable': true});
+      expect(model.editable, isTrue);
     });
 
     test('isProcessing returns true for PROCESSING status', () {
@@ -59,6 +78,36 @@ void main() {
           KnowledgeDocumentModel.fromJson({'id': '1', 'status': 'FAILED'});
       expect(model.isFailed, isTrue);
       expect(model.isIndexed, isFalse);
+    });
+  });
+
+  group('DocumentContentModel', () {
+    test('parses from JSON with all fields', () {
+      final json = {
+        'documentId': 'doc-1',
+        'title': 'My Document',
+        'content': '[{"insert":"hello\\n"}]',
+        'mimeType': 'text/plain',
+        'editable': true,
+      };
+
+      final model = DocumentContentModel.fromJson(json);
+
+      expect(model.documentId, 'doc-1');
+      expect(model.title, 'My Document');
+      expect(model.content, '[{"insert":"hello\\n"}]');
+      expect(model.mimeType, 'text/plain');
+      expect(model.editable, isTrue);
+    });
+
+    test('handles missing optional fields', () {
+      final json = {'documentId': 'doc-2'};
+
+      final model = DocumentContentModel.fromJson(json);
+
+      expect(model.title, '');
+      expect(model.content, isNull);
+      expect(model.editable, isFalse);
     });
   });
 

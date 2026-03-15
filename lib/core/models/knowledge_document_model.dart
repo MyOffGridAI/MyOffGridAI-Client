@@ -13,6 +13,8 @@ class KnowledgeDocumentModel {
   final int chunkCount;
   final String? uploadedAt;
   final String? processedAt;
+  final bool hasContent;
+  final bool editable;
 
   const KnowledgeDocumentModel({
     required this.id,
@@ -25,6 +27,8 @@ class KnowledgeDocumentModel {
     required this.chunkCount,
     this.uploadedAt,
     this.processedAt,
+    this.hasContent = false,
+    this.editable = false,
   });
 
   /// Creates a [KnowledgeDocumentModel] from a JSON map.
@@ -40,6 +44,8 @@ class KnowledgeDocumentModel {
       chunkCount: json['chunkCount'] as int? ?? 0,
       uploadedAt: json['uploadedAt'] as String?,
       processedAt: json['processedAt'] as String?,
+      hasContent: json['hasContent'] as bool? ?? false,
+      editable: json['editable'] as bool? ?? false,
     );
   }
 
@@ -51,6 +57,36 @@ class KnowledgeDocumentModel {
 
   /// Whether processing failed.
   bool get isFailed => status == 'FAILED';
+}
+
+/// Represents the content of a document for viewing or editing.
+///
+/// Mirrors the server's DocumentContentDto.
+class DocumentContentModel {
+  final String documentId;
+  final String title;
+  final String? content;
+  final String? mimeType;
+  final bool editable;
+
+  const DocumentContentModel({
+    required this.documentId,
+    required this.title,
+    this.content,
+    this.mimeType,
+    this.editable = false,
+  });
+
+  /// Creates a [DocumentContentModel] from a JSON map.
+  factory DocumentContentModel.fromJson(Map<String, dynamic> json) {
+    return DocumentContentModel(
+      documentId: json['documentId'] as String,
+      title: json['title'] as String? ?? '',
+      content: json['content'] as String?,
+      mimeType: json['mimeType'] as String?,
+      editable: json['editable'] as bool? ?? false,
+    );
+  }
 }
 
 /// Result of a semantic knowledge search.
