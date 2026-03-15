@@ -32,44 +32,72 @@ class SecureStorageService {
     ]);
   }
 
-  /// Returns the stored access token, or null if not set.
+  /// Returns the stored access token, or null if not set or on read failure.
   Future<String?> getAccessToken() async {
-    return _storage.read(key: AppConstants.accessTokenKey);
+    try {
+      return await _storage.read(key: AppConstants.accessTokenKey);
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Returns the stored refresh token, or null if not set.
+  /// Returns the stored refresh token, or null if not set or on read failure.
   Future<String?> getRefreshToken() async {
-    return _storage.read(key: AppConstants.refreshTokenKey);
+    try {
+      return await _storage.read(key: AppConstants.refreshTokenKey);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Clears both access and refresh tokens from secure storage.
   Future<void> clearTokens() async {
-    await Future.wait([
-      _storage.delete(key: AppConstants.accessTokenKey),
-      _storage.delete(key: AppConstants.refreshTokenKey),
-    ]);
+    try {
+      await Future.wait([
+        _storage.delete(key: AppConstants.accessTokenKey),
+        _storage.delete(key: AppConstants.refreshTokenKey),
+      ]);
+    } catch (_) {
+      // Storage may be unavailable — tokens are effectively cleared
+    }
   }
 
   /// Saves the server URL to secure storage.
   Future<void> saveServerUrl(String url) async {
-    await _storage.write(key: AppConstants.serverUrlKey, value: url);
+    try {
+      await _storage.write(key: AppConstants.serverUrlKey, value: url);
+    } catch (_) {
+      // Best-effort persist — URL is already held in memory by caller
+    }
   }
 
   /// Returns the stored server URL, or [AppConstants.defaultServerUrl] if not set.
   Future<String> getServerUrl() async {
-    final url = await _storage.read(key: AppConstants.serverUrlKey);
-    return url ?? AppConstants.defaultServerUrl;
+    try {
+      final url = await _storage.read(key: AppConstants.serverUrlKey);
+      return url ?? AppConstants.defaultServerUrl;
+    } catch (_) {
+      return AppConstants.defaultServerUrl;
+    }
   }
 
   /// Saves the theme preference ('light', 'dark', or 'system').
   Future<void> saveThemePreference(String theme) async {
-    await _storage.write(key: AppConstants.themeKey, value: theme);
+    try {
+      await _storage.write(key: AppConstants.themeKey, value: theme);
+    } catch (_) {
+      // Best-effort persist
+    }
   }
 
   /// Returns the stored theme preference, defaulting to 'system'.
   Future<String> getThemePreference() async {
-    final theme = await _storage.read(key: AppConstants.themeKey);
-    return theme ?? 'system';
+    try {
+      final theme = await _storage.read(key: AppConstants.themeKey);
+      return theme ?? 'system';
+    } catch (_) {
+      return 'system';
+    }
   }
 }
 
