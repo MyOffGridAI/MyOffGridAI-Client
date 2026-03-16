@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
+import 'package:myoffgridai_client/features/chat/widgets/message_bubble.dart';
 import 'package:myoffgridai_client/features/chat/widgets/thinking_indicator.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
@@ -18,7 +20,9 @@ final responseTimeProvider =
 ///
 /// Displays messages in a scrollable list with the input field at the
 /// bottom. User messages appear instantly (optimistic update) and an
-/// animated thinking indicator shows while the AI responds.
+/// animated thinking indicator shows while the AI responds. Supports
+/// markdown rendering, thinking blocks, inference metadata, and message
+/// actions (edit, delete, regenerate, branch).
 class ChatConversationScreen extends ConsumerStatefulWidget {
   /// The conversation ID to display.
   final String conversationId;
@@ -43,6 +47,7 @@ class _ChatConversationScreenState
     extends ConsumerState<ChatConversationScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final _focusNode = FocusNode();
   bool _isSending = false;
 
   @override
@@ -54,8 +59,7 @@ class _ChatConversationScreenState
   }
 
   /// Waits for the notifier's initial build to complete, then sends
-  /// the welcome-screen message. Awaiting the build prevents it from
-  /// overwriting the optimistic user bubble with an empty list.
+  /// the welcome-screen message.
   Future<void> _sendInitialMessage() async {
     await ref.read(
       chatMessagesNotifierProvider(widget.conversationId).future,
@@ -71,6 +75,7 @@ class _ChatConversationScreenState
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -80,8 +85,6 @@ class _ChatConversationScreenState
         ref.watch(chatMessagesNotifierProvider(widget.conversationId));
     final isThinking =
         ref.watch(aiThinkingProvider(widget.conversationId));
-    final responseTime =
-        ref.watch(responseTimeProvider(widget.conversationId));
 
     // Get conversation title from the conversations list
     final conversationsAsync = ref.watch(conversationsProvider);
@@ -131,13 +134,17 @@ class _ChatConversationScreenState
                     }
                     final msgIndex = isThinking ? index - 1 : index;
                     final msg = messages[messages.length - 1 - msgIndex];
-                    // Show response time only on the last assistant message
-                    final isLastAssistant = msg.isAssistant &&
-                        msgIndex == 0 &&
-                        !isThinking;
-                    return _MessageBubble(
+                    final isStreaming = msg.id.startsWith('temp-assistant') ||
+                        msg.id.startsWith('temp-regen');
+
+                    return MessageBubble(
                       message: msg,
-                      responseTime: isLastAssistant ? responseTime : null,
+                      isStreaming: isStreaming,
+                      onEdit: msg.isUser ? _handleEdit : null,
+                      onDelete: _handleDelete,
+                      onRegenerate:
+                          msg.isAssistant ? _handleRegenerate : null,
+                      onBranch: _handleBranch,
                     );
                   },
                 );
@@ -151,30 +158,68 @@ class _ChatConversationScreenState
   }
 
   Widget _buildInputBar(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: colorScheme.surface,
         border: Border(
           top: BorderSide(color: Theme.of(context).dividerColor),
         ),
       ),
       child: SafeArea(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: TextField(
-                controller: _messageController,
-                decoration: const InputDecoration(
-                  hintText: 'Type a message...',
-                  border: InputBorder.none,
+              child: KeyboardListener(
+                focusNode: FocusNode(),
+                onKeyEvent: (event) {
+                  // Shift+Enter inserts newline (default behavior)
+                  // Enter alone sends the message
+                  if (event is KeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.enter &&
+                      !HardwareKeyboard.instance.isShiftPressed) {
+                    _sendMessage();
+                  }
+                },
+                child: TextField(
+                  controller: _messageController,
+                  focusNode: _focusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Type a message...',
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _messageController,
+                      builder: (context, value, _) {
+                        final charCount = value.text.length;
+                        if (charCount == 0) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8, top: 12),
+                          child: Text(
+                            '$charCount',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: colorScheme.onSurface
+                                  .withValues(alpha: 0.3),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  maxLines: 6,
+                  minLines: 1,
+                  textInputAction: TextInputAction.newline,
                 ),
-                maxLines: 4,
-                minLines: 1,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
               ),
             ),
+            const SizedBox(width: 4),
             IconButton(
               icon: _isSending
                   ? const SizedBox(
@@ -211,71 +256,109 @@ class _ChatConversationScreenState
     } finally {
       if (mounted) {
         setState(() => _isSending = false);
+        _focusNode.requestFocus();
       }
     }
   }
-}
 
-/// Renders a single chat message bubble aligned left (assistant) or right (user).
-class _MessageBubble extends StatelessWidget {
-  final MessageModel message;
-  final Duration? responseTime;
-
-  const _MessageBubble({required this.message, this.responseTime});
-
-  @override
-  Widget build(BuildContext context) {
-    final isUser = message.isUser;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+  /// Handles editing a user message via a dialog.
+  void _handleEdit(MessageModel message) {
+    final controller = TextEditingController(text: message.content);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Message'),
+        content: TextField(
+          controller: controller,
+          maxLines: 6,
+          minLines: 1,
+          decoration: const InputDecoration(
+            hintText: 'Edit your message...',
+          ),
         ),
-        decoration: BoxDecoration(
-          color: isUser
-              ? colorScheme.primary
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (responseTime != null && !isUser)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  'thought for ${(responseTime!.inMilliseconds / 1000).toStringAsFixed(1)}s',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                ),
-              ),
-            SelectableText(
-              message.content,
-              style: TextStyle(
-                color: isUser ? colorScheme.onPrimary : colorScheme.onSurface,
-              ),
-            ),
-            if (message.hasRagContext)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Icon(
-                  Icons.auto_stories,
-                  size: 14,
-                  color: isUser
-                      ? colorScheme.onPrimary.withValues(alpha: 0.7)
-                      : colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
-          ],
-        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final newContent = controller.text.trim();
+              if (newContent.isNotEmpty && newContent != message.content) {
+                ref
+                    .read(chatMessagesNotifierProvider(widget.conversationId)
+                        .notifier)
+                    .editMessage(message.id, newContent);
+              }
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
+    controller.dispose;
+  }
+
+  /// Handles deleting a message with confirmation.
+  void _handleDelete(MessageModel message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Message'),
+        content: const Text(
+          'This will delete this message and all subsequent messages. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () {
+              ref
+                  .read(chatMessagesNotifierProvider(widget.conversationId)
+                      .notifier)
+                  .deleteMessage(message.id);
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Handles regenerating an assistant message.
+  void _handleRegenerate(MessageModel message) {
+    ref
+        .read(chatMessagesNotifierProvider(widget.conversationId).notifier)
+        .regenerateMessage(message.id);
+  }
+
+  /// Handles branching at a message.
+  void _handleBranch(MessageModel message) {
+    final service = ref.read(chatServiceProvider);
+    service.branchConversation(widget.conversationId, message.id).then(
+      (conversation) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Branched: ${conversation.title ?? 'New branch'}'),
+            ),
+          );
+          ref.invalidate(conversationsProvider);
+        }
+      },
+    ).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to branch: $e')),
+        );
+      }
+    });
   }
 }

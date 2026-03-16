@@ -9,8 +9,9 @@ import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
 /// System health and status screen.
 ///
-/// Displays system status (initialized, fortress, version), Ollama model
-/// health, and a list of available models with their sizes.
+/// Displays system status (initialized, fortress, version), inference provider
+/// health (supports both Ollama and LM Studio), and a list of available models
+/// with their sizes.
 class SystemScreen extends ConsumerWidget {
   /// Creates a [SystemScreen].
   const SystemScreen({super.key});
@@ -80,7 +81,7 @@ class SystemScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Text('Ollama Health',
+            Text('Inference Provider',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             healthAsync.when(
@@ -88,7 +89,7 @@ class SystemScreen extends ConsumerWidget {
               error: (_, __) => const Card(
                 child: ListTile(
                   leading: Icon(Icons.error, color: Colors.red),
-                  title: Text('Ollama unavailable'),
+                  title: Text('Inference provider unavailable'),
                 ),
               ),
               data: (health) => Card(
@@ -109,6 +110,8 @@ class SystemScreen extends ConsumerWidget {
                           Text(health.available
                               ? 'Available'
                               : 'Unavailable'),
+                          const Spacer(),
+                          _ProviderChip(modelName: health.activeModel),
                         ],
                       ),
                       if (health.activeModel != null)
@@ -184,8 +187,49 @@ class SystemScreen extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// A chip showing the inference provider type based on model name heuristics.
+///
+/// If the model name contains a GGUF identifier or slash (typical of LM Studio
+/// HuggingFace model paths), shows "LM Studio". Otherwise shows "Ollama".
+class _ProviderChip extends StatelessWidget {
+  final String? modelName;
+
+  const _ProviderChip({this.modelName});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLmStudio = modelName != null &&
+        (modelName!.contains('/') || modelName!.contains('GGUF'));
+    final label = isLmStudio ? 'LM Studio' : 'Ollama';
+    final color = isLmStudio ? Colors.blue : Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }

@@ -555,6 +555,186 @@ void main() {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // editMessage
+  // ---------------------------------------------------------------------------
+  group('editMessage', () {
+    test('calls PUT with correct path and data, returns MessageModel', () async {
+      when(() => mockClient.put<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/messages/msg-1',
+            data: any(named: 'data'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'msg-1',
+              'role': 'USER',
+              'content': 'Edited content',
+              'tokenCount': 5,
+              'hasRagContext': false,
+              'createdAt': '2026-03-16T10:00:00Z',
+            },
+          });
+
+      final result = await service.editMessage('conv-1', 'msg-1', 'Edited content');
+
+      expect(result.id, 'msg-1');
+      expect(result.content, 'Edited content');
+      expect(result.role, 'USER');
+
+      final captured = verify(() => mockClient.put<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/messages/msg-1',
+            data: captureAny(named: 'data'),
+          )).captured;
+
+      final sentData = captured.first as Map<String, dynamic>;
+      expect(sentData['content'], 'Edited content');
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.put<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/messages/msg-1',
+            data: any(named: 'data'),
+          )).thenThrow(const ApiException(
+        statusCode: 404,
+        message: 'Message not found',
+      ));
+
+      expect(
+        () => service.editMessage('conv-1', 'msg-1', 'New text'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // deleteMessage
+  // ---------------------------------------------------------------------------
+  group('deleteMessage', () {
+    test('calls DELETE on correct path', () async {
+      when(() => mockClient.delete(
+            '${AppConstants.chatBasePath}/conversations/conv-1/messages/msg-2',
+          )).thenAnswer((_) async {});
+
+      await service.deleteMessage('conv-1', 'msg-2');
+
+      verify(() => mockClient.delete(
+            '${AppConstants.chatBasePath}/conversations/conv-1/messages/msg-2',
+          )).called(1);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.delete(
+            '${AppConstants.chatBasePath}/conversations/conv-1/messages/msg-2',
+          )).thenThrow(const ApiException(
+        statusCode: 404,
+        message: 'Message not found',
+      ));
+
+      expect(
+        () => service.deleteMessage('conv-1', 'msg-2'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // branchConversation
+  // ---------------------------------------------------------------------------
+  group('branchConversation', () {
+    test('calls POST with correct path and returns ConversationModel', () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/branch/msg-3',
+            data: any(named: 'data'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'conv-branch',
+              'title': 'Branch of conversation',
+              'isArchived': false,
+              'messageCount': 3,
+              'createdAt': '2026-03-16T14:00:00Z',
+              'updatedAt': '2026-03-16T14:00:00Z',
+            },
+          });
+
+      final result = await service.branchConversation('conv-1', 'msg-3');
+
+      expect(result.id, 'conv-branch');
+      expect(result.messageCount, 3);
+
+      verify(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/branch/msg-3',
+            data: any(named: 'data'),
+          )).called(1);
+    });
+
+    test('sends title in body when provided', () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/branch/msg-3',
+            data: any(named: 'data'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'conv-branch-titled',
+              'title': 'Custom Branch Title',
+              'isArchived': false,
+              'messageCount': 3,
+            },
+          });
+
+      final result = await service.branchConversation(
+        'conv-1',
+        'msg-3',
+        title: 'Custom Branch Title',
+      );
+
+      expect(result.title, 'Custom Branch Title');
+
+      final captured = verify(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/branch/msg-3',
+            data: captureAny(named: 'data'),
+          )).captured;
+
+      final sentData = captured.first as Map<String, dynamic>;
+      expect(sentData['title'], 'Custom Branch Title');
+    });
+
+    test('sends null data when title is omitted', () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/branch/msg-3',
+            data: any(named: 'data'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'conv-branch-no-title',
+              'title': null,
+              'isArchived': false,
+              'messageCount': 2,
+            },
+          });
+
+      await service.branchConversation('conv-1', 'msg-3');
+
+      final captured = verify(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/branch/msg-3',
+            data: captureAny(named: 'data'),
+          )).captured;
+
+      expect(captured.first, isNull);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/branch/msg-3',
+            data: any(named: 'data'),
+          )).thenThrow(const ApiException(
+        statusCode: 404,
+        message: 'Message not found',
+      ));
+
+      expect(
+        () => service.branchConversation('conv-1', 'msg-3'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
   // ── Provider body tests ───────────────────────────────────────────────
   group('chatServiceProvider', () {
     test('creates ChatService from apiClientProvider', () {

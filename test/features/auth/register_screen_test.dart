@@ -358,5 +358,12 @@ void main() {
       // Should navigate to home
       expect(find.text('Home'), findsOneWidget);
     });
+
+    // Note: Registration error handling (lines 58-65) requires overriding
+    // authStateProvider with a notifier that sets state = AsyncError. In tests,
+    // ref.read(authStateProvider) after notifier.register() does not see the
+    // AsyncError set by the notifier in the same synchronous frame, causing the
+    // screen to navigate to home instead of showing the error SnackBar.
+    // These lines cannot be covered without modifying lib/ code.
   });
 }

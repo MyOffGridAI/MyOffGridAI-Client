@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -524,6 +526,46 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete failed'), findsOneWidget);
+    });
+  });
+
+  group('Loading state', () {
+    testWidgets('shows loading indicator while users load', (tester) async {
+      final completer = Completer<List<UserModel>>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          usersListProvider.overrideWith((ref) => completer.future),
+          userServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: UsersScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(<UserModel>[]);
+    });
+  });
+
+  group('Error retry', () {
+    testWidgets('retry button reloads users after error', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          usersListProvider.overrideWith((ref) =>
+              throw const ApiException(statusCode: 500, message: 'Error')),
+          userServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: UsersScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Provider re-throws same error
+      expect(find.text('Failed to load users'), findsOneWidget);
     });
   });
 }

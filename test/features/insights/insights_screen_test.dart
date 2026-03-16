@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -504,6 +506,138 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(Dismissible), findsOneWidget);
+    });
+  });
+
+  group('Notification type icons', () {
+    testWidgets('shows warning icon for ALERT type', (tester) async {
+      await tester
+          .pumpWidget(buildScreen(notifications: [unreadNotif]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notifications'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.warning), findsOneWidget);
+    });
+
+    testWidgets('shows warning_amber icon for WARNING type', (tester) async {
+      const warningNotif = NotificationModel(
+        id: 'n4',
+        title: 'Warning',
+        body: 'Low battery warning',
+        type: 'WARNING',
+        severity: 'WARNING',
+        isRead: false,
+      );
+
+      await tester
+          .pumpWidget(buildScreen(notifications: [warningNotif]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notifications'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.warning_amber), findsOneWidget);
+    });
+
+    testWidgets('shows error icon for ERROR type', (tester) async {
+      const errorNotif = NotificationModel(
+        id: 'n5',
+        title: 'Error',
+        body: 'System error occurred',
+        type: 'ERROR',
+        severity: 'CRITICAL',
+        isRead: false,
+      );
+
+      await tester
+          .pumpWidget(buildScreen(notifications: [errorNotif]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notifications'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.error), findsOneWidget);
+    });
+
+    testWidgets('shows check_circle icon for SUCCESS type', (tester) async {
+      await tester
+          .pumpWidget(buildScreen(notifications: [readNotif]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notifications'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    });
+  });
+
+  group('Insights loading state', () {
+    testWidgets('shows loading indicator while insights load', (tester) async {
+      final completer = Completer<List<InsightModel>>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          insightsProvider.overrideWith((ref) => completer.future),
+          notificationsProvider.overrideWith((ref) => <NotificationModel>[]),
+          insightServiceProvider.overrideWithValue(mockInsightService),
+          notificationServiceProvider.overrideWithValue(mockNotifService),
+        ],
+        child: const MaterialApp(home: InsightsScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(<InsightModel>[]);
+    });
+
+    testWidgets('insights retry button triggers reload', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          insightsProvider.overrideWith((ref) =>
+              throw const ApiException(statusCode: 500, message: 'Error')),
+          notificationsProvider.overrideWith((ref) => <NotificationModel>[]),
+          insightServiceProvider.overrideWithValue(mockInsightService),
+          notificationServiceProvider.overrideWithValue(mockNotifService),
+        ],
+        child: const MaterialApp(home: InsightsScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Should still show error (provider re-throws)
+      expect(find.text('Failed to load insights'), findsOneWidget);
+    });
+  });
+
+  group('Notifications loading state', () {
+    testWidgets('notifications retry button triggers reload', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          insightsProvider.overrideWith((ref) => <InsightModel>[]),
+          notificationsProvider.overrideWith((ref) =>
+              throw const ApiException(statusCode: 500, message: 'Error')),
+          insightServiceProvider.overrideWithValue(mockInsightService),
+          notificationServiceProvider.overrideWithValue(mockNotifService),
+        ],
+        child: const MaterialApp(home: InsightsScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notifications'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load notifications'), findsOneWidget);
     });
   });
 }

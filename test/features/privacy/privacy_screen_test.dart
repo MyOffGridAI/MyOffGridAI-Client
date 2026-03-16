@@ -689,4 +689,91 @@ void main() {
       expect(find.text(' MANUAL_ACTION'), findsOneWidget);
     });
   });
+
+  group('Retry callbacks', () {
+    testWidgets('fortress error retry button triggers reload', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          fortressStatusProvider.overrideWith((ref) =>
+              throw const ApiException(
+                  statusCode: 500, message: 'Fortress error')),
+          privacyServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: PrivacyScreen()),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Should still show error (provider re-throws)
+      expect(find.text('Failed to load fortress status'), findsOneWidget);
+    });
+
+    testWidgets('sovereignty error retry button triggers reload',
+        (tester) async {
+      when(() => mockService.getSovereigntyReport()).thenThrow(
+        const ApiException(
+            statusCode: 500, message: 'Sovereignty error'),
+      );
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          fortressStatusProvider.overrideWith((ref) =>
+              const FortressStatusModel(enabled: true, verified: true)),
+          privacyServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: PrivacyScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Sovereignty'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Should still show error (service keeps throwing)
+      expect(
+          find.text('Failed to load sovereignty report'), findsOneWidget);
+    });
+
+    testWidgets('audit log error retry button triggers reload',
+        (tester) async {
+      when(() => mockService.getAuditLogs(
+            outcome: any(named: 'outcome'),
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenThrow(
+        const ApiException(statusCode: 500, message: 'Audit error'),
+      );
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          fortressStatusProvider.overrideWith((ref) =>
+              const FortressStatusModel(enabled: true, verified: true)),
+          privacyServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: PrivacyScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Audit Log'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Should still show error (service keeps throwing)
+      expect(find.text('Failed to load audit logs'), findsOneWidget);
+    });
+  });
 }

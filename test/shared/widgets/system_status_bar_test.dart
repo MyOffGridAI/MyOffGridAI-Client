@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -405,6 +407,84 @@ void main() {
 
       // notification icon should still be shown in error state
       expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
+    });
+
+    testWidgets('shows loading indicator when health is loading',
+        (tester) async {
+      final completer = Completer<OllamaHealthDto>();
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: SystemStatusBar()),
+          ),
+          GoRoute(
+            path: '/insights',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Insights')),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          modelHealthProvider.overrideWith((ref) => completer.future),
+          unreadCountProvider.overrideWith((ref) => 0),
+          ollamaModelsProvider.overrideWith((ref) => []),
+          aiSettingsProvider.overrideWith(
+            (ref) => const AiSettingsModel(modelName: 'llama3'),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(
+          const OllamaHealthDto(available: true, activeModel: 'llama3'));
+    });
+
+    testWidgets('shows notification icon in loading state', (tester) async {
+      final completer = Completer<int>();
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: SystemStatusBar()),
+          ),
+          GoRoute(
+            path: '/insights',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Insights')),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          modelHealthProvider.overrideWith(
+            (ref) => const OllamaHealthDto(
+                available: true, activeModel: 'llama3'),
+          ),
+          unreadCountProvider.overrideWith((ref) => completer.future),
+          ollamaModelsProvider.overrideWith((ref) => []),
+          aiSettingsProvider.overrideWith(
+            (ref) => const AiSettingsModel(modelName: 'llama3'),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pump();
+
+      // Notification icon should still show while count is loading
+      expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
+
+      completer.complete(0);
     });
   });
 }

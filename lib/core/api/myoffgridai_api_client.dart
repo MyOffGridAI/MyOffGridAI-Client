@@ -132,6 +132,30 @@ class MyOffGridAIApiClient {
     }
   }
 
+  /// Performs a POST request to [path] and returns a raw byte stream.
+  ///
+  /// Used for SSE streaming endpoints where the response is a continuous
+  /// stream of server-sent events.
+  Future<ResponseBody?> postStream(
+    String path, {
+    dynamic data,
+    Duration? receiveTimeout,
+  }) async {
+    try {
+      final response = await _dio.post<ResponseBody>(
+        path,
+        data: data,
+        options: Options(
+          responseType: ResponseType.stream,
+          receiveTimeout: receiveTimeout,
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
   /// Performs a multipart POST request to [path] with [formData].
   Future<T> postMultipart<T>(
     String path,

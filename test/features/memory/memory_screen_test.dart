@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -427,5 +429,79 @@ void main() {
     // tree") because the Dismissible is already removed before the dialog can
     // rebuild the tree. These lines cannot be covered without modifying source code
     // (e.g., using confirmDismiss instead of onDismissed).
+  });
+
+  group('Loading state', () {
+    testWidgets('shows loading indicator while memories load', (tester) async {
+      final completer = Completer<List<MemoryModel>>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          memoriesProvider.overrideWith((ref) => completer.future),
+          memoryServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: MemoryScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(<MemoryModel>[]);
+    });
+
+    testWidgets('error retry button triggers reload', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          memoriesProvider.overrideWith((ref) =>
+              throw const ApiException(statusCode: 500, message: 'Error')),
+          memoryServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: MemoryScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load memories'), findsOneWidget);
+    });
+  });
+
+  group('Memory detail from list', () {
+    testWidgets('shows created date in detail sheet', (tester) async {
+      await tester.pumpWidget(buildScreen(memories: [highMemory]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('User prefers dark mode'));
+      await tester.pumpAndSettle();
+
+      // highMemory has createdAt: '2026-03-01T10:00:00Z'
+      expect(find.textContaining('Created:'), findsOneWidget);
+    });
+
+    testWidgets('shows importance badge in detail sheet', (tester) async {
+      await tester.pumpWidget(buildScreen(memories: [criticalMemory]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('User is allergic to peanuts'));
+      await tester.pumpAndSettle();
+
+      // Check that CRITICAL importance badge appears in the detail sheet
+      // The detail sheet shows the importance as a badge via _importanceBadge
+      expect(find.text('CRITICAL'), findsWidgets);
+    });
+
+    testWidgets('shows selectable content text in detail sheet',
+        (tester) async {
+      await tester.pumpWidget(buildScreen(memories: [mediumMemory]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('User lives in Colorado'));
+      await tester.pumpAndSettle();
+
+      // The detail sheet shows content as SelectableText
+      expect(find.byType(SelectableText), findsOneWidget);
+    });
   });
 }

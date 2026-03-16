@@ -35,6 +35,10 @@ dependencies:
   path_provider: ^2.1.5
   open_filex: ^4.6.0
   cached_network_image: ^3.4.1
+  flutter_markdown: ^0.7.4+3
+  markdown: ^7.3.0
+  flutter_highlight: ^0.7.0
+  highlight: ^0.7.0
 
 dev_dependencies:
   flutter_test:

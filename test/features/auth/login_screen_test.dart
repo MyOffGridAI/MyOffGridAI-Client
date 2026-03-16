@@ -243,6 +243,13 @@ void main() {
       expect(find.text('Home'), findsOneWidget);
     });
 
+    // Note: Login error handling (lines 64-71) requires overriding
+    // authStateProvider with a notifier that sets state = AsyncError. In tests,
+    // ref.read(authStateProvider) after notifier.login() does not see the
+    // AsyncError set by the notifier in the same synchronous frame, causing the
+    // screen to navigate to home instead of showing the error SnackBar.
+    // These lines cannot be covered without modifying lib/ code.
+
     // Note: _showServerUrlDialog save flow (lines 108-114) requires
     // apiClientProvider.updateBaseUrl which has complex initialization
     // dependencies. These lines cannot be covered without modifying lib/ code.

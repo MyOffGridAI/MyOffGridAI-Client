@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -281,6 +283,45 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Execution failed'), findsOneWidget);
+    });
+  });
+
+  group('Loading state', () {
+    testWidgets('shows loading indicator while skills load', (tester) async {
+      final completer = Completer<List<SkillModel>>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          skillsProvider.overrideWith((ref) => completer.future),
+          skillsServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: SkillsScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(<SkillModel>[]);
+    });
+  });
+
+  group('Error retry', () {
+    testWidgets('retry button reloads skills after error', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          skillsProvider.overrideWith((ref) =>
+              throw const ApiException(statusCode: 500, message: 'Error')),
+          skillsServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: SkillsScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load skills'), findsOneWidget);
     });
   });
 }

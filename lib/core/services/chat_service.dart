@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/conversation_model.dart';
+import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 
 /// Service for chat conversation and message operations.
@@ -122,6 +126,126 @@ class ChatService {
     );
     final data = response['data'] as Map<String, dynamic>;
     return MessageModel.fromJson(data);
+  }
+
+  /// Sends a message with SSE streaming, yielding typed [InferenceStreamEvent]s.
+  ///
+  /// The server emits `data:` lines containing JSON objects with `type`,
+  /// `content`, and `metadata` fields. This method parses each SSE line
+  /// and yields the corresponding event.
+  Stream<InferenceStreamEvent> sendMessageStream(
+    String conversationId,
+    String content,
+  ) async* {
+    yield* _sseStream(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/messages',
+      data: {'content': content, 'stream': true},
+    );
+  }
+
+  /// Edits a user message and triggers re-inference.
+  ///
+  /// Deletes all subsequent messages and updates the message content.
+  Future<MessageModel> editMessage(
+    String conversationId,
+    String messageId,
+    String newContent,
+  ) async {
+    final response = await _client.put<Map<String, dynamic>>(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/messages/$messageId',
+      data: {'content': newContent},
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return MessageModel.fromJson(data);
+  }
+
+  /// Deletes a message and all subsequent messages in the conversation.
+  Future<void> deleteMessage(
+    String conversationId,
+    String messageId,
+  ) async {
+    await _client.delete(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/messages/$messageId',
+    );
+  }
+
+  /// Branches a conversation at a specific message.
+  ///
+  /// Creates a new conversation with all messages up to (inclusive) [messageId].
+  Future<ConversationModel> branchConversation(
+    String conversationId,
+    String messageId, {
+    String? title,
+  }) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/branch/$messageId',
+      data: title != null ? {'title': title} : null,
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return ConversationModel.fromJson(data);
+  }
+
+  /// Regenerates an assistant message via SSE streaming.
+  ///
+  /// Deletes the target message and re-runs inference, yielding typed events.
+  Stream<InferenceStreamEvent> regenerateMessage(
+    String conversationId,
+    String messageId,
+  ) async* {
+    yield* _sseStream(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/messages/$messageId/regenerate',
+    );
+  }
+
+  /// Opens an SSE stream via POST and yields parsed [InferenceStreamEvent]s.
+  Stream<InferenceStreamEvent> _sseStream(
+    String path, {
+    Map<String, dynamic>? data,
+  }) async* {
+    final responseBody = await _client.postStream(
+      path,
+      data: data,
+      receiveTimeout: AppConstants.sseTimeout,
+    );
+
+    final stream = responseBody?.stream;
+    if (stream == null) return;
+
+    final lineBuffer = StringBuffer();
+    await for (final chunk in stream) {
+      final text = utf8.decode(chunk, allowMalformed: true);
+      lineBuffer.write(text);
+
+      // Process complete lines from the buffer
+      final buffered = lineBuffer.toString();
+      final lines = buffered.split('\n');
+
+      // Keep the last incomplete line in the buffer
+      lineBuffer.clear();
+      if (!buffered.endsWith('\n')) {
+        lineBuffer.write(lines.removeLast());
+      } else {
+        lines.removeLast(); // Remove trailing empty string
+      }
+
+      for (final line in lines) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) continue;
+
+        // SSE format: "data:..." or "data: ..."
+        if (trimmed.startsWith('data:')) {
+          final payload = trimmed.substring(5).trim();
+          if (payload.isEmpty) continue;
+
+          try {
+            final json = jsonDecode(payload) as Map<String, dynamic>;
+            yield InferenceStreamEvent.fromJson(json);
+          } catch (_) {
+            // Skip malformed JSON lines
+          }
+        }
+      }
+    }
   }
 }
 

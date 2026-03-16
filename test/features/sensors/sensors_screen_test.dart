@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -427,6 +429,45 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete failed'), findsOneWidget);
+    });
+  });
+
+  group('Loading state', () {
+    testWidgets('shows loading indicator while sensors load', (tester) async {
+      final completer = Completer<List<SensorModel>>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          sensorsProvider.overrideWith((ref) => completer.future),
+          sensorServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: SensorsScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(<SensorModel>[]);
+    });
+  });
+
+  group('Error retry', () {
+    testWidgets('retry button reloads sensors after error', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          sensorsProvider.overrideWith((ref) =>
+              throw const ApiException(statusCode: 500, message: 'Error')),
+          sensorServiceProvider.overrideWithValue(mockService),
+        ],
+        child: const MaterialApp(home: SensorsScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load sensors'), findsOneWidget);
     });
   });
 }

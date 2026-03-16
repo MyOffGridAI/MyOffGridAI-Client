@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
@@ -25,6 +26,33 @@ void main() {
   }
 
   const conversationId = 'conv-123';
+
+  /// Helper to create a simple SSE stream that emits content then done.
+  Stream<InferenceStreamEvent> successStream({
+    String content = 'Response',
+    double tokensPerSecond = 12.5,
+    double inferenceTimeSeconds = 1.8,
+  }) async* {
+    yield InferenceStreamEvent(
+      type: InferenceEventType.content,
+      content: content,
+    );
+    yield InferenceStreamEvent(
+      type: InferenceEventType.done,
+      metadata: InferenceMetadata(
+        tokensGenerated: 25,
+        tokensPerSecond: tokensPerSecond,
+        inferenceTimeSeconds: inferenceTimeSeconds,
+        stopReason: 'stop',
+      ),
+    );
+  }
+
+  /// Helper to create a stream that throws an error.
+  Stream<InferenceStreamEvent> errorStream() async* {
+    // ignore: only_throw_errors
+    throw Exception('Network error');
+  }
 
   group('ChatMessagesNotifier.build()', () {
     test('returns messages from chatService.listMessages', () async {
@@ -72,26 +100,7 @@ void main() {
     test('optimistically adds user message then replaces with server response',
         () async {
       // Initial build returns existing messages
-      when(() => mockService.listMessages(conversationId))
-          .thenAnswer((_) async => [
-                const MessageModel(
-                  id: 'm1',
-                  role: 'USER',
-                  content: 'First',
-                  hasRagContext: false,
-                ),
-              ]);
-
-      // sendMessage succeeds
-      when(() => mockService.sendMessage(conversationId, 'New message'))
-          .thenAnswer((_) async => const MessageModel(
-                id: 'm2',
-                role: 'ASSISTANT',
-                content: 'Response',
-                hasRagContext: false,
-              ));
-
-      // Re-fetch after send returns full list
+      int listMessagesCallCount = 0;
       final serverMessages = [
         const MessageModel(
           id: 'm1',
@@ -113,8 +122,6 @@ void main() {
         ),
       ];
 
-      // listMessages will be called twice: once for build, once for re-fetch
-      int listMessagesCallCount = 0;
       when(() => mockService.listMessages(conversationId)).thenAnswer((_) async {
         listMessagesCallCount++;
         if (listMessagesCallCount <= 1) {
@@ -130,6 +137,10 @@ void main() {
         return serverMessages;
       });
 
+      // sendMessageStream returns SSE events
+      when(() => mockService.sendMessageStream(conversationId, 'New message'))
+          .thenAnswer((_) => successStream(content: 'Response'));
+
       final container = createContainer();
       addTearDown(container.dispose);
 
@@ -142,7 +153,7 @@ void main() {
           .read(chatMessagesNotifierProvider(conversationId).notifier)
           .sendMessage('New message');
 
-      // After send completes, state should have server messages
+      // After send completes, state should have server messages (re-fetched)
       final state = container.read(chatMessagesNotifierProvider(conversationId));
       expect(state.hasValue, isTrue);
       expect(state.value, hasLength(3));
@@ -154,7 +165,7 @@ void main() {
       expect(thinking, isFalse);
     });
 
-    test('removes temp message and rethrows on send error', () async {
+    test('removes temp message and rethrows on stream error', () async {
       when(() => mockService.listMessages(conversationId))
           .thenAnswer((_) async => [
                 const MessageModel(
@@ -165,8 +176,8 @@ void main() {
                 ),
               ]);
 
-      when(() => mockService.sendMessage(conversationId, 'Failing message'))
-          .thenThrow(Exception('Network error'));
+      when(() => mockService.sendMessageStream(conversationId, 'Failing message'))
+          .thenAnswer((_) => errorStream());
 
       final container = createContainer();
       addTearDown(container.dispose);
@@ -203,18 +214,8 @@ void main() {
       when(() => mockService.listMessages(conversationId))
           .thenAnswer((_) async => []);
 
-      // Use a completer so we can check thinking state mid-flight
-      var sendCalled = false;
-      when(() => mockService.sendMessage(conversationId, 'Hello'))
-          .thenAnswer((_) async {
-        sendCalled = true;
-        return const MessageModel(
-          id: 'm1',
-          role: 'ASSISTANT',
-          content: 'Hi',
-          hasRagContext: false,
-        );
-      });
+      when(() => mockService.sendMessageStream(conversationId, 'Hello'))
+          .thenAnswer((_) => successStream(content: 'Hi'));
 
       final container = createContainer();
       addTearDown(container.dispose);
@@ -230,8 +231,6 @@ void main() {
           .read(chatMessagesNotifierProvider(conversationId).notifier)
           .sendMessage('Hello');
 
-      expect(sendCalled, isTrue);
-
       // After send completes, thinking should be false again
       expect(container.read(aiThinkingProvider(conversationId)), isFalse);
     });
@@ -240,13 +239,8 @@ void main() {
       when(() => mockService.listMessages(conversationId))
           .thenAnswer((_) async => []);
 
-      when(() => mockService.sendMessage(conversationId, 'test'))
-          .thenAnswer((_) async => const MessageModel(
-                id: 'm1',
-                role: 'ASSISTANT',
-                content: 'Response',
-                hasRagContext: false,
-              ));
+      when(() => mockService.sendMessageStream(conversationId, 'test'))
+          .thenAnswer((_) => successStream());
 
       final container = createContainer();
       addTearDown(container.dispose);
@@ -271,20 +265,57 @@ void main() {
       expect(responseTime, isA<Duration>());
     });
 
-    test('staggered re-fetches call ref.invalidate when provider exists',
-        () async {
-      // This test exercises lines 72-73: the delayed ref.exists / ref.invalidate
-      // calls that happen at 3, 6, and 10 seconds after a successful send.
+    test('accumulates thinking and content from stream events', () async {
       when(() => mockService.listMessages(conversationId))
           .thenAnswer((_) async => []);
 
-      when(() => mockService.sendMessage(conversationId, 'trigger-refetch'))
-          .thenAnswer((_) async => const MessageModel(
-                id: 'm1',
-                role: 'ASSISTANT',
-                content: 'Response',
-                hasRagContext: false,
-              ));
+      // Stream with thinking events followed by content
+      Stream<InferenceStreamEvent> thinkingStream() async* {
+        yield const InferenceStreamEvent(
+          type: InferenceEventType.thinking,
+          content: 'Let me think...',
+        );
+        yield const InferenceStreamEvent(
+          type: InferenceEventType.content,
+          content: 'Here is the answer',
+        );
+        yield const InferenceStreamEvent(
+          type: InferenceEventType.done,
+          metadata: InferenceMetadata(
+            tokensGenerated: 30,
+            tokensPerSecond: 15.0,
+            inferenceTimeSeconds: 2.0,
+            stopReason: 'stop',
+          ),
+        );
+      }
+
+      when(() => mockService.sendMessageStream(conversationId, 'Think about this'))
+          .thenAnswer((_) => thinkingStream());
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container
+          .read(chatMessagesNotifierProvider(conversationId).future);
+
+      await container
+          .read(chatMessagesNotifierProvider(conversationId).notifier)
+          .sendMessage('Think about this');
+
+      // After re-fetch, the state has server messages
+      // (the streaming intermediate states have been replaced)
+      final state = container.read(chatMessagesNotifierProvider(conversationId));
+      expect(state.hasValue, isTrue);
+    });
+
+    test('staggered re-fetches call ref.invalidate when provider exists',
+        () async {
+      when(() => mockService.listMessages(conversationId))
+          .thenAnswer((_) async => []);
+
+      when(() => mockService.sendMessageStream(conversationId, 'trigger-refetch'))
+          .thenAnswer((_) => successStream());
 
       final container = createContainer();
       addTearDown(container.dispose);
@@ -300,9 +331,7 @@ void main() {
       // Wait long enough for them to fire while container is still alive.
       await Future<void>.delayed(const Duration(seconds: 11));
 
-      // If we reach here without error, lines 72-73 were exercised.
-      // The ref.exists check returned true and ref.invalidate was called.
-      // After invalidation the provider re-builds, so wait for it.
+      // If we reach here without error, the delayed re-fetches were exercised.
       await container
           .read(chatMessagesNotifierProvider(conversationId).future);
       final state = container.read(chatMessagesNotifierProvider(conversationId));

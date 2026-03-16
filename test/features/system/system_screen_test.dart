@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,11 +47,11 @@ void main() {
       expect(find.text('System Status'), findsOneWidget);
     });
 
-    testWidgets('shows ollama health section', (tester) async {
+    testWidgets('shows inference provider section', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
 
-      expect(find.text('Ollama Health'), findsOneWidget);
+      expect(find.text('Inference Provider'), findsOneWidget);
     });
 
     testWidgets('shows models section', (tester) async {
@@ -132,7 +134,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Ollama unavailable'), findsOneWidget);
+      expect(find.text('Inference provider unavailable'), findsOneWidget);
     });
 
     testWidgets('shows models error text', (tester) async {
@@ -359,6 +361,99 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.smart_toy), findsOneWidget);
+    });
+  });
+
+  group('Loading states', () {
+    testWidgets('shows loading indicator for status section', (tester) async {
+      final completer = Completer<SystemStatusModel>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          systemStatusDetailProvider.overrideWith((ref) => completer.future),
+          modelHealthProvider.overrideWith(
+              (ref) => const OllamaHealthDto(available: true)),
+          ollamaModelsProvider.overrideWith((ref) => <OllamaModelInfoModel>[]),
+        ],
+        child: const MaterialApp(home: SystemScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(const SystemStatusModel(
+        initialized: true,
+        fortressEnabled: true,
+        wifiConfigured: true,
+      ));
+    });
+
+    testWidgets('shows loading indicator for health section', (tester) async {
+      final completer = Completer<OllamaHealthDto>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          systemStatusDetailProvider.overrideWith((ref) =>
+              const SystemStatusModel(
+                initialized: true,
+                fortressEnabled: true,
+                wifiConfigured: true,
+              )),
+          modelHealthProvider.overrideWith((ref) => completer.future),
+          ollamaModelsProvider.overrideWith((ref) => <OllamaModelInfoModel>[]),
+        ],
+        child: const MaterialApp(home: SystemScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(const OllamaHealthDto(available: true));
+    });
+
+    testWidgets('shows loading indicator for models section', (tester) async {
+      final completer = Completer<List<OllamaModelInfoModel>>();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          systemStatusDetailProvider.overrideWith((ref) =>
+              const SystemStatusModel(
+                initialized: true,
+                fortressEnabled: true,
+                wifiConfigured: true,
+              )),
+          modelHealthProvider.overrideWith(
+              (ref) => const OllamaHealthDto(available: true)),
+          ollamaModelsProvider.overrideWith((ref) => completer.future),
+        ],
+        child: const MaterialApp(home: SystemScreen()),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      completer.complete(<OllamaModelInfoModel>[]);
+    });
+
+    testWidgets('status error retry invalidates provider', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          systemStatusDetailProvider.overrideWith(
+            (ref) => throw const ApiException(
+                statusCode: 500, message: 'Status error'),
+          ),
+          modelHealthProvider.overrideWith(
+              (ref) => const OllamaHealthDto(available: true)),
+          ollamaModelsProvider.overrideWith((ref) => <OllamaModelInfoModel>[]),
+        ],
+        child: const MaterialApp(home: SystemScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Screen should still show error (provider re-throws)
+      expect(find.text('Failed to load status'), findsOneWidget);
     });
   });
 }

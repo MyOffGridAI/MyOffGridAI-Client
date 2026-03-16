@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/models/conversation_model.dart';
@@ -132,7 +133,7 @@ void main() {
       expect(find.byIcon(Icons.auto_stories), findsNothing);
     });
 
-    testWidgets('shows response time for last assistant message',
+    testWidgets('shows inference metadata for assistant message',
         (tester) async {
       final messages = [
         MessageModel.fromJson({
@@ -140,16 +141,17 @@ void main() {
           'role': 'ASSISTANT',
           'content': 'Response here',
           'hasRagContext': false,
+          'inferenceTimeSeconds': 2.5,
+          'tokensPerSecond': 14.3,
         }),
       ];
 
       await tester.pumpWidget(buildScreen(
         messages: messages,
-        responseTime: const Duration(milliseconds: 2500),
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('thought for 2.5s'), findsOneWidget);
+      expect(find.text('2.5s \u00b7 14.3 tok/s'), findsOneWidget);
     });
 
     testWidgets('shows thinking indicator when AI is thinking',
@@ -261,6 +263,85 @@ void main() {
       expect(find.text('My Chat'), findsOneWidget);
     });
 
+    testWidgets('shows API error message when messages fail to load',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          chatMessagesNotifierProvider.overrideWith(
+            () => _ApiErrorChatMessagesNotifier(),
+          ),
+          aiThinkingProvider.overrideWith((ref, id) => false),
+          responseTimeProvider.overrideWith((ref, id) => null),
+          conversationsProvider.overrideWith(
+            (ref) => <ConversationSummaryModel>[],
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ChatConversationScreen(conversationId: 'conv-1'),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load messages'), findsOneWidget);
+      expect(find.text('Server unavailable'), findsOneWidget);
+    });
+
+    testWidgets('shows generic error for non-API exception',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          chatMessagesNotifierProvider.overrideWith(
+            () => _ErrorChatMessagesNotifier(),
+          ),
+          aiThinkingProvider.overrideWith((ref, id) => false),
+          responseTimeProvider.overrideWith((ref, id) => null),
+          conversationsProvider.overrideWith(
+            (ref) => <ConversationSummaryModel>[],
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ChatConversationScreen(conversationId: 'conv-1'),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('An unexpected error occurred.'), findsOneWidget);
+    });
+
+    testWidgets('retry button reloads messages after error',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          chatMessagesNotifierProvider.overrideWith(
+            () => _ApiErrorChatMessagesNotifier(),
+          ),
+          aiThinkingProvider.overrideWith((ref, id) => false),
+          responseTimeProvider.overrideWith((ref, id) => null),
+          conversationsProvider.overrideWith(
+            (ref) => <ConversationSummaryModel>[],
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ChatConversationScreen(conversationId: 'conv-1'),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Provider re-throws same error so screen should still show error
+      expect(find.text('Failed to load messages'), findsOneWidget);
+    });
+
     // Note: The _sendMessage method (lines 194-216) and onSubmitted (line 175)
     // require the full apiClientProvider to be overridden. sendMessage calls
     // ref.read(chatMessagesNotifierProvider(...).notifier).sendMessage which
@@ -282,5 +363,12 @@ class _ErrorChatMessagesNotifier extends ChatMessagesNotifier {
   @override
   Future<List<MessageModel>> build(String arg) async {
     throw Exception('Failed to load');
+  }
+}
+
+class _ApiErrorChatMessagesNotifier extends ChatMessagesNotifier {
+  @override
+  Future<List<MessageModel>> build(String arg) async {
+    throw const ApiException(statusCode: 500, message: 'Server unavailable');
   }
 }
