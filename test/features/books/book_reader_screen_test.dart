@@ -172,5 +172,64 @@ void main() {
 
       expect(find.text('No content available for this book'), findsOneWidget);
     });
+
+    testWidgets('shows generic error for non-API exception', (tester) async {
+      const ebook = EbookModel(
+        id: 'e1',
+        title: 'Test',
+        format: 'TXT',
+        fileSizeBytes: 100,
+      );
+      when(() => mockService.downloadEbookContent('e1'))
+          .thenThrow(Exception('network down'));
+
+      await tester.pumpWidget(buildScreen(ebook));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load book content'), findsOneWidget);
+    });
+
+    testWidgets('retry button reloads content', (tester) async {
+      const ebook = EbookModel(
+        id: 'e1',
+        title: 'Test',
+        format: 'TXT',
+        fileSizeBytes: 100,
+      );
+      int callCount = 0;
+      when(() => mockService.downloadEbookContent('e1')).thenAnswer((_) {
+        callCount++;
+        if (callCount == 1) {
+          throw const ApiException(statusCode: 500, message: 'Error');
+        }
+        return Future.value('Loaded content'.codeUnits);
+      });
+
+      await tester.pumpWidget(buildScreen(ebook));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Loaded content'), findsOneWidget);
+    });
+
+    testWidgets('shows info icon for unsupported format', (tester) async {
+      const ebook = EbookModel(
+        id: 'e1',
+        title: 'Html Book',
+        format: 'HTML',
+        fileSizeBytes: 100,
+      );
+      when(() => mockService.downloadEbookContent('e1'))
+          .thenAnswer((_) async => [0x01]);
+
+      await tester.pumpWidget(buildScreen(ebook));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+    });
   });
 }
