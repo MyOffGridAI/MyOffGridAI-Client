@@ -147,6 +147,16 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
           ),
           _buildNavItem(
             context,
+            icon: Icons.notifications_outlined,
+            selectedIcon: Icons.notifications,
+            label: 'Alerts',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeNotifications ||
+                currentLocation.startsWith('/notifications'),
+            onTap: () => context.go(AppConstants.routeNotifications),
+          ),
+          _buildNavItem(
+            context,
             icon: Icons.shield_outlined,
             selectedIcon: Icons.shield,
             label: 'Privacy',

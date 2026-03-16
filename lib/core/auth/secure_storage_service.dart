@@ -117,6 +117,29 @@ class SecureStorageService {
     }
   }
 
+  /// Saves the device ID to secure storage.
+  Future<void> saveDeviceId(String deviceId) async {
+    _cache[AppConstants.deviceIdKey] = deviceId;
+    try {
+      await _storage.write(key: AppConstants.deviceIdKey, value: deviceId);
+    } catch (_) {
+      // Cached in memory — persistent write is best-effort
+    }
+  }
+
+  /// Returns the stored device ID, or null if not set.
+  Future<String?> getDeviceId() async {
+    final cached = _cache[AppConstants.deviceIdKey];
+    if (cached != null) return cached;
+    try {
+      final value = await _storage.read(key: AppConstants.deviceIdKey);
+      if (value != null) _cache[AppConstants.deviceIdKey] = value;
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns the stored theme preference, defaulting to 'system'.
   Future<String> getThemePreference() async {
     final cached = _cache[AppConstants.themeKey];

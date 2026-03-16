@@ -24,6 +24,10 @@ dependencies:
   cross_file: ^0.3.5+2
   intl: ^0.20.2
   flutter_quill: ^11.4.0
+  mqtt_client: ^10.2.1
+  flutter_local_notifications: ^17.2.3
+  flutter_foreground_task: ^8.13.0
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

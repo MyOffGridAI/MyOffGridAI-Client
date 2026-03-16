@@ -1,9 +1,13 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/auth/auth_service.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
+import 'package:myoffgridai_client/core/services/device_registration_service.dart';
+import 'package:myoffgridai_client/core/services/foreground_service_manager.dart';
+import 'package:myoffgridai_client/core/services/mqtt_service.dart';
 
 /// Manages the authentication state for the application.
 ///
@@ -70,6 +74,7 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
       final authService = ref.read(authServiceProvider);
       final response = await authService.login(username, password);
       state = AsyncData(response.user);
+      _startNotificationServices(response.user.id);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
@@ -95,6 +100,7 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
         email: email,
       );
       state = AsyncData(response.user);
+      _startNotificationServices(response.user.id);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
@@ -102,9 +108,54 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
 
   /// Logs out the current user and clears the auth state.
   Future<void> logout() async {
+    _stopNotificationServices();
     final authService = ref.read(authServiceProvider);
     await authService.logout();
     state = const AsyncData(null);
+  }
+
+  /// Starts device registration, foreground service, and MQTT after login.
+  void _startNotificationServices(String userId) {
+    // Non-blocking — failures must not prevent login
+    Future<void>.microtask(() async {
+      try {
+        final regService = ref.read(deviceRegistrationServiceProvider);
+        await regService.registerDevice();
+      } catch (e) {
+        if (kDebugMode) debugPrint('Device registration failed: $e');
+      }
+
+      try {
+        final foregroundManager = ref.read(foregroundServiceManagerProvider);
+        await foregroundManager.startService();
+      } catch (e) {
+        if (kDebugMode) debugPrint('Foreground service start failed: $e');
+      }
+
+      try {
+        final mqttNotifier = ref.read(mqttServiceProvider.notifier);
+        await mqttNotifier.connect(userId);
+      } catch (e) {
+        if (kDebugMode) debugPrint('MQTT connect failed: $e');
+      }
+    });
+  }
+
+  /// Stops MQTT and foreground service on logout.
+  void _stopNotificationServices() {
+    try {
+      final mqttNotifier = ref.read(mqttServiceProvider.notifier);
+      mqttNotifier.disconnect();
+    } catch (e) {
+      if (kDebugMode) debugPrint('MQTT disconnect failed: $e');
+    }
+
+    try {
+      final foregroundManager = ref.read(foregroundServiceManagerProvider);
+      foregroundManager.stopService();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Foreground service stop failed: $e');
+    }
   }
 
   Map<String, dynamic>? _decodeJwtPayload(String payload) {

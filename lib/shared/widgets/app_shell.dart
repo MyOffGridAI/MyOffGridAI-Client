@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/config/constants.dart';
+import 'package:myoffgridai_client/core/api/providers.dart';
 import 'package:myoffgridai_client/shared/widgets/connection_lost_banner.dart';
 import 'package:myoffgridai_client/shared/widgets/navigation_panel.dart';
+import 'package:myoffgridai_client/shared/widgets/notification_badge.dart';
 import 'package:myoffgridai_client/shared/widgets/system_status_bar.dart';
 
 /// Responsive scaffold with adaptive navigation for MyOffGridAI.
@@ -30,6 +32,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppConstants.routeMemory,
     AppConstants.routeKnowledge,
     AppConstants.routeSensors,
+    AppConstants.routeNotifications,
   ];
 
   void _onDestinationSelected(int index) {
@@ -43,7 +46,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     final location = GoRouterState.of(context).matchedLocation;
     for (int i = 0; i < _primaryDestinations.length; i++) {
       if (location == _primaryDestinations[i] ||
-          (i == 0 && location.startsWith('/chat'))) {
+          (i == 0 && location.startsWith('/chat')) ||
+          (i == 4 && location.startsWith('/notifications'))) {
         return i;
       }
     }
@@ -99,10 +103,33 @@ class _AppShellState extends ConsumerState<AppShell> {
                   activeIcon: Icon(Icons.sensors),
                   label: 'Sensors',
                 ),
+                BottomNavigationBarItem(
+                  icon: _AlertsIcon(),
+                  activeIcon: _AlertsIcon(selected: true),
+                  label: 'Alerts',
+                ),
               ],
             )
           : null,
     );
   }
+}
 
+class _AlertsIcon extends ConsumerWidget {
+  final bool selected;
+
+  const _AlertsIcon({this.selected = false});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadAsync = ref.watch(unreadCountProvider);
+    final count = unreadAsync.valueOrNull ?? 0;
+    final icon = selected
+        ? const Icon(Icons.notifications)
+        : const Icon(Icons.notifications_outlined);
+
+    if (count == 0) return icon;
+
+    return NotificationBadge(count: count, child: icon);
+  }
 }

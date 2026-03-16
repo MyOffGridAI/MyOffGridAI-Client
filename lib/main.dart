@@ -6,21 +6,29 @@ import 'package:myoffgridai_client/config/router.dart';
 import 'package:myoffgridai_client/config/theme.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
+import 'package:myoffgridai_client/core/services/local_notification_service.dart';
 
 /// Entry point for the MyOffGridAI client application.
 ///
 /// Initializes secure storage, resolves the server URL, creates the
-/// API client, and launches the app within a [ProviderScope].
+/// API client, initializes local notifications, and launches the app
+/// within a [ProviderScope].
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final storage = SecureStorageService();
   final serverUrl = await storage.getServerUrl();
 
+  // Initialize local notifications before runApp
+  final localNotifications = LocalNotificationService();
+  await localNotifications.initialize();
+
   runApp(
     ProviderScope(
       overrides: [
         secureStorageProvider.overrideWithValue(storage),
+        localNotificationServiceProvider
+            .overrideWithValue(localNotifications),
         apiClientProvider.overrideWith((ref) {
           return MyOffGridAIApiClient(
             baseUrl: serverUrl,

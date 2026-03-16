@@ -77,3 +77,17 @@ final notificationsProvider =
   final service = ref.watch(notificationServiceProvider);
   return service.listNotifications();
 });
+
+/// Provider for the unread notification count, polled every 30 seconds.
+final notificationsUnreadCountProvider =
+    StreamProvider.autoDispose<int>((ref) async* {
+  final service = ref.watch(notificationServiceProvider);
+  while (true) {
+    try {
+      yield await service.getUnreadCount();
+    } catch (_) {
+      yield 0;
+    }
+    await Future.delayed(AppConstants.notificationPollInterval);
+  }
+});

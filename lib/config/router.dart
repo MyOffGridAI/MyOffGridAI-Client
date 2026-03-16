@@ -10,6 +10,7 @@ import 'package:myoffgridai_client/features/auth/users_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
 import 'package:myoffgridai_client/features/insights/insights_screen.dart';
+import 'package:myoffgridai_client/features/notifications/notifications_screen.dart';
 import 'package:myoffgridai_client/features/inventory/inventory_screen.dart';
 import 'package:myoffgridai_client/features/knowledge/document_detail_screen.dart';
 import 'package:myoffgridai_client/features/knowledge/document_editor_screen.dart';
@@ -160,6 +161,10 @@ GoRouter createRouter(Ref ref) {
           GoRoute(
             path: AppConstants.routeInsights,
             builder: (context, state) => const InsightsScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeNotifications,
+            builder: (context, state) => const NotificationsScreen(),
           ),
           GoRoute(
             path: AppConstants.routePrivacy,
