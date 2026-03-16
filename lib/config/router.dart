@@ -7,6 +7,9 @@ import 'package:myoffgridai_client/features/auth/device_not_setup_screen.dart';
 import 'package:myoffgridai_client/features/auth/login_screen.dart';
 import 'package:myoffgridai_client/features/auth/register_screen.dart';
 import 'package:myoffgridai_client/features/auth/users_screen.dart';
+import 'package:myoffgridai_client/features/books/book_reader_screen.dart';
+import 'package:myoffgridai_client/features/books/books_screen.dart';
+import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
 import 'package:myoffgridai_client/features/insights/insights_screen.dart';
@@ -107,6 +110,16 @@ GoRouter createRouter(Ref ref) {
           GoRoute(
             path: AppConstants.routeSearch,
             builder: (context, state) => const SearchScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeBooks,
+            builder: (context, state) => const BooksScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeBookReader,
+            builder: (context, state) => BookReaderScreen(
+              ebook: state.extra as EbookModel,
+            ),
           ),
           GoRoute(
             path: AppConstants.routeMemory,

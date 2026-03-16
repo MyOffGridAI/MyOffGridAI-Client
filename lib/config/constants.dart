@@ -41,6 +41,7 @@ class AppConstants {
   static const String systemBasePath = '/api/system';
   static const String enrichmentBasePath = '/api/enrichment';
   static const String externalApiSettingsPath = '/api/settings/external-apis';
+  static const String libraryBasePath = '/api/library';
 
   // Route names
   static const String routeLogin = '/login';
@@ -66,6 +67,8 @@ class AppConstants {
   static const String routeSensorAdd = '/sensors/add';
   static const String routeSettings = '/settings';
   static const String routeSearch = '/search';
+  static const String routeBooks = '/books';
+  static const String routeBookReader = '/books/reader';
   static const String routeDeviceNotSetup = '/device-not-setup';
 
   // Pagination
@@ -111,6 +114,11 @@ class AppConstants {
 
   // Secure storage keys (device)
   static const String deviceIdKey = 'device_id';
+
+  // Library
+  static const int kiwixPort = 8888;
+  static const int ebooksPageSize = 20;
+  static const Duration ebookDownloadTimeout = Duration(seconds: 60);
 
   // Validation
   static const int usernameMinLength = 3;

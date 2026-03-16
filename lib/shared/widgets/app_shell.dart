@@ -31,6 +31,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppConstants.routeHome,
     AppConstants.routeMemory,
     AppConstants.routeKnowledge,
+    AppConstants.routeBooks,
     AppConstants.routeSensors,
     AppConstants.routeNotifications,
   ];
@@ -47,7 +48,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     for (int i = 0; i < _primaryDestinations.length; i++) {
       if (location == _primaryDestinations[i] ||
           (i == 0 && location.startsWith('/chat')) ||
-          (i == 4 && location.startsWith('/notifications'))) {
+          (i == 3 && location.startsWith('/books')) ||
+          (i == 5 && location.startsWith('/notifications'))) {
         return i;
       }
     }
@@ -97,6 +99,11 @@ class _AppShellState extends ConsumerState<AppShell> {
                   icon: Icon(Icons.library_books_outlined),
                   activeIcon: Icon(Icons.library_books),
                   label: 'Knowledge',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.menu_book_outlined),
+                  activeIcon: Icon(Icons.menu_book),
+                  label: 'Books',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.sensors),

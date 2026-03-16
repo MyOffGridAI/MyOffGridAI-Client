@@ -28,6 +28,13 @@ dependencies:
   flutter_local_notifications: ^17.2.3
   flutter_foreground_task: ^8.13.0
   permission_handler: ^11.3.1
+  webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.3.0
+  webview_flutter_wkwebview: ^3.18.0
+  pdfx: ^2.9.0
+  path_provider: ^2.1.5
+  open_filex: ^4.6.0
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:
