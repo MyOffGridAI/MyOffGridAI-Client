@@ -52,20 +52,17 @@ class InventoryService {
     return InventoryItemModel.fromJson(data);
   }
 
-  /// Updates an inventory item.
+  /// Updates an existing inventory item by [itemId].
+  ///
+  /// Calls `PUT /api/skills/inventory/{id}` with the [updates] map.
+  /// Returns the updated [InventoryItemModel] on success.
   Future<InventoryItemModel> updateItem(
-    String itemId, {
-    double? quantity,
-    String? notes,
-    double? lowStockThreshold,
-  }) async {
+    String itemId,
+    Map<String, dynamic> updates,
+  ) async {
     final response = await _client.put<Map<String, dynamic>>(
       '${AppConstants.inventoryBasePath}/$itemId',
-      data: {
-        if (quantity != null) 'quantity': quantity,
-        if (notes != null) 'notes': notes,
-        if (lowStockThreshold != null) 'lowStockThreshold': lowStockThreshold,
-      },
+      data: updates,
     );
     final data = response['data'] as Map<String, dynamic>;
     return InventoryItemModel.fromJson(data);
