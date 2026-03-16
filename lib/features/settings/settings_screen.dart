@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/config/theme.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
+import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/api/providers.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/system_models.dart';
@@ -101,7 +101,7 @@ class _UsersTab extends ConsumerWidget {
                 child: FilledButton.icon(
                   icon: const Icon(Icons.person_add),
                   label: const Text('Register New User'),
-                  onPressed: () => context.go(AppConstants.routeRegister),
+                  onPressed: () => _showRegisterDialog(context, ref),
                 ),
               ),
             ),
@@ -154,6 +154,38 @@ class _UsersTab extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _showRegisterDialog(BuildContext context, WidgetRef ref) async {
+    final usernameController = TextEditingController();
+    final displayNameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _RegisterUserDialog(
+        formKey: formKey,
+        usernameController: usernameController,
+        displayNameController: displayNameController,
+        emailController: emailController,
+        passwordController: passwordController,
+        confirmPasswordController: confirmPasswordController,
+        ref: ref,
+      ),
+    );
+
+    usernameController.dispose();
+    displayNameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+
+    if (created == true) {
+      ref.invalidate(usersListProvider);
+    }
   }
 
   Widget _roleBadge(BuildContext context, String role) {
@@ -1114,5 +1146,204 @@ class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
         setState(() => _saving = false);
       }
     }
+  }
+}
+
+/// Dialog for registering a new user without switching the current session.
+class _RegisterUserDialog extends StatefulWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController usernameController;
+  final TextEditingController displayNameController;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final TextEditingController confirmPasswordController;
+  final WidgetRef ref;
+
+  const _RegisterUserDialog({
+    required this.formKey,
+    required this.usernameController,
+    required this.displayNameController,
+    required this.emailController,
+    required this.passwordController,
+    required this.confirmPasswordController,
+    required this.ref,
+  });
+
+  @override
+  State<_RegisterUserDialog> createState() => _RegisterUserDialogState();
+}
+
+class _RegisterUserDialogState extends State<_RegisterUserDialog> {
+  bool _saving = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
+
+  Future<void> _register() async {
+    if (!widget.formKey.currentState!.validate()) return;
+
+    setState(() => _saving = true);
+
+    try {
+      final client = widget.ref.read(apiClientProvider);
+      final body = <String, dynamic>{
+        'username': widget.usernameController.text.trim(),
+        'displayName': widget.displayNameController.text.trim(),
+        'password': widget.passwordController.text,
+        'role': 'ROLE_MEMBER',
+      };
+      final email = widget.emailController.text.trim();
+      if (email.isNotEmpty) {
+        body['email'] = email;
+      }
+
+      await client.post<Map<String, dynamic>>(
+        '${AppConstants.authBasePath}/register',
+        data: body,
+      );
+
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Register New User'),
+      content: SizedBox(
+        width: 400,
+        child: Form(
+          key: widget.formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: widget.usernameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    prefixIcon: Icon(Icons.person_outline),
+                    border: OutlineInputBorder(),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Username is required';
+                    }
+                    if (v.trim().length < AppConstants.usernameMinLength) {
+                      return 'Username must be at least ${AppConstants.usernameMinLength} characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: widget.displayNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Display Name',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Display name is required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: widget.emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email (optional)',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: widget.passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (v.length < AppConstants.passwordMinLength) {
+                      return 'Password must be at least ${AppConstants.passwordMinLength} characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: widget.confirmPasswordController,
+                  obscureText: _obscureConfirm,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscureConfirm
+                          ? Icons.visibility_off
+                          : Icons.visibility),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _saving ? null : _register(),
+                  validator: (v) {
+                    if (v != widget.passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _register,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Register'),
+        ),
+      ],
+    );
   }
 }
