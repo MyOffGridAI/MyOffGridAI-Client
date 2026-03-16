@@ -1,15 +1,23 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
+import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
 
+class FakeFormData extends Fake implements FormData {}
+
 void main() {
   late MockApiClient mockClient;
   late LibraryService service;
+
+  setUpAll(() {
+    registerFallbackValue(FakeFormData());
+  });
 
   setUp(() {
     mockClient = MockApiClient();
@@ -55,6 +63,73 @@ void main() {
 
       expect(result, isEmpty);
     });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/zim',
+          )).thenThrow(const ApiException(
+        statusCode: 500,
+        message: 'Internal server error',
+      ));
+
+      expect(
+        () => service.listZimFiles(),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
+  group('uploadZimFile', () {
+    test('sends multipart POST and returns parsed ZIM file', () async {
+      when(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/zim',
+            any(),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'z-new',
+              'filename': 'wiki.zim',
+              'displayName': 'Wikipedia Offline',
+              'category': 'REFERENCE',
+              'fileSizeBytes': 50000,
+              'articleCount': 1000,
+            },
+          });
+
+      final result = await service.uploadZimFile(
+        filename: 'wiki.zim',
+        bytes: [0x5A, 0x49, 0x4D],
+        displayName: 'Wikipedia Offline',
+        category: 'REFERENCE',
+      );
+
+      expect(result.id, 'z-new');
+      expect(result.filename, 'wiki.zim');
+      expect(result.displayName, 'Wikipedia Offline');
+      expect(result.category, 'REFERENCE');
+      verify(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/zim',
+            any(),
+          )).called(1);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/zim',
+            any(),
+          )).thenThrow(const ApiException(
+        statusCode: 413,
+        message: 'File too large',
+      ));
+
+      expect(
+        () => service.uploadZimFile(
+          filename: 'huge.zim',
+          bytes: [0x00],
+          displayName: 'Huge File',
+        ),
+        throwsA(isA<ApiException>()),
+      );
+    });
   });
 
   group('deleteZimFile', () {
@@ -68,6 +143,20 @@ void main() {
       verify(() => mockClient.delete(
             '${AppConstants.libraryBasePath}/zim/z1',
           )).called(1);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.delete(
+            '${AppConstants.libraryBasePath}/zim/z1',
+          )).thenThrow(const ApiException(
+        statusCode: 404,
+        message: 'ZIM file not found',
+      ));
+
+      expect(
+        () => service.deleteZimFile('z1'),
+        throwsA(isA<ApiException>()),
+      );
     });
   });
 
@@ -195,6 +284,72 @@ void main() {
             '${AppConstants.libraryBasePath}/ebooks/e1',
           )).called(1);
     });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.delete(
+            '${AppConstants.libraryBasePath}/ebooks/e1',
+          )).thenThrow(const ApiException(
+        statusCode: 404,
+        message: 'eBook not found',
+      ));
+
+      expect(
+        () => service.deleteEbook('e1'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
+  group('uploadEbook', () {
+    test('sends multipart POST and returns parsed eBook', () async {
+      when(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            any(),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'e-new',
+              'title': 'Survival Guide',
+              'author': 'Bear Grylls',
+              'format': 'EPUB',
+              'fileSizeBytes': 12000,
+            },
+          });
+
+      final result = await service.uploadEbook(
+        filename: 'survival.epub',
+        bytes: [0x50, 0x4B],
+        title: 'Survival Guide',
+        author: 'Bear Grylls',
+      );
+
+      expect(result.id, 'e-new');
+      expect(result.title, 'Survival Guide');
+      expect(result.author, 'Bear Grylls');
+      expect(result.format, 'EPUB');
+      verify(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            any(),
+          )).called(1);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            any(),
+          )).thenThrow(const ApiException(
+        statusCode: 413,
+        message: 'File too large',
+      ));
+
+      expect(
+        () => service.uploadEbook(
+          filename: 'huge.epub',
+          bytes: [0x00],
+          title: 'Huge Book',
+        ),
+        throwsA(isA<ApiException>()),
+      );
+    });
   });
 
   group('downloadEbookContent', () {
@@ -207,6 +362,20 @@ void main() {
       final result = await service.downloadEbookContent('e1');
 
       expect(result, bytes);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.getBytes(
+            '${AppConstants.libraryBasePath}/ebooks/e1/content',
+          )).thenThrow(const ApiException(
+        statusCode: 404,
+        message: 'Content not found',
+      ));
+
+      expect(
+        () => service.downloadEbookContent('e1'),
+        throwsA(isA<ApiException>()),
+      );
     });
   });
 
@@ -310,6 +479,20 @@ void main() {
       expect(result.title, 'Pride and Prejudice');
       expect(result.gutenbergId, '1342');
       expect(result.isFromGutenberg, isTrue);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/gutenberg/9999/import',
+          )).thenThrow(const ApiException(
+        statusCode: 404,
+        message: 'Gutenberg book not found',
+      ));
+
+      expect(
+        () => service.importGutenbergBook(9999),
+        throwsA(isA<ApiException>()),
+      );
     });
   });
 }
