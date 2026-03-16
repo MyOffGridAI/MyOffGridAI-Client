@@ -137,7 +137,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       if (doc.editable)
                         ElevatedButton.icon(
@@ -146,7 +148,6 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                           icon: const Icon(Icons.edit_document, size: 18),
                           label: const Text('Edit'),
                         ),
-                      if (doc.editable) const SizedBox(width: 8),
                       OutlinedButton.icon(
                         onPressed: _isDownloading
                             ? null
