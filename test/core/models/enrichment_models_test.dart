@@ -21,6 +21,8 @@ void main() {
       expect(model.anthropicKeyConfigured, isTrue);
       expect(model.braveEnabled, isFalse);
       expect(model.braveKeyConfigured, isFalse);
+      expect(model.huggingFaceEnabled, isFalse);
+      expect(model.huggingFaceKeyConfigured, isFalse);
       expect(model.maxWebFetchSizeKb, 1024);
       expect(model.searchResultLimit, 10);
     });
@@ -35,6 +37,8 @@ void main() {
       expect(model.anthropicKeyConfigured, isFalse);
       expect(model.braveEnabled, isFalse);
       expect(model.braveKeyConfigured, isFalse);
+      expect(model.huggingFaceEnabled, isFalse);
+      expect(model.huggingFaceKeyConfigured, isFalse);
       expect(model.maxWebFetchSizeKb, 512);
       expect(model.searchResultLimit, 5);
     });
@@ -48,6 +52,8 @@ void main() {
         anthropicEnabled: true,
         braveApiKey: 'brave-key-456',
         braveEnabled: true,
+        huggingFaceToken: 'hf_abc123',
+        huggingFaceEnabled: true,
         maxWebFetchSizeKb: 1024,
         searchResultLimit: 10,
       );
@@ -59,6 +65,8 @@ void main() {
       expect(json['anthropicEnabled'], isTrue);
       expect(json['braveApiKey'], 'brave-key-456');
       expect(json['braveEnabled'], isTrue);
+      expect(json['huggingFaceToken'], 'hf_abc123');
+      expect(json['huggingFaceEnabled'], isTrue);
       expect(json['maxWebFetchSizeKb'], 1024);
       expect(json['searchResultLimit'], 10);
     });
@@ -68,6 +76,7 @@ void main() {
         anthropicModel: 'claude-sonnet-4-20250514',
         anthropicEnabled: false,
         braveEnabled: false,
+        huggingFaceEnabled: false,
         maxWebFetchSizeKb: 512,
         searchResultLimit: 5,
       );
@@ -76,9 +85,11 @@ void main() {
 
       expect(json.containsKey('anthropicApiKey'), isFalse);
       expect(json.containsKey('braveApiKey'), isFalse);
+      expect(json.containsKey('huggingFaceToken'), isFalse);
       expect(json['anthropicModel'], 'claude-sonnet-4-20250514');
       expect(json['anthropicEnabled'], isFalse);
       expect(json['braveEnabled'], isFalse);
+      expect(json['huggingFaceEnabled'], isFalse);
     });
   });
 
@@ -152,16 +163,18 @@ void main() {
   });
 
   group('UpdateExternalApiSettingsRequest constructor', () {
-    test('anthropicApiKey and braveApiKey default to null', () {
+    test('optional key fields default to null', () {
       const request = UpdateExternalApiSettingsRequest(
         anthropicModel: 'claude-sonnet-4-20250514',
         anthropicEnabled: false,
         braveEnabled: false,
+        huggingFaceEnabled: false,
         maxWebFetchSizeKb: 512,
         searchResultLimit: 5,
       );
       expect(request.anthropicApiKey, isNull);
       expect(request.braveApiKey, isNull);
+      expect(request.huggingFaceToken, isNull);
     });
   });
 }

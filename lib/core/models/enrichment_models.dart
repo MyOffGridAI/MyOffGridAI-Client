@@ -17,6 +17,8 @@ class ExternalApiSettingsModel {
   final bool anthropicKeyConfigured;
   final bool braveEnabled;
   final bool braveKeyConfigured;
+  final bool huggingFaceEnabled;
+  final bool huggingFaceKeyConfigured;
   final int maxWebFetchSizeKb;
   final int searchResultLimit;
 
@@ -26,6 +28,8 @@ class ExternalApiSettingsModel {
     required this.anthropicKeyConfigured,
     required this.braveEnabled,
     required this.braveKeyConfigured,
+    required this.huggingFaceEnabled,
+    required this.huggingFaceKeyConfigured,
     required this.maxWebFetchSizeKb,
     required this.searchResultLimit,
   });
@@ -40,6 +44,9 @@ class ExternalApiSettingsModel {
           json['anthropicKeyConfigured'] as bool? ?? false,
       braveEnabled: json['braveEnabled'] as bool? ?? false,
       braveKeyConfigured: json['braveKeyConfigured'] as bool? ?? false,
+      huggingFaceEnabled: json['huggingFaceEnabled'] as bool? ?? false,
+      huggingFaceKeyConfigured:
+          json['huggingFaceKeyConfigured'] as bool? ?? false,
       maxWebFetchSizeKb: json['maxWebFetchSizeKb'] as int? ?? 512,
       searchResultLimit: json['searchResultLimit'] as int? ?? 5,
     );
@@ -57,6 +64,8 @@ class UpdateExternalApiSettingsRequest {
   final bool anthropicEnabled;
   final String? braveApiKey;
   final bool braveEnabled;
+  final String? huggingFaceToken;
+  final bool huggingFaceEnabled;
   final int maxWebFetchSizeKb;
   final int searchResultLimit;
 
@@ -66,6 +75,8 @@ class UpdateExternalApiSettingsRequest {
     required this.anthropicEnabled,
     this.braveApiKey,
     required this.braveEnabled,
+    this.huggingFaceToken,
+    required this.huggingFaceEnabled,
     required this.maxWebFetchSizeKb,
     required this.searchResultLimit,
   });
@@ -78,6 +89,8 @@ class UpdateExternalApiSettingsRequest {
       'anthropicEnabled': anthropicEnabled,
       if (braveApiKey != null) 'braveApiKey': braveApiKey,
       'braveEnabled': braveEnabled,
+      if (huggingFaceToken != null) 'huggingFaceToken': huggingFaceToken,
+      'huggingFaceEnabled': huggingFaceEnabled,
       'maxWebFetchSizeKb': maxWebFetchSizeKb,
       'searchResultLimit': searchResultLimit,
     };

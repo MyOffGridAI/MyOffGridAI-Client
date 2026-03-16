@@ -62,6 +62,7 @@ void main() {
         anthropicModel: 'claude-sonnet-4-20250514',
         anthropicEnabled: false,
         braveEnabled: false,
+        huggingFaceEnabled: false,
         maxWebFetchSizeKb: 512,
         searchResultLimit: 5,
       );
@@ -86,6 +87,7 @@ void main() {
         anthropicModel: 'claude-sonnet-4-20250514',
         anthropicEnabled: true,
         braveEnabled: false,
+        huggingFaceEnabled: false,
         maxWebFetchSizeKb: 1024,
         searchResultLimit: 10,
       );

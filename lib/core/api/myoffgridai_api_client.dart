@@ -132,6 +132,30 @@ class MyOffGridAIApiClient {
     }
   }
 
+  /// Performs a GET request to [path] and returns a raw byte stream.
+  ///
+  /// Used for GET-based SSE streaming endpoints (e.g. download progress)
+  /// where the response is a continuous stream of server-sent events.
+  Future<ResponseBody?> getStream(
+    String path, {
+    Map<String, dynamic>? queryParams,
+    Duration? receiveTimeout,
+  }) async {
+    try {
+      final response = await _dio.get<ResponseBody>(
+        path,
+        queryParameters: queryParams,
+        options: Options(
+          responseType: ResponseType.stream,
+          receiveTimeout: receiveTimeout,
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
   /// Performs a POST request to [path] and returns a raw byte stream.
   ///
   /// Used for SSE streaming endpoints where the response is a continuous

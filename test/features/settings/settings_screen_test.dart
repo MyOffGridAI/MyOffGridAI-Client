@@ -10,7 +10,9 @@ import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/models/enrichment_models.dart';
 import 'package:myoffgridai_client/core/models/system_models.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
+import 'package:myoffgridai_client/core/models/model_catalog_models.dart';
 import 'package:myoffgridai_client/core/services/enrichment_service.dart';
+import 'package:myoffgridai_client/core/services/model_catalog_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/core/services/user_service.dart';
 import 'package:myoffgridai_client/features/settings/settings_screen.dart';
@@ -23,12 +25,15 @@ class MockUserService extends Mock implements UserService {}
 
 class MockEnrichmentService extends Mock implements EnrichmentService {}
 
+class MockModelCatalogService extends Mock implements ModelCatalogService {}
+
 class MockSecureStorageService extends Mock implements SecureStorageService {}
 
 void main() {
   late MockSystemService mockSystemService;
   late MockUserService mockUserService;
   late MockEnrichmentService mockEnrichmentService;
+  late MockModelCatalogService mockModelCatalogService;
   late MockSecureStorageService mockSecureStorage;
 
   const ownerUser = UserModel(
@@ -87,6 +92,8 @@ void main() {
     anthropicKeyConfigured: true,
     braveEnabled: false,
     braveKeyConfigured: false,
+    huggingFaceEnabled: false,
+    huggingFaceKeyConfigured: false,
     maxWebFetchSizeKb: 512,
     searchResultLimit: 5,
   );
@@ -103,6 +110,7 @@ void main() {
     mockSystemService = MockSystemService();
     mockUserService = MockUserService();
     mockEnrichmentService = MockEnrichmentService();
+    mockModelCatalogService = MockModelCatalogService();
     mockSecureStorage = MockSecureStorageService();
     when(() => mockSecureStorage.getThemePreference())
         .thenAnswer((_) async => 'system');
@@ -113,6 +121,7 @@ void main() {
       anthropicModel: '',
       anthropicEnabled: false,
       braveEnabled: false,
+      huggingFaceEnabled: false,
       maxWebFetchSizeKb: 512,
       searchResultLimit: 5,
     ));
@@ -186,6 +195,12 @@ void main() {
         systemServiceProvider.overrideWithValue(mockSystemService),
         userServiceProvider.overrideWithValue(mockUserService),
         enrichmentServiceProvider.overrideWithValue(mockEnrichmentService),
+        modelCatalogServiceProvider
+            .overrideWithValue(mockModelCatalogService),
+        localModelsProvider
+            .overrideWith((ref) => <LocalModelFileModel>[]),
+        activeDownloadsProvider
+            .overrideWith((ref) => <DownloadProgressModel>[]),
       ],
       child: const MaterialApp(home: SettingsScreen()),
     );
@@ -199,7 +214,7 @@ void main() {
       expect(find.text('Settings'), findsOneWidget);
     });
 
-    testWidgets('shows all 5 tabs', (tester) async {
+    testWidgets('shows all 6 tabs', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
 
@@ -207,6 +222,7 @@ void main() {
       expect(find.text('Users'), findsOneWidget);
       expect(find.text('AI & Memory'), findsOneWidget);
       expect(find.text('File Storage'), findsOneWidget);
+      expect(find.text('Models'), findsOneWidget);
       expect(find.text('External APIs'), findsOneWidget);
     });
 
@@ -1275,6 +1291,8 @@ void main() {
           anthropicKeyConfigured: false,
           braveEnabled: false,
           braveKeyConfigured: false,
+          huggingFaceEnabled: false,
+          huggingFaceKeyConfigured: false,
           maxWebFetchSizeKb: 512,
           searchResultLimit: 5,
         ),
@@ -1349,7 +1367,7 @@ void main() {
       expect(find.text('Save'), findsOneWidget);
     });
 
-    testWidgets('shows two SwitchListTile toggles', (tester) async {
+    testWidgets('shows three SwitchListTile toggles', (tester) async {
       setLargeViewport(tester);
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
@@ -1357,7 +1375,7 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SwitchListTile), findsNWidgets(2));
+      expect(find.byType(SwitchListTile), findsNWidgets(3));
     });
 
     testWidgets('shows Anthropic API key field with label', (tester) async {
@@ -1394,8 +1412,8 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      // 2 visibility_off icons (both keys obscured by default)
-      expect(find.byIcon(Icons.visibility_off), findsNWidgets(2));
+      // 3 visibility_off icons (all keys obscured by default)
+      expect(find.byIcon(Icons.visibility_off), findsNWidgets(3));
     });
 
     testWidgets('shows key icons for API key fields', (tester) async {
@@ -1406,7 +1424,7 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.key), findsNWidgets(2));
+      expect(find.byIcon(Icons.key), findsNWidgets(3));
     });
 
     testWidgets('tapping Save calls updateExternalApiSettings',
@@ -1532,7 +1550,7 @@ void main() {
 
       // Anthropic is currently enabled; tap to disable
       final switches = find.byType(SwitchListTile);
-      expect(switches, findsNWidgets(2));
+      expect(switches, findsNWidgets(3));
       await tester.tap(switches.first);
       await tester.pumpAndSettle();
     });
@@ -1545,9 +1563,9 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      // Brave is currently disabled; tap to enable
+      // Brave is currently disabled; tap to enable (2nd switch)
       final switches = find.byType(SwitchListTile);
-      await tester.tap(switches.last);
+      await tester.tap(switches.at(1));
       await tester.pumpAndSettle();
     });
 
@@ -1559,9 +1577,9 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      // Both keys have visibility_off icons by default
+      // All three keys have visibility_off icons by default
       final visIcons = find.byIcon(Icons.visibility_off);
-      expect(visIcons, findsNWidgets(2));
+      expect(visIcons, findsNWidgets(3));
 
       // Tap first visibility toggle (Anthropic key)
       await tester.tap(visIcons.first);

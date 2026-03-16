@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/constants.dart';
@@ -9,15 +11,19 @@ import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/system_models.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
 import 'package:myoffgridai_client/core/models/enrichment_models.dart';
+import 'package:myoffgridai_client/core/models/model_catalog_models.dart';
 import 'package:myoffgridai_client/core/services/enrichment_service.dart';
+import 'package:myoffgridai_client/core/services/model_catalog_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/core/services/user_service.dart';
+import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
-/// Full settings screen with tabbed layout: General and AI & Memory.
+/// Full settings screen with tabbed layout.
 ///
+/// Tabs: General, Users, AI & Memory, File Storage, Models, External APIs.
 /// Accessible from the Settings gear in the NavigationPanel.
 class SettingsScreen extends ConsumerStatefulWidget {
   /// Creates a [SettingsScreen].
@@ -27,7 +33,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-/// State for [SettingsScreen] managing the five-tab layout controller.
+/// State for [SettingsScreen] managing the six-tab layout controller.
 class _SettingsScreenState extends ConsumerState<SettingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -35,7 +41,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -56,6 +62,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             Tab(text: 'Users'),
             Tab(text: 'AI & Memory'),
             Tab(text: 'File Storage'),
+            Tab(text: 'Models'),
             Tab(text: 'External APIs'),
           ],
         ),
@@ -67,6 +74,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const _UsersTab(),
           const _AiMemoryTab(),
           const _FileStorageTab(),
+          const _ModelsTab(),
           const _ExternalApisTab(),
         ],
       ),
@@ -1156,6 +1164,725 @@ class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
   }
 }
 
+/// The Models tab for browsing, downloading, and managing LM Studio models.
+///
+/// Contains three sub-tabs: Local Models, Downloads, and Discover.
+class _ModelsTab extends ConsumerStatefulWidget {
+  const _ModelsTab();
+
+  @override
+  ConsumerState<_ModelsTab> createState() => _ModelsTabState();
+}
+
+/// State for [_ModelsTab] managing the three sub-tab layout.
+class _ModelsTabState extends ConsumerState<_ModelsTab>
+    with SingleTickerProviderStateMixin {
+  late TabController _subTabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _subTabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _subTabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TabBar(
+          controller: _subTabController,
+          tabs: const [
+            Tab(text: 'Local Models'),
+            Tab(text: 'Downloads'),
+            Tab(text: 'Discover'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _subTabController,
+            children: [
+              _LocalModelsSubTab(onNavigateToDiscover: () {
+                _subTabController.animateTo(2);
+              }),
+              const _DownloadsSubTab(),
+              const _DiscoverSubTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Sub-tab showing model files already downloaded in LM Studio.
+class _LocalModelsSubTab extends ConsumerWidget {
+  final VoidCallback onNavigateToDiscover;
+
+  const _LocalModelsSubTab({required this.onNavigateToDiscover});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final modelsAsync = ref.watch(localModelsProvider);
+
+    return modelsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Failed to load local models',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => ref.invalidate(localModelsProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (models) {
+        if (models.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.download_outlined,
+                  size: 64,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No models downloaded yet',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Go to the Discover tab to find and download models',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: onNavigateToDiscover,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Discover Models'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async => ref.invalidate(localModelsProvider),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: models.length,
+            itemBuilder: (context, index) {
+              final model = models[index];
+              return _LocalModelCard(model: model);
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Card displaying a local model file with size, format, and delete action.
+class _LocalModelCard extends ConsumerWidget {
+  final LocalModelFileModel model;
+
+  const _LocalModelCard({required this.model});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(
+          model.format == 'gguf' ? Icons.memory : Icons.hub,
+          color: model.isCurrentlyLoaded
+              ? Theme.of(context).colorScheme.primary
+              : null,
+        ),
+        title: Text(
+          model.filename,
+          style: TextStyle(
+            fontWeight: model.isCurrentlyLoaded
+                ? FontWeight.bold
+                : FontWeight.normal,
+          ),
+        ),
+        subtitle: Text(
+          [
+            SizeFormatter.formatBytes(model.sizeBytes),
+            model.format.toUpperCase(),
+            if (model.repoId != null) model.repoId!,
+            if (model.isCurrentlyLoaded) 'Currently loaded',
+          ].join(' · '),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: 'Delete model',
+          onPressed: () => _confirmDelete(context, ref),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        title: 'Delete Model',
+        message:
+            'Delete "${model.filename}"? This cannot be undone.',
+        confirmText: 'Delete',
+        isDestructive: true,
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final service = ref.read(modelCatalogServiceProvider);
+      await service.deleteLocalModel(model.filename);
+      ref.invalidate(localModelsProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted ${model.filename}')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to delete model')),
+        );
+      }
+    }
+  }
+}
+
+/// Sub-tab showing active and recent downloads with progress.
+class _DownloadsSubTab extends ConsumerWidget {
+  const _DownloadsSubTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final downloadsAsync = ref.watch(activeDownloadsProvider);
+
+    return downloadsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Failed to load downloads',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => ref.invalidate(activeDownloadsProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (downloads) {
+        if (downloads.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.cloud_download_outlined,
+                  size: 64,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No active downloads',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async => ref.invalidate(activeDownloadsProvider),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: downloads.length,
+            itemBuilder: (context, index) {
+              final dl = downloads[index];
+              return _DownloadProgressCard(progress: dl);
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Card displaying download progress with a progress bar and cancel button.
+class _DownloadProgressCard extends ConsumerStatefulWidget {
+  final DownloadProgressModel progress;
+
+  const _DownloadProgressCard({required this.progress});
+
+  @override
+  ConsumerState<_DownloadProgressCard> createState() =>
+      _DownloadProgressCardState();
+}
+
+/// State for [_DownloadProgressCard] managing the SSE progress stream.
+class _DownloadProgressCardState
+    extends ConsumerState<_DownloadProgressCard> {
+  StreamSubscription<DownloadProgressModel>? _subscription;
+  late DownloadProgressModel _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.progress;
+    if (_current.isActive) {
+      _subscribeToProgress();
+    }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToProgress() {
+    final service = ref.read(modelCatalogServiceProvider);
+    _subscription = service
+        .streamDownloadProgress(_current.downloadId)
+        .listen(
+      (progress) {
+        if (mounted) setState(() => _current = progress);
+      },
+      onError: (_) {},
+      onDone: () {
+        ref.invalidate(activeDownloadsProvider);
+        ref.invalidate(localModelsProvider);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isActive = _current.isActive;
+    final statusColor = _current.isComplete
+        ? Colors.green
+        : _current.isFailed
+            ? theme.colorScheme.error
+            : _current.isCancelled
+                ? Colors.orange
+                : theme.colorScheme.primary;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _current.filename,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _current.status,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: statusColor),
+                  ),
+                ),
+              ],
+            ),
+            if (_current.repoId.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                _current.repoId,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _current.totalBytes > 0
+                  ? _current.bytesDownloaded / _current.totalBytes
+                  : null,
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_current.percentComplete.toStringAsFixed(1)}%'
+                  ' · ${SizeFormatter.formatBytes(_current.bytesDownloaded)}'
+                  '${_current.totalBytes > 0 ? ' / ${SizeFormatter.formatBytes(_current.totalBytes)}' : ''}',
+                  style: theme.textTheme.bodySmall,
+                ),
+                if (isActive)
+                  Text(
+                    '${SizeFormatter.formatBytes(_current.speedBytesPerSecond.round())}/s',
+                    style: theme.textTheme.bodySmall,
+                  ),
+              ],
+            ),
+            if (isActive) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _cancelDownload(context),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Cancel'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+            ],
+            if (_current.isFailed && _current.errorMessage != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _current.errorMessage!,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _cancelDownload(BuildContext context) async {
+    try {
+      final service = ref.read(modelCatalogServiceProvider);
+      await service.cancelDownload(_current.downloadId);
+      ref.invalidate(activeDownloadsProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to cancel download')),
+        );
+      }
+    }
+  }
+}
+
+/// Sub-tab for searching and browsing the HuggingFace model catalog.
+class _DiscoverSubTab extends ConsumerStatefulWidget {
+  const _DiscoverSubTab();
+
+  @override
+  ConsumerState<_DiscoverSubTab> createState() => _DiscoverSubTabState();
+}
+
+/// State for [_DiscoverSubTab] managing search input and results.
+class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
+  final _searchController = TextEditingController();
+  List<HfModelModel> _results = [];
+  bool _searching = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() {
+      _searching = true;
+      _error = null;
+    });
+
+    try {
+      final service = ref.read(modelCatalogServiceProvider);
+      final results = await service.searchCatalog(query: query);
+      if (mounted) setState(() => _results = results);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Search failed. Check your connection.');
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'Search HuggingFace models (e.g. "llama 3 gguf")',
+              border: const OutlineInputBorder(),
+              suffixIcon: _searching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: _search,
+                    ),
+            ),
+            onSubmitted: (_) => _search(),
+            textInputAction: TextInputAction.search,
+          ),
+        ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        Expanded(
+          child: _results.isEmpty && !_searching
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.hub_outlined,
+                        size: 64,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Search for GGUF models on HuggingFace',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _results.length,
+                  itemBuilder: (context, index) {
+                    return _CatalogModelCard(model: _results[index]);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Card displaying a HuggingFace catalog model with expandable file list.
+class _CatalogModelCard extends ConsumerStatefulWidget {
+  final HfModelModel model;
+
+  const _CatalogModelCard({required this.model});
+
+  @override
+  ConsumerState<_CatalogModelCard> createState() => _CatalogModelCardState();
+}
+
+/// State for [_CatalogModelCard] managing the expanded/collapsed file list.
+class _CatalogModelCardState extends ConsumerState<_CatalogModelCard> {
+  bool _expanded = false;
+  String? _downloadingFile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final model = widget.model;
+    final ggufFiles = model.ggufFiles;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            title: Text(
+              model.id,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              [
+                '${_formatCount(model.downloads)} downloads',
+                '${model.likes} likes',
+                '${ggufFiles.length} GGUF files',
+                if (model.isGated) 'Gated',
+              ].join(' · '),
+              style: theme.textTheme.bodySmall,
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                _expanded ? Icons.expand_less : Icons.expand_more,
+              ),
+              onPressed: () => setState(() => _expanded = !_expanded),
+            ),
+            onTap: () => setState(() => _expanded = !_expanded),
+          ),
+          if (_expanded && ggufFiles.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                children: ggufFiles.map((file) {
+                  final isDownloading = _downloadingFile == file.filename;
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      file.filename,
+                      style: theme.textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      [
+                        file.formattedSize,
+                        if (file.quantLabel.isNotEmpty) file.quantLabel,
+                      ].join(' · '),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    trailing: isDownloading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.download),
+                            tooltip: 'Download',
+                            onPressed: () =>
+                                _startDownload(context, model.id, file.filename),
+                          ),
+                  );
+                }).toList(),
+              ),
+            ),
+          if (_expanded && ggufFiles.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                'No GGUF files available in this repository.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color:
+                      theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startDownload(
+    BuildContext context,
+    String repoId,
+    String filename,
+  ) async {
+    setState(() => _downloadingFile = filename);
+    try {
+      final service = ref.read(modelCatalogServiceProvider);
+      await service.startDownload(repoId: repoId, filename: filename);
+      ref.invalidate(activeDownloadsProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download started: $filename')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to start download')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingFile = null);
+    }
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    }
+    if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return count.toString();
+  }
+}
+
 /// The External APIs tab for managing Anthropic and Brave Search keys (OWNER only).
 class _ExternalApisTab extends ConsumerStatefulWidget {
   const _ExternalApisTab();
@@ -1164,24 +1891,28 @@ class _ExternalApisTab extends ConsumerStatefulWidget {
   ConsumerState<_ExternalApisTab> createState() => _ExternalApisTabState();
 }
 
-/// State for [_ExternalApisTab] managing Anthropic and Brave API key inputs and save operations.
+/// State for [_ExternalApisTab] managing Anthropic, Brave, and HuggingFace API key inputs and save operations.
 class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
   final _anthropicKeyController = TextEditingController();
   final _braveKeyController = TextEditingController();
+  final _hfTokenController = TextEditingController();
   String _anthropicModel = 'claude-sonnet-4-20250514';
   bool _anthropicEnabled = false;
   bool _braveEnabled = false;
+  bool _hfEnabled = false;
   int _maxWebFetchSizeKb = 512;
   int _searchResultLimit = 5;
   bool _loaded = false;
   bool _saving = false;
   bool _obscureAnthropicKey = true;
   bool _obscureBraveKey = true;
+  bool _obscureHfToken = true;
 
   @override
   void dispose() {
     _anthropicKeyController.dispose();
     _braveKeyController.dispose();
+    _hfTokenController.dispose();
     super.dispose();
   }
 
@@ -1230,6 +1961,7 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
               _anthropicModel = settings.anthropicModel;
               _anthropicEnabled = settings.anthropicEnabled;
               _braveEnabled = settings.braveEnabled;
+              _hfEnabled = settings.huggingFaceEnabled;
               _maxWebFetchSizeKb = settings.maxWebFetchSizeKb;
               _searchResultLimit = settings.searchResultLimit;
               _loaded = true;
@@ -1343,6 +2075,52 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
                                   : Icons.visibility),
                               onPressed: () => setState(() =>
                                   _obscureBraveKey = !_obscureBraveKey),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── HuggingFace ──
+                _buildSectionHeader(context, 'HuggingFace'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SwitchListTile(
+                          title: const Text('Enable HuggingFace'),
+                          subtitle: Text(
+                              settings.huggingFaceKeyConfigured
+                                  ? 'Access token configured'
+                                  : 'No access token configured'),
+                          value: _hfEnabled,
+                          onChanged: (v) =>
+                              setState(() => _hfEnabled = v),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _hfTokenController,
+                          obscureText: _obscureHfToken,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.key),
+                            labelText:
+                                settings.huggingFaceKeyConfigured
+                                    ? 'HuggingFace Token (leave blank to keep)'
+                                    : 'HuggingFace Access Token',
+                            border: const OutlineInputBorder(),
+                            helperText:
+                                'Required for gated models. Get one at huggingface.co/settings/tokens',
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureHfToken
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: () => setState(() =>
+                                  _obscureHfToken = !_obscureHfToken),
                             ),
                           ),
                         ),
@@ -1536,6 +2314,7 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
       final service = ref.read(enrichmentServiceProvider);
       final anthropicKey = _anthropicKeyController.text;
       final braveKey = _braveKeyController.text;
+      final hfToken = _hfTokenController.text;
       await service.updateExternalApiSettings(
         UpdateExternalApiSettingsRequest(
           anthropicApiKey:
@@ -1544,6 +2323,8 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
           anthropicEnabled: _anthropicEnabled,
           braveApiKey: braveKey.isNotEmpty ? braveKey : null,
           braveEnabled: _braveEnabled,
+          huggingFaceToken: hfToken.isNotEmpty ? hfToken : null,
+          huggingFaceEnabled: _hfEnabled,
           maxWebFetchSizeKb: _maxWebFetchSizeKb,
           searchResultLimit: _searchResultLimit,
         ),
@@ -1552,6 +2333,7 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
       ref.invalidate(enrichmentStatusProvider);
       _anthropicKeyController.clear();
       _braveKeyController.clear();
+      _hfTokenController.clear();
       _loaded = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
