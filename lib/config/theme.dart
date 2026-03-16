@@ -8,14 +8,23 @@ import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 class AppColors {
   AppColors._();
 
+  /// Primary forest green used for main actions and branding.
   static const Color primary = Color(0xFF2D5016);
+  /// Lighter green for primary container surfaces and filled backgrounds.
   static const Color primaryContainer = Color(0xFF4A7C2F);
+  /// Warm amber-brown secondary accent for complementary UI elements.
   static const Color secondary = Color(0xFF8B5E1A);
+  /// Deep olive-black scaffold background for dark mode.
   static const Color backgroundDark = Color(0xFF1A1A14);
+  /// Warm parchment scaffold background for light mode.
   static const Color backgroundLight = Color(0xFFF5F0E8);
+  /// Dark olive surface color for cards and elevated containers in dark mode.
   static const Color surfaceDark = Color(0xFF242418);
+  /// White surface color for cards and elevated containers in light mode.
   static const Color surfaceLight = Color(0xFFFFFFFF);
+  /// Muted rose used for error states and destructive actions.
   static const Color error = Color(0xFFCF6679);
+  /// White text and icon color used on primary-colored surfaces.
   static const Color onPrimary = Color(0xFFFFFFFF);
 }
 
