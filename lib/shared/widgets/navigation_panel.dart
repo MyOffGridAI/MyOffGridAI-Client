@@ -14,11 +14,8 @@ import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 /// Replaces the old [NavigationRail] + [ChatSidebar] two-column layout.
 /// Supports expand/collapse with smooth [AnimatedContainer] transition.
 class NavigationPanel extends ConsumerStatefulWidget {
-  /// Callback to open the "More" end drawer from the parent [Scaffold].
-  final VoidCallback onOpenMoreDrawer;
-
   /// Creates a [NavigationPanel].
-  const NavigationPanel({super.key, required this.onOpenMoreDrawer});
+  const NavigationPanel({super.key});
 
   @override
   ConsumerState<NavigationPanel> createState() => _NavigationPanelState();
@@ -120,11 +117,53 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
           ),
           _buildNavItem(
             context,
-            icon: Icons.more_horiz,
-            label: 'More',
+            icon: Icons.auto_fix_high_outlined,
+            selectedIcon: Icons.auto_fix_high,
+            label: 'Skills',
             isCollapsed: isCollapsed,
-            isSelected: false,
-            onTap: widget.onOpenMoreDrawer,
+            isSelected: currentLocation == AppConstants.routeSkills ||
+                currentLocation.startsWith('/skills'),
+            onTap: () => context.go(AppConstants.routeSkills),
+          ),
+          _buildNavItem(
+            context,
+            icon: Icons.inventory_2_outlined,
+            selectedIcon: Icons.inventory_2,
+            label: 'Inventory',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeInventory ||
+                currentLocation.startsWith('/inventory'),
+            onTap: () => context.go(AppConstants.routeInventory),
+          ),
+          _buildNavItem(
+            context,
+            icon: Icons.insights_outlined,
+            selectedIcon: Icons.insights,
+            label: 'Insights',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeInsights ||
+                currentLocation.startsWith('/insights'),
+            onTap: () => context.go(AppConstants.routeInsights),
+          ),
+          _buildNavItem(
+            context,
+            icon: Icons.shield_outlined,
+            selectedIcon: Icons.shield,
+            label: 'Privacy',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routePrivacy ||
+                currentLocation.startsWith('/privacy'),
+            onTap: () => context.go(AppConstants.routePrivacy),
+          ),
+          _buildNavItem(
+            context,
+            icon: Icons.computer_outlined,
+            selectedIcon: Icons.computer,
+            label: 'System',
+            isCollapsed: isCollapsed,
+            isSelected: currentLocation == AppConstants.routeSystem ||
+                currentLocation.startsWith('/system'),
+            onTap: () => context.go(AppConstants.routeSystem),
           ),
           const Divider(height: 1),
 

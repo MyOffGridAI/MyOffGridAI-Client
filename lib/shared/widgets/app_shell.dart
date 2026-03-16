@@ -36,9 +36,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (index < _primaryDestinations.length) {
       setState(() => _selectedIndex = index);
       context.go(_primaryDestinations[index]);
-    } else {
-      // "More" tab — open the drawer
-      Scaffold.of(context).openEndDrawer();
     }
   }
 
@@ -60,7 +57,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     _selectedIndex = _calculateSelectedIndex();
 
     return Scaffold(
-      endDrawer: _buildDrawer(context),
       body: Column(
         children: [
           const ConnectionLostBanner(),
@@ -70,10 +66,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ? widget.child
                 : Row(
                     children: [
-                      NavigationPanel(
-                        onOpenMoreDrawer: () =>
-                            Scaffold.of(context).openEndDrawer(),
-                      ),
+                      const NavigationPanel(),
                       Expanded(child: widget.child),
                     ],
                   ),
@@ -106,86 +99,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                   activeIcon: Icon(Icons.sensors),
                   label: 'Sensors',
                 ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.more_horiz),
-                  activeIcon: Icon(Icons.more_horiz),
-                  label: 'More',
-                ),
               ],
             )
           : null,
     );
   }
 
-  Drawer _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          const DrawerHeader(
-            child: Text(
-              'MyOffGrid AI',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.auto_fix_high),
-            title: const Text('Skills'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go(AppConstants.routeSkills);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.inventory_2_outlined),
-            title: const Text('Inventory'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go(AppConstants.routeInventory);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.insights),
-            title: const Text('Insights'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go(AppConstants.routeInsights);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.event),
-            title: const Text('Events'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go(AppConstants.routeEvents);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.shield_outlined),
-            title: const Text('Privacy'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go(AppConstants.routePrivacy);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('System'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go(AppConstants.routeSystem);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.people),
-            title: const Text('Users'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go(AppConstants.routeUsers);
-            },
-          ),
-        ],
-      ),
-    );
-  }
 }
