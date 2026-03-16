@@ -39,6 +39,8 @@ class AppConstants {
   static const String devicesBasePath = '/api/notifications/devices';
   static const String privacyBasePath = '/api/privacy';
   static const String systemBasePath = '/api/system';
+  static const String enrichmentBasePath = '/api/enrichment';
+  static const String externalApiSettingsPath = '/api/settings/external-apis';
 
   // Route names
   static const String routeLogin = '/login';

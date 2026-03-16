@@ -8,6 +8,8 @@ import 'package:myoffgridai_client/core/api/providers.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/system_models.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
+import 'package:myoffgridai_client/core/models/enrichment_models.dart';
+import 'package:myoffgridai_client/core/services/enrichment_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/core/services/user_service.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
@@ -32,7 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -53,6 +55,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             Tab(text: 'Users'),
             Tab(text: 'AI & Memory'),
             Tab(text: 'File Storage'),
+            Tab(text: 'External APIs'),
           ],
         ),
       ),
@@ -63,6 +66,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const _UsersTab(),
           const _AiMemoryTab(),
           const _FileStorageTab(),
+          const _ExternalApisTab(),
         ],
       ),
     );
@@ -1139,6 +1143,430 @@ class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to save storage settings')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+}
+
+/// The External APIs tab for managing Anthropic and Brave Search keys (OWNER only).
+class _ExternalApisTab extends ConsumerStatefulWidget {
+  const _ExternalApisTab();
+
+  @override
+  ConsumerState<_ExternalApisTab> createState() => _ExternalApisTabState();
+}
+
+class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
+  final _anthropicKeyController = TextEditingController();
+  final _braveKeyController = TextEditingController();
+  String _anthropicModel = 'claude-sonnet-4-20250514';
+  bool _anthropicEnabled = false;
+  bool _braveEnabled = false;
+  int _maxWebFetchSizeKb = 512;
+  int _searchResultLimit = 5;
+  bool _loaded = false;
+  bool _saving = false;
+  bool _obscureAnthropicKey = true;
+  bool _obscureBraveKey = true;
+
+  @override
+  void dispose() {
+    _anthropicKeyController.dispose();
+    _braveKeyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authAsync = ref.watch(authStateProvider);
+
+    return authAsync.when(
+      loading: () => const LoadingIndicator(),
+      error: (_, __) =>
+          const Center(child: Text('Failed to load auth state')),
+      data: (user) {
+        if (user == null || user.role != 'ROLE_OWNER') {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child:
+                  Text('Only the Owner can manage external API settings'),
+            ),
+          );
+        }
+
+        final settingsAsync = ref.watch(externalApiSettingsProvider);
+
+        return settingsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Failed to load external API settings',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () =>
+                      ref.invalidate(externalApiSettingsProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+          data: (settings) {
+            if (!_loaded) {
+              _anthropicModel = settings.anthropicModel;
+              _anthropicEnabled = settings.anthropicEnabled;
+              _braveEnabled = settings.braveEnabled;
+              _maxWebFetchSizeKb = settings.maxWebFetchSizeKb;
+              _searchResultLimit = settings.searchResultLimit;
+              _loaded = true;
+            }
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // ── Anthropic (Claude) ──
+                _buildSectionHeader(context, 'Anthropic (Claude)'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SwitchListTile(
+                          title: const Text('Enable Anthropic API'),
+                          subtitle: Text(settings.anthropicKeyConfigured
+                              ? 'API key configured'
+                              : 'No API key configured'),
+                          value: _anthropicEnabled,
+                          onChanged: (v) =>
+                              setState(() => _anthropicEnabled = v),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _anthropicKeyController,
+                          obscureText: _obscureAnthropicKey,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.key),
+                            labelText: settings.anthropicKeyConfigured
+                                ? 'Anthropic API Key (leave blank to keep)'
+                                : 'Anthropic API Key',
+                            border: const OutlineInputBorder(),
+                            helperText:
+                                'Enter a new key, or leave blank to keep existing',
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureAnthropicKey
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: () => setState(() =>
+                                  _obscureAnthropicKey =
+                                      !_obscureAnthropicKey),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: _anthropicModel,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.smart_toy),
+                            labelText: 'Model',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'claude-sonnet-4-20250514',
+                              child: Text('Claude Sonnet 4'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'claude-haiku-4-5-20251001',
+                              child: Text('Claude Haiku 4.5'),
+                            ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() => _anthropicModel = v);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Brave Search ──
+                _buildSectionHeader(context, 'Brave Search'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SwitchListTile(
+                          title: const Text('Enable Brave Search'),
+                          subtitle: Text(settings.braveKeyConfigured
+                              ? 'API key configured'
+                              : 'No API key configured'),
+                          value: _braveEnabled,
+                          onChanged: (v) =>
+                              setState(() => _braveEnabled = v),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _braveKeyController,
+                          obscureText: _obscureBraveKey,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.key),
+                            labelText: settings.braveKeyConfigured
+                                ? 'Brave API Key (leave blank to keep)'
+                                : 'Brave API Key',
+                            border: const OutlineInputBorder(),
+                            helperText:
+                                'Enter a new key, or leave blank to keep existing',
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureBraveKey
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: () => setState(() =>
+                                  _obscureBraveKey = !_obscureBraveKey),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Limits ──
+                _buildSectionHeader(context, 'Limits'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Max Web Fetch Size',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '$_maxWebFetchSizeKb KB',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        Slider(
+                          value: _maxWebFetchSizeKb.toDouble(),
+                          min: 64,
+                          max: 10240,
+                          divisions: 40,
+                          onChanged: (v) => setState(
+                              () => _maxWebFetchSizeKb = v.round()),
+                        ),
+                        Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '64 KB',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            ),
+                            Text(
+                              '10 MB',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Search Result Limit',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '$_searchResultLimit results',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        Slider(
+                          value: _searchResultLimit.toDouble(),
+                          min: 1,
+                          max: 20,
+                          divisions: 19,
+                          onChanged: (v) => setState(
+                              () => _searchResultLimit = v.round()),
+                        ),
+                        Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '1',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            ),
+                            Text(
+                              '20',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Save button ──
+                Center(
+                  child: FilledButton.icon(
+                    onPressed: _saving ? null : _saveSettings,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save),
+                    label: Text(_saving ? 'Saving...' : 'Save'),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() => _saving = true);
+    try {
+      final service = ref.read(enrichmentServiceProvider);
+      final anthropicKey = _anthropicKeyController.text;
+      final braveKey = _braveKeyController.text;
+      await service.updateExternalApiSettings(
+        UpdateExternalApiSettingsRequest(
+          anthropicApiKey:
+              anthropicKey.isNotEmpty ? anthropicKey : null,
+          anthropicModel: _anthropicModel,
+          anthropicEnabled: _anthropicEnabled,
+          braveApiKey: braveKey.isNotEmpty ? braveKey : null,
+          braveEnabled: _braveEnabled,
+          maxWebFetchSizeKb: _maxWebFetchSizeKb,
+          searchResultLimit: _searchResultLimit,
+        ),
+      );
+      ref.invalidate(externalApiSettingsProvider);
+      ref.invalidate(enrichmentStatusProvider);
+      _anthropicKeyController.clear();
+      _braveKeyController.clear();
+      _loaded = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('External API settings saved successfully')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to save external API settings')),
         );
       }
     } finally {

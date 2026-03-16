@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
+import 'package:myoffgridai_client/core/models/enrichment_models.dart';
 import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
+import 'package:myoffgridai_client/core/services/enrichment_service.dart';
 import 'package:myoffgridai_client/core/services/knowledge_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
@@ -42,6 +44,16 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
       appBar: AppBar(
         title: const Text('Knowledge Vault'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.language),
+            tooltip: 'Fetch URL',
+            onPressed: () => _showFetchUrlSheet(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Web Search',
+            onPressed: () => _showWebSearchSheet(context),
+          ),
           IconButton(
             icon: const Icon(Icons.note_add),
             tooltip: 'Create new document',
@@ -142,6 +154,261 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
         ),
       ),
     );
+  }
+
+  void _showFetchUrlSheet(BuildContext context) {
+    final urlController = TextEditingController();
+    bool summarize = false;
+    bool fetching = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Fetch URL',
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.link),
+                  labelText: 'URL',
+                  hintText: 'https://example.com/article',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                title: const Text('Summarize with Claude'),
+                subtitle: const Text('Uses Anthropic API if available'),
+                value: summarize,
+                onChanged: (v) =>
+                    setSheetState(() => summarize = v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: fetching
+                      ? null
+                      : () async {
+                          final url = urlController.text.trim();
+                          if (url.isEmpty) return;
+                          setSheetState(() => fetching = true);
+                          try {
+                            final service =
+                                ref.read(enrichmentServiceProvider);
+                            await service.fetchUrl(
+                              url: url,
+                              summarizeWithClaude: summarize,
+                            );
+                            ref.invalidate(knowledgeDocumentsProvider);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'URL fetched and stored')),
+                              );
+                            }
+                          } on ApiException catch (e) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text(e.message)),
+                              );
+                            }
+                          } finally {
+                            if (ctx.mounted) {
+                              setSheetState(() => fetching = false);
+                            }
+                          }
+                        },
+                  icon: fetching
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.download),
+                  label: Text(fetching ? 'Fetching...' : 'Fetch'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) => urlController.dispose());
+  }
+
+  void _showWebSearchSheet(BuildContext context) {
+    final queryController = TextEditingController();
+    int storeTopN = 0;
+    bool summarize = false;
+    bool searching = false;
+    List<SearchResultModel>? searchResults;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Web Search',
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: queryController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  labelText: 'Search query',
+                  hintText: 'solar panel maintenance',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    'Store top results: $storeTopN',
+                    style: Theme.of(ctx).textTheme.bodyMedium,
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: storeTopN.toDouble(),
+                      min: 0,
+                      max: 5,
+                      divisions: 5,
+                      onChanged: (v) =>
+                          setSheetState(() => storeTopN = v.round()),
+                    ),
+                  ),
+                ],
+              ),
+              CheckboxListTile(
+                title: const Text('Summarize with Claude'),
+                value: summarize,
+                onChanged: (v) =>
+                    setSheetState(() => summarize = v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: searching
+                      ? null
+                      : () async {
+                          final query = queryController.text.trim();
+                          if (query.isEmpty) return;
+                          setSheetState(() {
+                            searching = true;
+                            searchResults = null;
+                          });
+                          try {
+                            final service =
+                                ref.read(enrichmentServiceProvider);
+                            final result = await service.search(
+                              query: query,
+                              storeTopN: storeTopN,
+                              summarizeWithClaude: summarize,
+                            );
+                            setSheetState(
+                                () => searchResults = result.results);
+                            if (storeTopN > 0) {
+                              ref.invalidate(
+                                  knowledgeDocumentsProvider);
+                            }
+                          } on ApiException catch (e) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text(e.message)),
+                              );
+                            }
+                          } finally {
+                            if (ctx.mounted) {
+                              setSheetState(() => searching = false);
+                            }
+                          }
+                        },
+                  icon: searching
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.search),
+                  label: Text(searching ? 'Searching...' : 'Search'),
+                ),
+              ),
+              if (searchResults != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '${searchResults!.length} result(s)',
+                  style: Theme.of(ctx).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(maxHeight: 200),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: searchResults!.length,
+                    itemBuilder: (_, i) {
+                      final r = searchResults![i];
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          r.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          r.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ).then((_) => queryController.dispose());
   }
 
   Future<void> _handleDroppedFiles(List<XFile> files) async {
