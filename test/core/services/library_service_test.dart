@@ -4,7 +4,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
-import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
 

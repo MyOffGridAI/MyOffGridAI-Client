@@ -348,20 +348,6 @@ void main() {
   });
 
   group('Sovereignty tab', () {
-    Widget buildSovereigntyScreen({
-      SovereigntyReportModel? report,
-      bool reportError = false,
-    }) {
-      return ProviderScope(
-        overrides: [
-          fortressStatusProvider.overrideWith((ref) =>
-              const FortressStatusModel(enabled: true, verified: true)),
-          privacyServiceProvider.overrideWithValue(mockService),
-        ],
-        child: const MaterialApp(home: PrivacyScreen()),
-      );
-    }
-
     testWidgets('shows sovereignty tab content with data inventory',
         (tester) async {
       when(() => mockService.getSovereigntyReport()).thenAnswer(

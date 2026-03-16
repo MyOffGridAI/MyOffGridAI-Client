@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
-import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';

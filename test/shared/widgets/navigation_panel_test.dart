@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/conversation_model.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/shared/widgets/navigation_panel.dart';

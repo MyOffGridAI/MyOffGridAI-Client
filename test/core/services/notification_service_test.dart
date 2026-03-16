@@ -6,7 +6,6 @@ import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/services/notification_service.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:myoffgridai_client/core/models/notification_model.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
 

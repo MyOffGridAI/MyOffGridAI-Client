@@ -21,7 +21,9 @@ class _FakeStorage extends SecureStorageService {
   String? refreshToken;
   bool clearTokensCalled = false;
 
-  _FakeStorage({this.accessToken, this.refreshToken}) : super(storage: null);
+  _FakeStorage({this.accessToken, String? refreshToken}) : super(storage: null) {
+    this.refreshToken = refreshToken;
+  }
 
   @override
   Future<String?> getAccessToken() async => accessToken;

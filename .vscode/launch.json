@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "MyOffGridAI (Web - Port 3000)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "args": [
+        "--web-port",
+        "3000"
+      ]
+    },
+    {
+      "name": "MyOffGridAI (Web - Profile)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "flutterMode": "profile",
+      "args": [
+        "--web-port",
+        "3000"
+      ]
+    }
+  ]
+}

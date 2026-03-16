@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
@@ -227,38 +226,6 @@ void main() {
   });
 
   group('DocumentEditorScreen - Save', () {
-    Widget buildWithRouter({String? documentId}) {
-      final initialLocation =
-          documentId != null ? '/knowledge/$documentId/edit' : '/knowledge/new';
-
-      final router = GoRouter(
-        initialLocation: initialLocation,
-        routes: [
-          GoRoute(
-            path: '/knowledge/new',
-            builder: (_, __) => const DocumentEditorScreen(),
-          ),
-          GoRoute(
-            path: '/knowledge/:id/edit',
-            builder: (_, state) => DocumentEditorScreen(
-              documentId: state.pathParameters['id'],
-            ),
-          ),
-          GoRoute(
-            path: '/knowledge',
-            builder: (_, __) => const Scaffold(body: Text('Knowledge List')),
-          ),
-        ],
-      );
-
-      return ProviderScope(
-        overrides: [
-          knowledgeServiceProvider.overrideWithValue(mockService),
-        ],
-        child: MaterialApp.router(routerConfig: router),
-      );
-    }
-
     // Note: The _save method (lines 100-148) and back button navigation
     // (line 157: context.go('/knowledge')) require GoRouter which, when used
     // with MaterialApp.router, doesn't inherit FlutterQuillLocalizations.

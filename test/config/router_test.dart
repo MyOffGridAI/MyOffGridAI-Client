@@ -6,8 +6,6 @@ import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/config/router.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
-import 'package:myoffgridai_client/features/auth/login_screen.dart';
-import 'package:myoffgridai_client/features/auth/register_screen.dart';
 
 /// Fake [AuthNotifier] that resolves immediately with a predetermined user.
 class _FakeAuthNotifier extends AuthNotifier {
