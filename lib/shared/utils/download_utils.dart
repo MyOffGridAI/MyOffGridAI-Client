@@ -50,6 +50,7 @@ class DownloadUtils {
       'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'ppt' => 'application/vnd.ms-powerpoint',
       'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'rtf' => 'application/rtf',
       _ => 'application/octet-stream',
     };
   }

@@ -28,7 +28,7 @@ class KnowledgeScreen extends ConsumerStatefulWidget {
 
 class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
   static const _allowedExtensions = [
-    'pdf', 'txt', 'md', 'doc', 'docx', 'xlsx', 'xls', 'pptx', 'ppt'
+    'pdf', 'txt', 'md', 'doc', 'docx', 'rtf', 'xlsx', 'xls', 'pptx', 'ppt'
   ];
 
   bool _isUploading = false;
