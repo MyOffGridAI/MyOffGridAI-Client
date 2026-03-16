@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/privacy_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -320,6 +321,35 @@ void main() {
         () => service.wipeSelfData(),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('privacyServiceProvider', () {
+    test('creates PrivacyService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(privacyServiceProvider), isA<PrivacyService>());
+    });
+  });
+
+  group('fortressStatusProvider', () {
+    test('returns fortress status from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.privacyBasePath}/fortress/status',
+          )).thenAnswer((_) async => {
+            'data': {'enabled': true, 'verified': true},
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final status = await container.read(fortressStatusProvider.future);
+      expect(status.enabled, isTrue);
     });
   });
 }

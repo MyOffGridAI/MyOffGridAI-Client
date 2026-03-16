@@ -115,6 +115,9 @@ class SensorsScreen extends ConsumerWidget {
   }
 }
 
+/// Renders a sensor as a card in the grid with status icon, name, and toggle switch.
+///
+/// Tapping navigates to sensor detail; long-pressing triggers delete confirmation.
 class _SensorCard extends StatelessWidget {
   final SensorModel sensor;
   final VoidCallback onTap;

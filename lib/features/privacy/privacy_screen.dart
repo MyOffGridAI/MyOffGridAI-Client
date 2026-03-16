@@ -33,6 +33,7 @@ class PrivacyScreen extends ConsumerStatefulWidget {
   ConsumerState<PrivacyScreen> createState() => _PrivacyScreenState();
 }
 
+/// State for [PrivacyScreen] managing the three-tab layout.
 class _PrivacyScreenState extends ConsumerState<PrivacyScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
@@ -75,6 +76,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen>
   }
 }
 
+/// Displays the fortress enable/disable toggle and data wipe action.
 class _FortressTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -220,6 +222,7 @@ class _FortressTab extends ConsumerWidget {
   }
 }
 
+/// Shows the sovereignty report with data inventory and verification statuses.
 class _SovereigntyTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -311,6 +314,7 @@ class _SovereigntyTab extends ConsumerWidget {
   }
 }
 
+/// Displays the audit log list with action, outcome, and duration per entry.
 class _AuditLogTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {

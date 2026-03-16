@@ -30,5 +30,15 @@ void main() {
     test('handles negative bytes', () {
       expect(SizeFormatter.formatBytes(-100), '0 B');
     });
+
+    test('formats TB', () {
+      final bytes = (2.5 * 1024 * 1024 * 1024 * 1024).round();
+      expect(SizeFormatter.formatBytes(bytes), '2.5 TB');
+    });
+
+    test('formats large TB value', () {
+      final bytes = (15.0 * 1024 * 1024 * 1024 * 1024).round();
+      expect(SizeFormatter.formatBytes(bytes), '15 TB');
+    });
   });
 }

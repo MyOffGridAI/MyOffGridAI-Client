@@ -150,4 +150,18 @@ void main() {
       expect(model.searchResultLimit, 5);
     });
   });
+
+  group('UpdateExternalApiSettingsRequest constructor', () {
+    test('anthropicApiKey and braveApiKey default to null', () {
+      const request = UpdateExternalApiSettingsRequest(
+        anthropicModel: 'claude-sonnet-4-20250514',
+        anthropicEnabled: false,
+        braveEnabled: false,
+        maxWebFetchSizeKb: 512,
+        searchResultLimit: 5,
+      );
+      expect(request.anthropicApiKey, isNull);
+      expect(request.braveApiKey, isNull);
+    });
+  });
 }

@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/event_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -336,6 +337,38 @@ void main() {
         () => service.toggleEvent('bad-id'),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('eventServiceProvider', () {
+    test('creates EventService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(eventServiceProvider), isA<EventService>());
+    });
+  });
+
+  group('eventsListProvider', () {
+    test('returns events from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.eventsBasePath,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'evt-1', 'name': 'Daily', 'eventType': 'SCHEDULED', 'isEnabled': true, 'actionType': 'AI_PROMPT', 'actionPayload': 'test'},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final events = await container.read(eventsListProvider.future);
+      expect(events, hasLength(1));
     });
   });
 }

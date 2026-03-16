@@ -24,6 +24,7 @@ class DocumentEditorScreen extends ConsumerStatefulWidget {
       _DocumentEditorScreenState();
 }
 
+/// State for [DocumentEditorScreen] managing Quill editor initialization, content loading, and saving.
 class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
   QuillController? _quillController;
   final TextEditingController _titleController = TextEditingController();

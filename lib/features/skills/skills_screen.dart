@@ -79,6 +79,7 @@ class SkillsScreen extends ConsumerWidget {
   }
 }
 
+/// Renders a skill as a grid card showing name, description, category, and enabled status.
 class _SkillCard extends StatelessWidget {
   final SkillModel skill;
   final VoidCallback onTap;
@@ -157,6 +158,7 @@ class _SkillCard extends StatelessWidget {
   }
 }
 
+/// Bottom sheet displaying skill details and an execute button within [SkillsScreen].
 class _SkillDetailSheet extends StatefulWidget {
   final SkillModel skill;
   final ScrollController scrollController;
@@ -172,6 +174,7 @@ class _SkillDetailSheet extends StatefulWidget {
   State<_SkillDetailSheet> createState() => _SkillDetailSheetState();
 }
 
+/// State for [_SkillDetailSheet] managing skill execution and result display.
 class _SkillDetailSheetState extends State<_SkillDetailSheet> {
   bool _isExecuting = false;
   SkillExecutionModel? _lastExecution;

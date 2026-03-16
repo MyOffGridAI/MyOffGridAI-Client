@@ -38,6 +38,7 @@ class ChatConversationScreen extends ConsumerStatefulWidget {
       _ChatConversationScreenState();
 }
 
+/// State for [ChatConversationScreen] managing message input, sending, and initial message dispatch.
 class _ChatConversationScreenState
     extends ConsumerState<ChatConversationScreen> {
   final _messageController = TextEditingController();
@@ -215,6 +216,7 @@ class _ChatConversationScreenState
   }
 }
 
+/// Renders a single chat message bubble aligned left (assistant) or right (user).
 class _MessageBubble extends StatelessWidget {
   final MessageModel message;
   final Duration? responseTime;

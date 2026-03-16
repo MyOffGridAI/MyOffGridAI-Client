@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/memory_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -479,6 +480,38 @@ void main() {
         () => service.exportMemories(),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('memoryServiceProvider', () {
+    test('creates MemoryService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(memoryServiceProvider), isA<MemoryService>());
+    });
+  });
+
+  group('memoriesProvider', () {
+    test('returns memories from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.memoryBasePath,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'mem-1', 'content': 'Test memory', 'importance': 'MEDIUM', 'createdAt': '2026-03-16T10:00:00Z'},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final memories = await container.read(memoriesProvider.future);
+      expect(memories, hasLength(1));
     });
   });
 }

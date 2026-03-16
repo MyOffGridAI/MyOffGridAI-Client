@@ -50,6 +50,49 @@ void main() {
       expect(find.text('99+'), findsOneWidget);
     });
 
+    testWidgets('shows exact count at boundary of 99', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: NotificationBadge(
+              count: 99,
+              child: Icon(Icons.notifications),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('99'), findsOneWidget);
+      expect(find.text('99+'), findsNothing);
+    });
+
+    testWidgets('shows 99+ at boundary of 100', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: NotificationBadge(
+              count: 100,
+              child: Icon(Icons.notifications),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('99+'), findsOneWidget);
+    });
+
+    testWidgets('shows count of 1', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: NotificationBadge(
+              count: 1,
+              child: Icon(Icons.notifications),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('1'), findsOneWidget);
+    });
+
     testWidgets('hidden when count is negative', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(

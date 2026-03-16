@@ -22,6 +22,7 @@ class InventoryScreen extends ConsumerStatefulWidget {
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
 }
 
+/// State for [InventoryScreen] managing category filtering and inventory CRUD operations.
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   String? _selectedCategory;
 
@@ -238,6 +239,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
 // ── Inventory Tile ────────────────────────────────────────────────────────
 
+/// Renders a single inventory item row with category icon, stock warning, and action menu.
 class _InventoryTile extends StatelessWidget {
   final InventoryItemModel item;
   final VoidCallback onEdit;
@@ -343,6 +345,7 @@ class _EditInventoryItemSheet extends ConsumerStatefulWidget {
       _EditInventoryItemSheetState();
 }
 
+/// State for [_EditInventoryItemSheet] managing form fields, dirty tracking, and save submission.
 class _EditInventoryItemSheetState
     extends ConsumerState<_EditInventoryItemSheet> {
   final _formKey = GlobalKey<FormState>();

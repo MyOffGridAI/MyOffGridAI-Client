@@ -113,6 +113,7 @@ class EventsScreen extends ConsumerWidget {
   }
 }
 
+/// Renders a scheduled event as a card with type badge, toggle switch, and action menu.
 class _EventCard extends StatelessWidget {
   final ScheduledEventModel event;
   final VoidCallback onToggle;

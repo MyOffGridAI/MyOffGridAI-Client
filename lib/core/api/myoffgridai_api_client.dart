@@ -214,6 +214,11 @@ class MyOffGridAIApiClient {
   }
 }
 
+/// Dio interceptor that attaches JWT Bearer tokens to outgoing requests.
+///
+/// On 401 responses, attempts a single token refresh and retries the
+/// original request. Skips auth for requests marked with `_skipAuth`
+/// and never retries `/auth/refresh` or `/auth/login` paths.
 class _AuthInterceptor extends Interceptor {
   final SecureStorageService storage;
   final MyOffGridAIApiClient client;
@@ -270,6 +275,10 @@ class _AuthInterceptor extends Interceptor {
   }
 }
 
+/// Debug-only interceptor that logs HTTP method, path, and status code.
+///
+/// Only added when [kDebugMode] is true. Never logs Authorization
+/// headers or request bodies to avoid leaking credentials.
 class _LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

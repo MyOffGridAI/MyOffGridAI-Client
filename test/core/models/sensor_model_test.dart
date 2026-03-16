@@ -97,6 +97,18 @@ void main() {
       expect(model.sampleData, '23.5');
       expect(model.message, 'Connection successful');
     });
+
+    test('handles missing fields with defaults', () {
+      final json = <String, dynamic>{};
+
+      final model = SensorTestResultModel.fromJson(json);
+
+      expect(model.success, isFalse);
+      expect(model.portPath, '');
+      expect(model.baudRate, 9600);
+      expect(model.sampleData, isNull);
+      expect(model.message, '');
+    });
   });
 
   group('SensorType', () {

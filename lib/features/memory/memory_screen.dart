@@ -21,6 +21,7 @@ class MemoryScreen extends ConsumerStatefulWidget {
   ConsumerState<MemoryScreen> createState() => _MemoryScreenState();
 }
 
+/// State for [MemoryScreen] managing search, importance filtering, and memory deletion.
 class _MemoryScreenState extends ConsumerState<MemoryScreen> {
   final _searchController = TextEditingController();
   String? _selectedImportance;
@@ -278,6 +279,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
   }
 }
 
+/// Renders a single memory entry as a dismissible list tile within [MemoryScreen].
 class _MemoryTile extends StatelessWidget {
   final MemoryModel memory;
   final double? score;

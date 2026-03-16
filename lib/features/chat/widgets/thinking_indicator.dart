@@ -14,6 +14,7 @@ class ThinkingIndicatorBubble extends StatefulWidget {
       _ThinkingIndicatorBubbleState();
 }
 
+/// State for [ThinkingIndicatorBubble] managing the pulsing dot animation controller.
 class _ThinkingIndicatorBubbleState extends State<ThinkingIndicatorBubble>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;

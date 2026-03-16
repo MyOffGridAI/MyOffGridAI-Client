@@ -22,6 +22,7 @@ class SearchScreen extends ConsumerStatefulWidget {
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
+/// State for [SearchScreen] managing debounced search across conversations, memories, and knowledge.
 class _SearchScreenState extends ConsumerState<SearchScreen>
     with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
@@ -263,6 +264,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   }
 }
 
+/// Renders a compact result count badge within the [SearchScreen] tab labels.
 class _Badge extends StatelessWidget {
   final int count;
 

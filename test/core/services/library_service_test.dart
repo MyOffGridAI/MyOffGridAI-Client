@@ -5,6 +5,7 @@ import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -106,6 +107,32 @@ void main() {
       expect(result.filename, 'wiki.zim');
       expect(result.displayName, 'Wikipedia Offline');
       expect(result.category, 'REFERENCE');
+      verify(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/zim',
+            any(),
+          )).called(1);
+    });
+
+    test('sends without category when null', () async {
+      when(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/zim',
+            any(),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'z-no-cat',
+              'filename': 'simple.zim',
+              'displayName': 'Simple File',
+              'fileSizeBytes': 1024,
+            },
+          });
+
+      final result = await service.uploadZimFile(
+        filename: 'simple.zim',
+        bytes: [0x5A],
+        displayName: 'Simple File',
+      );
+
+      expect(result.id, 'z-no-cat');
       verify(() => mockClient.postMultipart<Map<String, dynamic>>(
             '${AppConstants.libraryBasePath}/zim',
             any(),
@@ -240,6 +267,44 @@ void main() {
       expect(params['size'], 20);
     });
 
+    test('omits search and format when empty strings', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {'data': <dynamic>[]});
+
+      await service.listEbooks(search: '', format: '');
+
+      final captured = verify(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            queryParams: captureAny(named: 'queryParams'),
+          )).captured;
+
+      final params = captured.first as Map<String, dynamic>;
+      expect(params.containsKey('search'), isFalse);
+      expect(params.containsKey('format'), isFalse);
+      expect(params['page'], 0);
+      expect(params['size'], 20);
+    });
+
+    test('passes custom pagination', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {'data': <dynamic>[]});
+
+      await service.listEbooks(page: 3, size: 50);
+
+      final captured = verify(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            queryParams: captureAny(named: 'queryParams'),
+          )).captured;
+
+      final params = captured.first as Map<String, dynamic>;
+      expect(params['page'], 3);
+      expect(params['size'], 50);
+    });
+
     test('returns empty list when data is null', () async {
       when(() => mockClient.get<Map<String, dynamic>>(
             '${AppConstants.libraryBasePath}/ebooks',
@@ -249,6 +314,21 @@ void main() {
       final result = await service.listEbooks();
 
       expect(result, isEmpty);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(const ApiException(
+        statusCode: 500,
+        message: 'Internal server error',
+      ));
+
+      expect(
+        () => service.listEbooks(),
+        throwsA(isA<ApiException>()),
+      );
     });
   });
 
@@ -326,6 +406,33 @@ void main() {
       expect(result.title, 'Survival Guide');
       expect(result.author, 'Bear Grylls');
       expect(result.format, 'EPUB');
+      verify(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            any(),
+          )).called(1);
+    });
+
+    test('sends without author when null', () async {
+      when(() => mockClient.postMultipart<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            any(),
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'e-no-author',
+              'title': 'Unknown Author Book',
+              'format': 'EPUB',
+              'fileSizeBytes': 4000,
+            },
+          });
+
+      final result = await service.uploadEbook(
+        filename: 'book.epub',
+        bytes: [0x50, 0x4B],
+        title: 'Unknown Author Book',
+      );
+
+      expect(result.id, 'e-no-author');
+      expect(result.title, 'Unknown Author Book');
       verify(() => mockClient.postMultipart<Map<String, dynamic>>(
             '${AppConstants.libraryBasePath}/ebooks',
             any(),
@@ -493,6 +600,93 @@ void main() {
         () => service.importGutenbergBook(9999),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('libraryServiceProvider', () {
+    test('creates LibraryService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(libraryServiceProvider), isA<LibraryService>());
+    });
+  });
+
+  group('zimFilesProvider', () {
+    test('returns ZIM files from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/zim',
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'zim-1', 'filename': 'wiki.zim', 'displayName': 'Wikipedia'},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final files = await container.read(zimFilesProvider.future);
+      expect(files, hasLength(1));
+    });
+  });
+
+  group('ebooksProvider', () {
+    test('returns ebooks from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/ebooks',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'book-1', 'title': 'Test Book', 'format': 'epub'},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final books = await container.read(
+          ebooksProvider((search: null, format: null)).future);
+      expect(books, hasLength(1));
+    });
+  });
+
+  group('kiwixStatusProvider', () {
+    test('returns Kiwix status from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/kiwix/status',
+          )).thenAnswer((_) async => {
+            'data': {'available': true, 'url': 'http://localhost:8888', 'bookCount': 3},
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final status = await container.read(kiwixStatusProvider.future);
+      expect(status.available, isTrue);
+      expect(status.bookCount, 3);
+    });
+  });
+
+  group('kiwixUrlProvider', () {
+    test('returns Kiwix URL from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/kiwix/url',
+          )).thenAnswer((_) async => {
+            'data': 'http://localhost:8888',
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final url = await container.read(kiwixUrlProvider.future);
+      expect(url, 'http://localhost:8888');
     });
   });
 }

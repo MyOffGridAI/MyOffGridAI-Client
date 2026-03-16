@@ -24,7 +24,15 @@ void main() {
       expect(DateFormatter.formatRelative(yesterday), 'Yesterday');
     });
 
-    test('formatRelative returns short date for older dates', () {
+    test('formatRelative returns days ago for 2-6 days', () {
+      final threeDaysAgo = DateTime.now().subtract(const Duration(days: 3));
+      expect(DateFormatter.formatRelative(threeDaysAgo), '3 days ago');
+
+      final sixDaysAgo = DateTime.now().subtract(const Duration(days: 6));
+      expect(DateFormatter.formatRelative(sixDaysAgo), '6 days ago');
+    });
+
+    test('formatRelative returns short date for 7+ days', () {
       final oldDate = DateTime.now().subtract(const Duration(days: 10));
       final result = DateFormatter.formatRelative(oldDate);
       // Should be a short date like "Mar 4"

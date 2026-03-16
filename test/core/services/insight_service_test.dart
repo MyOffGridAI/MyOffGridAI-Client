@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/insight_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -298,6 +299,38 @@ void main() {
         () => service.getUnreadCount(),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('insightServiceProvider', () {
+    test('creates InsightService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(insightServiceProvider), isA<InsightService>());
+    });
+  });
+
+  group('insightsProvider', () {
+    test('returns insights from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.insightsBasePath,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'ins-1', 'content': 'Test', 'category': 'HEALTH', 'isRead': false, 'isDismissed': false},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final insights = await container.read(insightsProvider.future);
+      expect(insights, hasLength(1));
     });
   });
 }

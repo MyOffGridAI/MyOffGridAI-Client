@@ -24,6 +24,7 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
+/// State for [AppShell] managing adaptive navigation selection and bottom bar rendering.
 class _AppShellState extends ConsumerState<AppShell> {
   int _selectedIndex = 0;
 
@@ -122,6 +123,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
+/// Renders the alerts icon with an unread notification badge overlay.
 class _AlertsIcon extends ConsumerWidget {
   final bool selected;
 

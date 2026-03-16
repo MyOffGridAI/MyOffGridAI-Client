@@ -19,6 +19,7 @@ class ChatListScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
 }
 
+/// State for [ChatListScreen] managing the greeting input and new conversation creation.
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   final _controller = TextEditingController();
   late final FocusNode _focusNode;

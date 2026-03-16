@@ -21,6 +21,7 @@ class InsightsScreen extends ConsumerStatefulWidget {
   ConsumerState<InsightsScreen> createState() => _InsightsScreenState();
 }
 
+/// State for [InsightsScreen] managing the tab controller and insight generation.
 class _InsightsScreenState extends ConsumerState<InsightsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
@@ -87,6 +88,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
   }
 }
 
+/// Displays the list of AI-generated insights with mark-as-read and dismiss actions.
 class _InsightsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -133,6 +135,9 @@ class _InsightsTab extends ConsumerWidget {
   }
 }
 
+/// Renders a single insight with category icon, content, and action buttons.
+///
+/// Supports swipe-to-dismiss and a mark-as-read button for unread insights.
 class _InsightTile extends StatelessWidget {
   final InsightModel insight;
   final VoidCallback onMarkRead;
@@ -201,6 +206,7 @@ class _InsightTile extends StatelessWidget {
   }
 }
 
+/// Displays the list of system notifications with mark-all-read and delete actions.
 class _NotificationsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -263,6 +269,7 @@ class _NotificationsTab extends ConsumerWidget {
   }
 }
 
+/// Renders a single notification with type-colored icon and swipe-to-delete.
 class _NotificationTile extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback onMarkRead;

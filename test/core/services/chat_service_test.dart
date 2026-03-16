@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -551,6 +552,74 @@ void main() {
         () => service.sendMessage('conv-1', 'Hello'),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('chatServiceProvider', () {
+    test('creates ChatService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(chatServiceProvider), isA<ChatService>());
+    });
+  });
+
+  group('conversationsProvider', () {
+    test('returns conversations from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'conv-1', 'title': 'Test', 'lastMessageAt': '2026-03-16T12:00:00Z'},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final convos = await container.read(conversationsProvider.future);
+      expect(convos, hasLength(1));
+    });
+  });
+
+  group('messagesProvider', () {
+    test('returns messages for a conversation', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.chatBasePath}/conversations/conv-1/messages',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'm1', 'role': 'USER', 'content': 'Hello', 'hasRagContext': false},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final msgs = await container.read(messagesProvider('conv-1').future);
+      expect(msgs, hasLength(1));
+    });
+  });
+
+  group('aiThinkingProvider', () {
+    test('defaults to false', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(aiThinkingProvider('conv-1')), isFalse);
+    });
+  });
+
+  group('sidebarCollapsedProvider', () {
+    test('defaults to false', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(sidebarCollapsedProvider), isFalse);
     });
   });
 }

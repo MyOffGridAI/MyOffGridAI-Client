@@ -27,6 +27,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
+/// State for [SettingsScreen] managing the five-tab layout controller.
 class _SettingsScreenState extends ConsumerState<SettingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -576,6 +577,7 @@ class _AiMemoryTab extends ConsumerStatefulWidget {
   ConsumerState<_AiMemoryTab> createState() => _AiMemoryTabState();
 }
 
+/// State for [_AiMemoryTab] managing AI settings sliders and save operations.
 class _AiMemoryTabState extends ConsumerState<_AiMemoryTab> {
   String _modelName = '';
   double _temperature = 0.7;
@@ -916,6 +918,7 @@ class _FileStorageTab extends ConsumerStatefulWidget {
   ConsumerState<_FileStorageTab> createState() => _FileStorageTabState();
 }
 
+/// State for [_FileStorageTab] managing storage path editing and upload size configuration.
 class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
   final _pathController = TextEditingController();
   int _maxUploadSizeMb = 25;
@@ -1161,6 +1164,7 @@ class _ExternalApisTab extends ConsumerStatefulWidget {
   ConsumerState<_ExternalApisTab> createState() => _ExternalApisTabState();
 }
 
+/// State for [_ExternalApisTab] managing Anthropic and Brave API key inputs and save operations.
 class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
   final _anthropicKeyController = TextEditingController();
   final _braveKeyController = TextEditingController();
@@ -1601,6 +1605,7 @@ class _RegisterUserDialog extends StatefulWidget {
   State<_RegisterUserDialog> createState() => _RegisterUserDialogState();
 }
 
+/// State for [_RegisterUserDialog] managing form fields and user creation submission.
 class _RegisterUserDialogState extends State<_RegisterUserDialog> {
   bool _saving = false;
   bool _obscurePassword = true;

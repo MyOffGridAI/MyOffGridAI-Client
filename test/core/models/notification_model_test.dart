@@ -81,4 +81,20 @@ void main() {
       expect(NotificationSeverity.critical, 'CRITICAL');
     });
   });
+
+  group('NotificationModel constructor', () {
+    test('const constructor with required and default severity', () {
+      const model = NotificationModel(
+        id: 'n1',
+        title: 'Test',
+        body: 'Body',
+        type: 'GENERAL',
+        isRead: false,
+      );
+      expect(model.severity, 'INFO');
+      expect(model.createdAt, isNull);
+      expect(model.readAt, isNull);
+      expect(model.metadata, isNull);
+    });
+  });
 }

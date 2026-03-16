@@ -26,6 +26,7 @@ class BooksScreen extends ConsumerStatefulWidget {
   ConsumerState<BooksScreen> createState() => _BooksScreenState();
 }
 
+/// State for [BooksScreen] managing the three-tab layout, Gutenberg search, and eBook uploads.
 class _BooksScreenState extends ConsumerState<BooksScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -158,6 +159,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
 
 // ── Library Tab (eBooks) ──────────────────────────────────────────────────
 
+/// Renders the Library tab listing uploaded eBooks with an optional upload button.
 class _LibraryTab extends ConsumerWidget {
   final bool isOwnerOrAdmin;
   final bool isUploading;
@@ -223,6 +225,7 @@ class _LibraryTab extends ConsumerWidget {
   }
 }
 
+/// Renders a single eBook entry with format icon, metadata, and Gutenberg badge.
 class _EbookTile extends StatelessWidget {
   final EbookModel ebook;
 
@@ -275,6 +278,7 @@ class _EbookTile extends StatelessWidget {
 
 // ── Kiwix Tab (WebView) ──────────────────────────────────────────────────
 
+/// Renders the Kiwix tab showing ZIM content via WebView when available.
 class _KiwixTab extends ConsumerWidget {
   const _KiwixTab();
 
@@ -304,6 +308,7 @@ class _KiwixTab extends ConsumerWidget {
   }
 }
 
+/// Embeds the Kiwix server content in a WebView with keep-alive support.
 class _KiwixWebView extends StatefulWidget {
   final String url;
 
@@ -313,6 +318,7 @@ class _KiwixWebView extends StatefulWidget {
   State<_KiwixWebView> createState() => _KiwixWebViewState();
 }
 
+/// State for [_KiwixWebView] managing the WebView controller and keep-alive lifecycle.
 class _KiwixWebViewState extends State<_KiwixWebView>
     with AutomaticKeepAliveClientMixin {
   late final WebViewController _controller;
@@ -337,6 +343,7 @@ class _KiwixWebViewState extends State<_KiwixWebView>
 
 // ── Gutenberg Tab (Search & Import) ──────────────────────────────────────
 
+/// Renders the Gutenberg tab with search input and import-capable result list.
 class _GutenbergTab extends ConsumerWidget {
   final TextEditingController searchController;
   final String query;
@@ -400,6 +407,7 @@ final gutenbergSearchProvider = FutureProvider.autoDispose
   return service.searchGutenberg(query);
 });
 
+/// Renders the Gutenberg search results list with import buttons for authorized users.
 class _GutenbergResults extends ConsumerWidget {
   final String query;
   final bool isOwnerOrAdmin;
@@ -440,6 +448,7 @@ class _GutenbergResults extends ConsumerWidget {
   }
 }
 
+/// Renders a single Gutenberg book with metadata and an import button for authorized users.
 class _GutenbergBookTile extends ConsumerStatefulWidget {
   final GutenbergBookModel book;
   final bool isOwnerOrAdmin;
@@ -454,6 +463,7 @@ class _GutenbergBookTile extends ConsumerStatefulWidget {
       _GutenbergBookTileState();
 }
 
+/// State for [_GutenbergBookTile] managing the import-in-progress indicator.
 class _GutenbergBookTileState extends ConsumerState<_GutenbergBookTile> {
   bool _importing = false;
 

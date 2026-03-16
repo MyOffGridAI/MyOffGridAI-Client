@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/core/models/notification_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/local_notification_service.dart';
 
 class MockFlutterLocalNotificationsPlugin extends Mock
@@ -132,6 +133,111 @@ void main() {
             any(),
             payload: 'notif-1',
           )).called(1);
+    });
+    test('showAlertNotification() handles WARNING severity', () async {
+      when(() => mockPlugin.initialize(any())).thenAnswer((_) async => true);
+      when(() => mockPlugin
+              .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin>())
+          .thenReturn(null);
+      when(() => mockPlugin.show(any(), any(), any(), any(), payload: any(named: 'payload')))
+          .thenAnswer((_) async {});
+
+      await service.initialize();
+
+      const notification = NotificationModel(
+        id: 'notif-warn',
+        title: 'Warning',
+        body: 'Low battery',
+        type: 'SYSTEM',
+        severity: 'WARNING',
+        isRead: false,
+      );
+
+      await service.showAlertNotification(notification);
+
+      verify(() => mockPlugin.show(
+            'notif-warn'.hashCode,
+            'Warning',
+            'Low battery',
+            any(),
+            payload: 'notif-warn',
+          )).called(1);
+    });
+
+    test('showAlertNotification() handles INFO severity (default branch)', () async {
+      when(() => mockPlugin.initialize(any())).thenAnswer((_) async => true);
+      when(() => mockPlugin
+              .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin>())
+          .thenReturn(null);
+      when(() => mockPlugin.show(any(), any(), any(), any(), payload: any(named: 'payload')))
+          .thenAnswer((_) async {});
+
+      await service.initialize();
+
+      const notification = NotificationModel(
+        id: 'notif-info',
+        title: 'Info',
+        body: 'Model loaded',
+        type: 'GENERAL',
+        severity: 'INFO',
+        isRead: false,
+      );
+
+      await service.showAlertNotification(notification);
+
+      verify(() => mockPlugin.show(
+            'notif-info'.hashCode,
+            'Info',
+            'Model loaded',
+            any(),
+            payload: 'notif-info',
+          )).called(1);
+    });
+
+    test('showNotification() without payload', () async {
+      when(() => mockPlugin.initialize(any())).thenAnswer((_) async => true);
+      when(() => mockPlugin
+              .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin>())
+          .thenReturn(null);
+      when(() => mockPlugin.show(any(), any(), any(), any(), payload: any(named: 'payload')))
+          .thenAnswer((_) async {});
+
+      await service.initialize();
+      await service.showNotification(
+        id: 99,
+        title: 'No Payload',
+        body: 'Body text',
+      );
+
+      verify(() => mockPlugin.show(
+            99,
+            'No Payload',
+            'Body text',
+            any(),
+            payload: null,
+          )).called(1);
+    });
+
+    // ── Default constructor ─────────────────────────────────────────────
+    test('default constructor creates service with FlutterLocalNotificationsPlugin',
+        () {
+      // Exercises line 18: the default plugin ?? FlutterLocalNotificationsPlugin()
+      final defaultService = LocalNotificationService();
+      expect(defaultService, isA<LocalNotificationService>());
+      expect(defaultService.isInitialized, isFalse);
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('localNotificationServiceProvider', () {
+    test('creates LocalNotificationService with default constructor', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final service = container.read(localNotificationServiceProvider);
+      expect(service, isA<LocalNotificationService>());
     });
   });
 }

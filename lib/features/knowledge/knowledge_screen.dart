@@ -28,6 +28,7 @@ class KnowledgeScreen extends ConsumerStatefulWidget {
   ConsumerState<KnowledgeScreen> createState() => _KnowledgeScreenState();
 }
 
+/// State for [KnowledgeScreen] managing document upload, drag-and-drop, and enrichment sheets.
 class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
   static const _allowedExtensions = [
     'pdf', 'txt', 'md', 'doc', 'docx', 'rtf', 'xlsx', 'xls', 'pptx', 'ppt'
@@ -553,6 +554,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
   }
 }
 
+/// Renders a single knowledge document row with status icon, metadata, and action buttons.
 class _DocumentTile extends StatelessWidget {
   final KnowledgeDocumentModel document;
   final VoidCallback onTap;

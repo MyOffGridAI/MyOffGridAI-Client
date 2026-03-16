@@ -66,5 +66,25 @@ void main() {
       );
       controller.close();
     });
+
+    testWidgets('hidden during error state', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectionStatusProvider.overrideWith(
+              (ref) => Stream<bool>.error(Exception('network error')),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: ConnectionLostBanner()),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.textContaining('Cannot reach MyOffGrid AI'),
+        findsNothing,
+      );
+    });
   });
 }

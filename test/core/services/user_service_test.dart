@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/user_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -297,6 +298,27 @@ void main() {
     });
   });
 
+  group('UserDetailModel.fromJson', () {
+    test('handles missing optional fields with defaults', () {
+      final json = {
+        'id': 'u1',
+        'username': 'adam',
+      };
+
+      final model = UserDetailModel.fromJson(json);
+
+      expect(model.id, 'u1');
+      expect(model.username, 'adam');
+      expect(model.email, isNull);
+      expect(model.displayName, '');
+      expect(model.role, 'ROLE_MEMBER');
+      expect(model.isActive, isTrue);
+      expect(model.createdAt, isNull);
+      expect(model.updatedAt, isNull);
+      expect(model.lastLoginAt, isNull);
+    });
+  });
+
   group('deleteUser', () {
     test('calls DELETE on correct path', () async {
       when(() => mockClient.delete(
@@ -322,6 +344,38 @@ void main() {
         () => service.deleteUser('u2'),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('userServiceProvider', () {
+    test('creates UserService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(userServiceProvider), isA<UserService>());
+    });
+  });
+
+  group('usersListProvider', () {
+    test('returns users from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.usersBasePath,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'u1', 'username': 'adam', 'displayName': 'Adam', 'role': 'ROLE_OWNER', 'isActive': true},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final users = await container.read(usersListProvider.future);
+      expect(users, hasLength(1));
     });
   });
 }

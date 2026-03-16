@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/device_registration_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -156,6 +157,26 @@ void main() {
       expect(devices, isEmpty);
     });
 
+    test('registerDevice() detects platform as unknown on macOS test env',
+        () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            any(),
+            data: any(named: 'data'),
+          )).thenAnswer((_) async => <String, dynamic>{});
+
+      await service.registerDevice();
+
+      final captured = verify(() => mockClient.post<Map<String, dynamic>>(
+            captureAny(),
+            data: captureAny(named: 'data'),
+          )).captured;
+
+      final data = captured[1] as Map<String, dynamic>;
+      // Test runs on macOS, not Android/iOS/web, so platform is 'unknown'
+      expect(data['platform'], 'unknown');
+      expect(data['deviceName'], 'Flutter Device');
+    });
+
     test('unregisterDevice() sends DELETE request', () async {
       when(() => mockClient.delete(any())).thenAnswer((_) async {});
 
@@ -164,6 +185,25 @@ void main() {
       verify(
         () => mockClient.delete('${AppConstants.devicesBasePath}/dev-123'),
       ).called(1);
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('deviceRegistrationServiceProvider', () {
+    test('creates DeviceRegistrationService from apiClient and storage', () {
+      final mockClient = MockApiClient();
+      final fakeStorage = _FakeSecureStorageService();
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+          secureStorageProvider.overrideWithValue(fakeStorage),
+        ],
+      );
+      addTearDown(container.dispose);
+      expect(
+        container.read(deviceRegistrationServiceProvider),
+        isA<DeviceRegistrationService>(),
+      );
     });
   });
 }

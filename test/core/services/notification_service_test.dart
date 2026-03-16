@@ -5,6 +5,9 @@ import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/services/notification_service.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:myoffgridai_client/core/models/notification_model.dart';
+
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
 
 void main() {
@@ -269,6 +272,16 @@ void main() {
       expect(result, 0);
     });
 
+    test('returns 0 when data is null', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.notificationsBasePath}/unread-count',
+          )).thenAnswer((_) async => {'data': null});
+
+      final result = await service.getUnreadCount();
+
+      expect(result, 0);
+    });
+
     test('throws ApiException on API error', () async {
       when(() => mockClient.get<Map<String, dynamic>>(
             '${AppConstants.notificationsBasePath}/unread-count',
@@ -281,6 +294,93 @@ void main() {
         () => service.getUnreadCount(),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('notificationServiceProvider', () {
+    test('creates NotificationService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final service = container.read(notificationServiceProvider);
+      expect(service, isA<NotificationService>());
+    });
+  });
+
+  group('notificationsProvider', () {
+    test('returns notifications from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.notificationsBasePath,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {
+                'id': 'n1',
+                'title': 'Test',
+                'body': 'Body',
+                'type': 'GENERAL',
+                'isRead': false,
+              },
+            ],
+          });
+
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifications = await container.read(notificationsProvider.future);
+      expect(notifications, hasLength(1));
+      expect(notifications.first.id, 'n1');
+    });
+  });
+
+  group('notificationsUnreadCountProvider', () {
+    test('yields unread count from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.notificationsBasePath}/unread-count',
+          )).thenAnswer((_) async => {
+            'data': {'unreadCount': 7},
+          });
+
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final count =
+          await container.read(notificationsUnreadCountProvider.future);
+      expect(count, 7);
+    });
+
+    test('yields 0 when getUnreadCount throws', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.notificationsBasePath}/unread-count',
+          )).thenThrow(Exception('Network error'));
+
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final count =
+          await container.read(notificationsUnreadCountProvider.future);
+      expect(count, 0);
     });
   });
 }

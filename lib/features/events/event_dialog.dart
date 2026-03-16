@@ -19,6 +19,7 @@ Future<bool?> showEventDialog(
   );
 }
 
+/// Dialog content widget for creating or editing a scheduled event.
 class _EventDialogContent extends StatefulWidget {
   final WidgetRef ref;
   final ScheduledEventModel? existing;
@@ -29,6 +30,7 @@ class _EventDialogContent extends StatefulWidget {
   State<_EventDialogContent> createState() => _EventDialogContentState();
 }
 
+/// State for [_EventDialogContent] managing event form fields, schedule presets, and save logic.
 class _EventDialogContentState extends State<_EventDialogContent> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;

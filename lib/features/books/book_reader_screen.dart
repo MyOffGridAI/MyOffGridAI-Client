@@ -29,6 +29,7 @@ class BookReaderScreen extends ConsumerStatefulWidget {
   ConsumerState<BookReaderScreen> createState() => _BookReaderScreenState();
 }
 
+/// State for [BookReaderScreen] managing content download and format-specific rendering.
 class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
   Uint8List? _contentBytes;
   bool _loading = true;
@@ -127,6 +128,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
 // ── PDF Reader ────────────────────────────────────────────────────────────
 
+/// Renders a PDF document using a pinch-to-zoom viewer.
 class _PdfReaderView extends StatefulWidget {
   final Uint8List bytes;
 
@@ -136,6 +138,7 @@ class _PdfReaderView extends StatefulWidget {
   State<_PdfReaderView> createState() => _PdfReaderViewState();
 }
 
+/// State for [_PdfReaderView] managing the PDF controller lifecycle.
 class _PdfReaderViewState extends State<_PdfReaderView> {
   late final PdfControllerPinch _pdfController;
 
@@ -174,6 +177,7 @@ class _PdfReaderViewState extends State<_PdfReaderView> {
 
 // ── Text Reader ───────────────────────────────────────────────────────────
 
+/// Renders a plain text eBook as selectable scrollable text with serif font.
 class _TextReaderView extends StatelessWidget {
   final Uint8List bytes;
 
@@ -197,6 +201,7 @@ class _TextReaderView extends StatelessWidget {
 
 // ── Unsupported Format ────────────────────────────────────────────────────
 
+/// Renders a fallback message for eBook formats that lack in-app rendering support.
 class _UnsupportedFormatView extends StatelessWidget {
   final String format;
   final String title;

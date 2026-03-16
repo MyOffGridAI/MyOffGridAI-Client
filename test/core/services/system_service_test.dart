@@ -6,6 +6,8 @@ import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/system_models.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
 
 void main() {
@@ -346,6 +348,122 @@ void main() {
         () => service.updateAiSettings(settings),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('systemServiceProvider', () {
+    test('creates SystemService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final service = container.read(systemServiceProvider);
+      expect(service, isA<SystemService>());
+    });
+  });
+
+  group('systemStatusDetailProvider', () {
+    test('returns system status from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.systemBasePath}/status',
+          )).thenAnswer((_) async => {
+            'data': {
+              'initialized': true,
+              'instanceName': 'Test',
+              'fortressEnabled': false,
+              'wifiConfigured': true,
+              'serverVersion': '1.0.0',
+              'timestamp': '2026-03-16T12:00:00Z',
+            },
+          });
+
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final status = await container.read(systemStatusDetailProvider.future);
+      expect(status.initialized, isTrue);
+    });
+  });
+
+  group('ollamaModelsProvider', () {
+    test('returns models from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.modelsBasePath,
+          )).thenAnswer((_) async => {
+            'data': [
+              {'name': 'llama3:8b', 'size': 4700000000},
+            ],
+          });
+
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final models = await container.read(ollamaModelsProvider.future);
+      expect(models, hasLength(1));
+      expect(models.first.name, 'llama3:8b');
+    });
+  });
+
+  group('aiSettingsProvider', () {
+    test('returns AI settings from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.systemBasePath}/ai-settings',
+          )).thenAnswer((_) async => {
+            'data': {
+              'modelName': 'llama3:8b',
+              'temperature': 0.7,
+            },
+          });
+
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final settings = await container.read(aiSettingsProvider.future);
+      expect(settings.modelName, 'llama3:8b');
+    });
+  });
+
+  group('storageSettingsProvider', () {
+    test('returns storage settings from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.systemBasePath}/storage-settings',
+          )).thenAnswer((_) async => {
+            'data': {
+              'knowledgeStoragePath': '/var/data',
+              'totalSpaceMb': 50000,
+            },
+          });
+
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final settings = await container.read(storageSettingsProvider.future);
+      expect(settings.knowledgeStoragePath, '/var/data');
     });
   });
 }

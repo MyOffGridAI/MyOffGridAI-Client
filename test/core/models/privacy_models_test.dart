@@ -166,7 +166,19 @@ void main() {
 
       expect(model.targetUserId, 'user-1');
       expect(model.stepsCompleted, 5);
+      expect(model.completedAt, '2026-03-14T10:00:00Z');
       expect(model.success, isTrue);
+    });
+
+    test('handles missing fields with defaults', () {
+      final json = <String, dynamic>{};
+
+      final model = WipeResultModel.fromJson(json);
+
+      expect(model.targetUserId, isNull);
+      expect(model.stepsCompleted, 0);
+      expect(model.completedAt, isNull);
+      expect(model.success, isFalse);
     });
   });
 

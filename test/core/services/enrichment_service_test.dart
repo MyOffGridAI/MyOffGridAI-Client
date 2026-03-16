@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
+import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/enrichment_models.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/enrichment_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -38,9 +40,46 @@ void main() {
       expect(result.anthropicKeyConfigured, isTrue);
       expect(result.braveEnabled, isFalse);
     });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.externalApiSettingsPath,
+          )).thenThrow(const ApiException(
+        statusCode: 500,
+        message: 'Internal server error',
+      ));
+
+      expect(
+        () => service.getExternalApiSettings(),
+        throwsA(isA<ApiException>()),
+      );
+    });
   });
 
   group('updateExternalApiSettings', () {
+    test('throws ApiException on API error', () async {
+      const request = UpdateExternalApiSettingsRequest(
+        anthropicModel: 'claude-sonnet-4-20250514',
+        anthropicEnabled: false,
+        braveEnabled: false,
+        maxWebFetchSizeKb: 512,
+        searchResultLimit: 5,
+      );
+
+      when(() => mockClient.put<Map<String, dynamic>>(
+            AppConstants.externalApiSettingsPath,
+            data: any(named: 'data'),
+          )).thenThrow(const ApiException(
+        statusCode: 400,
+        message: 'Invalid settings',
+      ));
+
+      expect(
+        () => service.updateExternalApiSettings(request),
+        throwsA(isA<ApiException>()),
+      );
+    });
+
     test('sends request and returns updated model', () async {
       const request = UpdateExternalApiSettingsRequest(
         anthropicApiKey: 'new-key',
@@ -128,6 +167,23 @@ void main() {
     });
   });
 
+  group('fetchUrl error', () {
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.enrichmentBasePath}/fetch-url',
+            data: any(named: 'data'),
+          )).thenThrow(const ApiException(
+        statusCode: 500,
+        message: 'Fetch failed',
+      ));
+
+      expect(
+        () => service.fetchUrl(url: 'https://bad.example.com'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
   group('search', () {
     test('posts query and returns results with stored documents', () async {
       when(() => mockClient.post<Map<String, dynamic>>(
@@ -200,6 +256,23 @@ void main() {
     });
   });
 
+  group('search error', () {
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.post<Map<String, dynamic>>(
+            '${AppConstants.enrichmentBasePath}/search',
+            data: any(named: 'data'),
+          )).thenThrow(const ApiException(
+        statusCode: 503,
+        message: 'Service unavailable',
+      ));
+
+      expect(
+        () => service.search(query: 'test'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
   group('getStatus', () {
     test('returns enrichment status model', () async {
       when(() => mockClient.get<Map<String, dynamic>>(
@@ -219,6 +292,79 @@ void main() {
       expect(result.braveAvailable, isFalse);
       expect(result.maxWebFetchSizeKb, 512);
       expect(result.searchResultLimit, 5);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.enrichmentBasePath}/status',
+          )).thenThrow(const ApiException(
+        statusCode: 500,
+        message: 'Internal server error',
+      ));
+
+      expect(
+        () => service.getStatus(),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('enrichmentServiceProvider', () {
+    test('creates EnrichmentService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(enrichmentServiceProvider), isA<EnrichmentService>());
+    });
+  });
+
+  group('enrichmentStatusProvider', () {
+    test('returns status from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.enrichmentBasePath}/status',
+          )).thenAnswer((_) async => {
+            'data': {
+              'claudeAvailable': true,
+              'braveAvailable': false,
+              'maxWebFetchSizeKb': 512,
+              'searchResultLimit': 5,
+            },
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final status = await container.read(enrichmentStatusProvider.future);
+      expect(status.claudeAvailable, isTrue);
+    });
+  });
+
+  group('externalApiSettingsProvider', () {
+    test('returns settings from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.externalApiSettingsPath,
+          )).thenAnswer((_) async => {
+            'data': {
+              'anthropicEnabled': true,
+              'anthropicModel': 'claude-sonnet-4-20250514',
+              'anthropicKeyConfigured': true,
+              'braveEnabled': false,
+              'braveKeyConfigured': false,
+              'maxWebFetchSizeKb': 512,
+              'searchResultLimit': 5,
+            },
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final settings = await container.read(externalApiSettingsProvider.future);
+      expect(settings.anthropicEnabled, isTrue);
     });
   });
 }

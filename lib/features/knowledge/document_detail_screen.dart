@@ -38,6 +38,7 @@ class DocumentDetailScreen extends ConsumerStatefulWidget {
       _DocumentDetailScreenState();
 }
 
+/// State for [DocumentDetailScreen] managing document download, display name editing, and deletion.
 class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
   bool _isDownloading = false;
 

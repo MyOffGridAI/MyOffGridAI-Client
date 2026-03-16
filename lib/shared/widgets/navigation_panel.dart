@@ -21,6 +21,7 @@ class NavigationPanel extends ConsumerStatefulWidget {
   ConsumerState<NavigationPanel> createState() => _NavigationPanelState();
 }
 
+/// State for [NavigationPanel] managing nav items, conversation list, and sidebar collapse.
 class _NavigationPanelState extends ConsumerState<NavigationPanel> {
   @override
   Widget build(BuildContext context) {
@@ -467,6 +468,7 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
   }
 }
 
+/// Renders a conversation entry in the sidebar with title, preview, and rename/delete actions.
 class _ConversationTile extends StatelessWidget {
   final ConversationSummaryModel conversation;
   final bool isSelected;

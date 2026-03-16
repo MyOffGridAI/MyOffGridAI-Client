@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/auth/auth_service.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 
@@ -436,6 +437,22 @@ void main() {
         () => service.getCurrentUser('bad-id'),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('authServiceProvider', () {
+    test('creates AuthService from apiClient and storage providers', () {
+      final mockClient = MockApiClient();
+      final mockStorage = MockSecureStorage();
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(mockClient),
+          secureStorageProvider.overrideWithValue(mockStorage),
+        ],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(authServiceProvider), isA<AuthService>());
     });
   });
 }

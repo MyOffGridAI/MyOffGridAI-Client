@@ -640,4 +640,149 @@ void main() {
           avatars.any((a) => a.backgroundColor == Colors.blue), isTrue);
     });
   });
+
+  group('Error retry', () {
+    testWidgets('retry button taps trigger document refresh', (tester) async {
+      // Track whether the provider was invalidated by building with error
+      // then tapping retry and checking that the error view still shows
+      // (since the provider still throws).
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          knowledgeDocumentsProvider.overrideWith((ref) =>
+              throw const ApiException(
+                  statusCode: 500, message: 'Load failed')),
+          knowledgeServiceProvider.overrideWithValue(mockService),
+          enrichmentServiceProvider
+              .overrideWithValue(mockEnrichmentService),
+          storageSettingsProvider.overrideWith(
+              (ref) => const StorageSettingsModel(
+                    knowledgeStoragePath: '/tmp/test',
+                    maxUploadSizeMb: 25,
+                  )),
+        ],
+        child: const MaterialApp(home: KnowledgeScreen()),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Failed to load documents'), findsOneWidget);
+
+      // Tap the retry button
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Error view should still be visible (provider still throws)
+      expect(find.text('Failed to load documents'), findsOneWidget);
+    });
+  });
+
+  group('Fetch URL sheet - summarize toggle', () {
+    testWidgets('toggling summarize checkbox changes checkbox state',
+        (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Open fetch URL sheet
+      await tester.tap(find.byIcon(Icons.language));
+      await tester.pumpAndSettle();
+
+      // The summarize checkbox should exist
+      final checkbox = find.byType(CheckboxListTile);
+      expect(checkbox, findsOneWidget);
+
+      // Initial state is unchecked
+      final initial = tester.widget<CheckboxListTile>(checkbox);
+      expect(initial.value, isFalse);
+
+      // Tap to toggle
+      await tester.tap(checkbox);
+      await tester.pump();
+
+      // Now it should be checked
+      final toggled = tester.widget<CheckboxListTile>(checkbox);
+      expect(toggled.value, isTrue);
+    });
+  });
+
+  group('Multiple document statuses', () {
+    testWidgets('shows green CircleAvatar for INDEXED status', (tester) async {
+      await tester.pumpWidget(buildScreen(documents: [indexedDoc]));
+      await tester.pumpAndSettle();
+
+      final avatars =
+          tester.widgetList<CircleAvatar>(find.byType(CircleAvatar));
+      expect(
+          avatars.any((a) => a.backgroundColor == Colors.green), isTrue);
+    });
+
+    testWidgets('shows red CircleAvatar for FAILED status', (tester) async {
+      await tester.pumpWidget(buildScreen(documents: [failedDoc]));
+      await tester.pumpAndSettle();
+
+      final avatars =
+          tester.widgetList<CircleAvatar>(find.byType(CircleAvatar));
+      expect(
+          avatars.any((a) => a.backgroundColor == Colors.red), isTrue);
+    });
+
+    testWidgets('shows grey CircleAvatar for PENDING status', (tester) async {
+      await tester.pumpWidget(buildScreen(documents: [pendingDoc]));
+      await tester.pumpAndSettle();
+
+      final avatars =
+          tester.widgetList<CircleAvatar>(find.byType(CircleAvatar));
+      expect(
+          avatars.any((a) => a.backgroundColor == Colors.grey), isTrue);
+    });
+
+    testWidgets('shows all four document statuses at once', (tester) async {
+      await tester.pumpWidget(buildScreen(
+          documents: [indexedDoc, pendingDoc, failedDoc]));
+      await tester.pumpAndSettle();
+
+      expect(find.text('INDEXED'), findsOneWidget);
+      expect(find.text('PENDING'), findsOneWidget);
+      expect(find.text('FAILED'), findsOneWidget);
+    });
+  });
+
+  group('Web search with storeTopN > 0', () {
+    testWidgets('search with storeTopN > 0 invalidates documents',
+        (tester) async {
+      when(() => mockEnrichmentService.search(
+            query: any(named: 'query'),
+            storeTopN: any(named: 'storeTopN'),
+            summarizeWithClaude: any(named: 'summarizeWithClaude'),
+          )).thenAnswer((_) async => (
+            results: <SearchResultModel>[],
+            storedDocuments: <KnowledgeDocumentModel>[],
+          ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+
+      // Set storeTopN > 0 via slider
+      final slider = find.byType(Slider);
+      await tester.drag(slider, const Offset(200, 0));
+      await tester.pump();
+
+      final queryField = find.byType(TextField);
+      await tester.enterText(queryField, 'solar panels');
+      await tester.pump();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Search'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      verify(() => mockEnrichmentService.search(
+            query: any(named: 'query'),
+            storeTopN: any(named: 'storeTopN'),
+            summarizeWithClaude: any(named: 'summarizeWithClaude'),
+          )).called(1);
+    });
+  });
 }

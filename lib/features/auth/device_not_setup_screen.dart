@@ -18,6 +18,7 @@ class DeviceNotSetupScreen extends ConsumerStatefulWidget {
       _DeviceNotSetupScreenState();
 }
 
+/// State for [DeviceNotSetupScreen] managing the retry check for device initialization status.
 class _DeviceNotSetupScreenState extends ConsumerState<DeviceNotSetupScreen> {
   bool _isChecking = false;
 

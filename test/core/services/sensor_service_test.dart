@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/sensor_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -790,6 +791,37 @@ void main() {
         () => service.listPorts(),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('sensorServiceProvider', () {
+    test('creates SensorService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(sensorServiceProvider), isA<SensorService>());
+    });
+  });
+
+  group('sensorsProvider', () {
+    test('returns sensors from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.sensorsBasePath,
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'sen-1', 'name': 'Temp', 'type': 'TEMPERATURE', 'baudRate': 9600, 'isActive': true, 'pollIntervalSeconds': 60},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final sensors = await container.read(sensorsProvider.future);
+      expect(sensors, hasLength(1));
     });
   });
 }

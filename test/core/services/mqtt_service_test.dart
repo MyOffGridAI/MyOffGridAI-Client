@@ -91,5 +91,46 @@ void main() {
 
       expect(updated.connectedAt, now);
     });
+
+    test('copyWith replaces connectedAt', () {
+      final old = DateTime(2026, 1, 1);
+      final newer = DateTime(2026, 3, 16);
+      final original = MqttState(
+        connectionState: MqttConnectionStatus.connected,
+        connectedAt: old,
+      );
+      final updated = original.copyWith(connectedAt: newer);
+
+      expect(updated.connectedAt, newer);
+    });
+
+    test('copyWith preserves errorMessage when connectionState not overridden', () {
+      const original = MqttState(
+        connectionState: MqttConnectionStatus.error,
+        errorMessage: 'timeout',
+        messagesReceived: 5,
+      );
+      // copyWith always sets errorMessage to the provided value (null by default)
+      final updated = original.copyWith(messagesReceived: 6);
+
+      expect(updated.connectionState, MqttConnectionStatus.error);
+      expect(updated.messagesReceived, 6);
+      // errorMessage is replaced with null because copyWith uses `errorMessage: errorMessage`
+      // where the param defaults to null
+      expect(updated.errorMessage, isNull);
+    });
+
+    test('constructor with error state', () {
+      const state = MqttState(
+        connectionState: MqttConnectionStatus.error,
+        errorMessage: 'Connection refused',
+        messagesReceived: 0,
+      );
+
+      expect(state.connectionState, MqttConnectionStatus.error);
+      expect(state.errorMessage, 'Connection refused');
+      expect(state.messagesReceived, 0);
+      expect(state.connectedAt, isNull);
+    });
   });
 }

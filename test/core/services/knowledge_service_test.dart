@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/knowledge_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -654,6 +655,38 @@ void main() {
         () => service.updateDocumentContent('doc-1', 'content'),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('knowledgeServiceProvider', () {
+    test('creates KnowledgeService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(knowledgeServiceProvider), isA<KnowledgeService>());
+    });
+  });
+
+  group('knowledgeDocumentsProvider', () {
+    test('returns documents from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.knowledgeBasePath,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'doc-1', 'filename': 'test.pdf', 'displayName': 'Test', 'status': 'READY'},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final docs = await container.read(knowledgeDocumentsProvider.future);
+      expect(docs, hasLength(1));
     });
   });
 }

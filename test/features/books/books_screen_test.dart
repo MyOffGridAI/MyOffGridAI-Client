@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
@@ -783,6 +784,266 @@ void main() {
       expect(find.byIcon(Icons.auto_stories), findsWidgets);
       expect(find.text('Book A'), findsOneWidget);
       expect(find.text('Book B'), findsOneWidget);
+    });
+  });
+
+  // ── Retry callbacks ─────────────────────────────────────────────────────
+
+  group('Library tab - error retry', () {
+    testWidgets('tapping Retry on error view re-fetches ebooks',
+        (tester) async {
+      // First call: throws error. Second call: returns data.
+      var callCount = 0;
+      when(() => mockService.listEbooks(
+            search: any(named: 'search'),
+            format: any(named: 'format'),
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) {
+          throw const ApiException(statusCode: 500, message: 'Load error');
+        }
+        return <EbookModel>[
+          const EbookModel(
+            id: 'e1',
+            title: 'Recovered Book',
+            format: 'EPUB',
+            fileSizeBytes: 1024,
+          ),
+        ];
+      });
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+              ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Verify error state is shown
+      expect(find.text('Load Failed'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+
+      // Tap retry
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Should now show the recovered data
+      expect(find.text('Recovered Book'), findsOneWidget);
+      expect(find.text('Load Failed'), findsNothing);
+    });
+  });
+
+  group('Kiwix tab - error retry', () {
+    testWidgets('tapping Retry on Kiwix error view re-fetches status',
+        (tester) async {
+      var callCount = 0;
+      when(() => mockService.listEbooks(
+            search: any(named: 'search'),
+            format: any(named: 'format'),
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer((_) async => <EbookModel>[]);
+      when(() => mockService.getKiwixStatus()).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) {
+          throw const ApiException(statusCode: 500, message: 'Kiwix error');
+        }
+        return const KiwixStatusModel(
+          available: false,
+          bookCount: 0,
+        );
+      });
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Navigate to Kiwix tab
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      // Verify error state
+      expect(find.text('Load Failed'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+
+      // Tap retry
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // After retry, Kiwix is unavailable (not errored)
+      expect(find.text('Kiwix Unavailable'), findsOneWidget);
+      expect(find.text('Load Failed'), findsNothing);
+    });
+  });
+
+  group('Gutenberg tab - clear button', () {
+    testWidgets('clear button resets search and shows initial state',
+        (tester) async {
+      stubDefaultMocks();
+      stubGutenberg(const GutenbergSearchResultModel(
+        count: 1,
+        results: [
+          GutenbergBookModel(
+            id: 100,
+            title: 'Some Book',
+            authors: [],
+            languages: [],
+            downloadCount: 50,
+          ),
+        ],
+      ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Go to Gutenberg tab
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      // Enter search text and submit
+      final searchField = find.byType(TextField);
+      await tester.enterText(searchField, 'some book');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      // Verify results are shown
+      expect(find.text('Some Book'), findsOneWidget);
+
+      // Tap the clear button (Icons.clear)
+      await tester.tap(find.byIcon(Icons.clear));
+      await tester.pumpAndSettle();
+
+      // Should revert to initial empty search state
+      expect(find.text('Search Gutenberg'), findsOneWidget);
+      expect(find.text('Some Book'), findsNothing);
+    });
+  });
+
+  group('Gutenberg tab - search error retry', () {
+    testWidgets('tapping Retry on search error re-fetches results',
+        (tester) async {
+      stubDefaultMocks();
+      var searchCallCount = 0;
+      when(() =>
+              mockService.searchGutenberg(any(), limit: any(named: 'limit')))
+          .thenAnswer((_) async {
+        searchCallCount++;
+        if (searchCallCount == 1) {
+          throw const ApiException(
+              statusCode: 500, message: 'Search error');
+        }
+        return const GutenbergSearchResultModel(
+          count: 1,
+          results: [
+            GutenbergBookModel(
+              id: 200,
+              title: 'Recovered Search Result',
+              authors: ['Author'],
+              languages: ['en'],
+              downloadCount: 100,
+            ),
+          ],
+        );
+      });
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Go to Gutenberg tab
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      // Enter search and submit
+      final searchField = find.byType(TextField);
+      await tester.enterText(searchField, 'search term');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      // Verify error state
+      expect(find.text('Search Failed'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+
+      // Tap retry
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      // Should show recovered results
+      expect(find.text('Recovered Search Result'), findsOneWidget);
+      expect(find.text('Search Failed'), findsNothing);
+    });
+  });
+
+  // ── EbookTile onTap navigation ────────────────────────────────────────
+
+  group('Library tab - ebook tile navigation', () {
+    testWidgets('tapping an ebook tile navigates to book reader route',
+        (tester) async {
+      // Track navigation
+      String? navigatedTo;
+
+      final testRouter = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const BooksScreen(),
+          ),
+          GoRoute(
+            path: '/books/reader',
+            builder: (context, state) {
+              navigatedTo = '/books/reader';
+              return const Scaffold(
+                body: Center(child: Text('BOOK_READER')),
+              );
+            },
+          ),
+        ],
+      );
+
+      when(() => mockService.listEbooks(
+            search: any(named: 'search'),
+            format: any(named: 'format'),
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer((_) async => [
+            const EbookModel(
+              id: 'e1',
+              title: 'Tappable Book',
+              author: 'Test Author',
+              format: 'PDF',
+              fileSizeBytes: 2048,
+            ),
+          ]);
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+              ));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateProvider
+                .overrideWith(() => _FakeAuthNotifier(memberUser)),
+            libraryServiceProvider.overrideWithValue(mockService),
+          ],
+          child: MaterialApp.router(routerConfig: testRouter),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify the ebook tile is displayed
+      expect(find.text('Tappable Book'), findsOneWidget);
+
+      // Tap on the ebook tile
+      await tester.tap(find.text('Tappable Book'));
+      await tester.pumpAndSettle();
+
+      // Verify navigation occurred
+      expect(navigatedTo, '/books/reader');
+      expect(find.text('BOOK_READER'), findsOneWidget);
     });
   });
 }

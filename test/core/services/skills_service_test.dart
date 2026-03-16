@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/services/skills_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
@@ -441,6 +442,37 @@ void main() {
         () => service.listExecutions(),
         throwsA(isA<ApiException>()),
       );
+    });
+  });
+
+  // ── Provider body tests ───────────────────────────────────────────────
+  group('skillsServiceProvider', () {
+    test('creates SkillsService from apiClientProvider', () {
+      final mockClient = MockApiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(skillsServiceProvider), isA<SkillsService>());
+    });
+  });
+
+  group('skillsProvider', () {
+    test('returns skills from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            AppConstants.skillsBasePath,
+          )).thenAnswer((_) async => {
+            'data': [
+              {'id': 'skill-1', 'name': 'Weather', 'description': 'Check weather', 'enabled': true},
+            ],
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final skills = await container.read(skillsProvider.future);
+      expect(skills, hasLength(1));
     });
   });
 }

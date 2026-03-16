@@ -100,6 +100,10 @@ void main() {
       expect(EventType.label('SENSOR_THRESHOLD'), 'Sensor Threshold');
       expect(EventType.label('RECURRING'), 'Recurring');
     });
+
+    test('label returns raw value for unknown type', () {
+      expect(EventType.label('CUSTOM_TYPE'), 'CUSTOM_TYPE');
+    });
   });
 
   group('ActionType', () {
@@ -115,6 +119,10 @@ void main() {
       expect(ActionType.label('AI_PROMPT'), 'AI Prompt');
       expect(ActionType.label('AI_SUMMARY'), 'AI Summary');
     });
+
+    test('label returns raw value for unknown type', () {
+      expect(ActionType.label('CUSTOM_ACTION'), 'CUSTOM_ACTION');
+    });
   });
 
   group('ThresholdOperator', () {
@@ -129,6 +137,10 @@ void main() {
       expect(ThresholdOperator.label('ABOVE'), 'Above');
       expect(ThresholdOperator.label('BELOW'), 'Below');
       expect(ThresholdOperator.label('EQUALS'), 'Equals');
+    });
+
+    test('label returns raw value for unknown operator', () {
+      expect(ThresholdOperator.label('BETWEEN'), 'BETWEEN');
     });
   });
 }

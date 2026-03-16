@@ -19,6 +19,8 @@ class AddSensorScreen extends ConsumerStatefulWidget {
   ConsumerState<AddSensorScreen> createState() => _AddSensorScreenState();
 }
 
+/// State for [AddSensorScreen] managing the sensor registration form,
+/// connection testing, and sensor creation.
 class _AddSensorScreenState extends ConsumerState<AddSensorScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();

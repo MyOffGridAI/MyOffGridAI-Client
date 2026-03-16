@@ -45,5 +45,30 @@ void main() {
       expect(InsightCategory.all, contains('PLANNING'));
       expect(InsightCategory.all.length, 6);
     });
+
+    test('individual constants have expected values', () {
+      expect(InsightCategory.security, 'SECURITY');
+      expect(InsightCategory.efficiency, 'EFFICIENCY');
+      expect(InsightCategory.health, 'HEALTH');
+      expect(InsightCategory.maintenance, 'MAINTENANCE');
+      expect(InsightCategory.sustainability, 'SUSTAINABILITY');
+      expect(InsightCategory.planning, 'PLANNING');
+    });
+  });
+
+  group('InsightModel constructor', () {
+    test('const constructor with all fields', () {
+      const model = InsightModel(
+        id: 'ins-1',
+        content: 'Test content',
+        category: 'HEALTH',
+        isRead: true,
+        isDismissed: true,
+        generatedAt: '2026-03-16T10:00:00Z',
+        readAt: '2026-03-16T11:00:00Z',
+      );
+      expect(model.generatedAt, '2026-03-16T10:00:00Z');
+      expect(model.readAt, '2026-03-16T11:00:00Z');
+    });
   });
 }
