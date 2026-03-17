@@ -1951,7 +1951,7 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: _anthropicModel,
+                          initialValue: _anthropicModel,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             prefixIcon: Icon(Icons.smart_toy),
@@ -2164,7 +2164,7 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: DropdownButtonFormField<String>(
-                      value: _preferredFrontierProvider,
+                      initialValue: _preferredFrontierProvider,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.cloud),

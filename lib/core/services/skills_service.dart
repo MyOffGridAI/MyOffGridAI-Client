@@ -50,7 +50,7 @@ class SkillsService {
   }) async {
     final response = await _client.post<Map<String, dynamic>>(
       '${AppConstants.skillsBasePath}/execute',
-      data: {'skillId': skillId, if (params != null) 'params': params},
+      data: {'skillId': skillId, 'params': ?params},
     );
     final data = response['data'] as Map<String, dynamic>;
     return SkillExecutionModel.fromJson(data);

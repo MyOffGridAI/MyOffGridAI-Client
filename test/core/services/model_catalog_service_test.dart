@@ -4,7 +4,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
-import 'package:myoffgridai_client/core/models/model_catalog_models.dart';
 import 'package:myoffgridai_client/core/services/model_catalog_service.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}

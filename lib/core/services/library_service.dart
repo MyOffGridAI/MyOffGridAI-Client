@@ -38,7 +38,7 @@ class LibraryService {
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(bytes, filename: filename),
       'displayName': displayName,
-      if (category != null) 'category': category,
+      'category': ?category,
     });
     final response = await _client.postMultipart<Map<String, dynamic>>(
       '${AppConstants.libraryBasePath}/zim',
@@ -118,7 +118,7 @@ class LibraryService {
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(bytes, filename: filename),
       'title': title,
-      if (author != null) 'author': author,
+      'author': ?author,
     });
     final response = await _client.postMultipart<Map<String, dynamic>>(
       '${AppConstants.libraryBasePath}/ebooks',

@@ -43,9 +43,9 @@ class InventoryService {
         'name': name,
         'category': category,
         'quantity': quantity,
-        if (unit != null) 'unit': unit,
-        if (notes != null) 'notes': notes,
-        if (lowStockThreshold != null) 'lowStockThreshold': lowStockThreshold,
+        'unit': ?unit,
+        'notes': ?notes,
+        'lowStockThreshold': ?lowStockThreshold,
       },
     );
     final data = response['data'] as Map<String, dynamic>;

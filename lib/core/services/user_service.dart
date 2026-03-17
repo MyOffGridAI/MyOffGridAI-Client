@@ -84,9 +84,9 @@ class UserService {
     final response = await _client.put<Map<String, dynamic>>(
       '${AppConstants.usersBasePath}/$userId',
       data: {
-        if (displayName != null) 'displayName': displayName,
-        if (email != null) 'email': email,
-        if (role != null) 'role': role,
+        'displayName': ?displayName,
+        'email': ?email,
+        'role': ?role,
       },
     );
     final data = response['data'] as Map<String, dynamic>;
