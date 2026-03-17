@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
-import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
+
 
 /// Manages messages for a single conversation with optimistic updates
 /// and SSE streaming support.
@@ -80,8 +80,6 @@ class ChatMessagesNotifier
 
           case InferenceEventType.done:
             stopwatch.stop();
-            ref.read(responseTimeProvider(conversationId).notifier).state =
-                stopwatch.elapsed;
 
             // Update assistant bubble with final metadata
             if (event.metadata != null) {
@@ -94,7 +92,7 @@ class ChatMessagesNotifier
                 tokensPerSecond: event.metadata!.tokensPerSecond,
                 inferenceTimeSeconds: event.metadata!.inferenceTimeSeconds,
                 stopReason: event.metadata!.stopReason,
-                thinkingTokenCount: thinkingBuffer.isEmpty ? null : null,
+                thinkingTokenCount: event.metadata!.thinkingTokenCount,
               );
             }
 
@@ -229,8 +227,6 @@ class ChatMessagesNotifier
 
           case InferenceEventType.done:
             stopwatch.stop();
-            ref.read(responseTimeProvider(conversationId).notifier).state =
-                stopwatch.elapsed;
             if (event.metadata != null) {
               _upsertAssistantBubble(
                 assistantTempId,

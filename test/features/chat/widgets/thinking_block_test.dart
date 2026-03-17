@@ -59,6 +59,43 @@ void main() {
       });
     });
 
+    // ── thinkingTokenCount display ────────────────────────────────────────
+    group('thinkingTokenCount', () {
+      testWidgets('shows token count when thinkingTokenCount is provided',
+          (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: 'Some reasoning',
+                thinkingTokenCount: 42,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(
+          find.text('Thought process \u00b7 42 tokens'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('shows plain label when thinkingTokenCount is null',
+          (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(content: 'Reasoning'),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Thought process'), findsOneWidget);
+      });
+    });
+
     // ── Tapping to expand ─────────────────────────────────────────────────
     group('expand on tap', () {
       testWidgets('tapping collapsed block expands to show full content',

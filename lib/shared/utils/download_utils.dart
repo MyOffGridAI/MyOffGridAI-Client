@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:myoffgridai_client/shared/utils/download_trigger_stub.dart'
+    if (dart.library.html) 'package:myoffgridai_client/shared/utils/download_trigger_web.dart'
+    as trigger;
 
 /// Utility for triggering file downloads.
 ///
@@ -16,26 +19,10 @@ class DownloadUtils {
   /// use platform-appropriate file save mechanisms.
   static void downloadBytes(List<int> bytes, String filename) {
     if (!kIsWeb) return;
-    // Web download via data URI approach (avoids dart:html import issues)
-    // ignore: avoid_dynamic_calls
-    _webDownload(bytes, filename);
-  }
-
-  static void _webDownload(List<int> bytes, String filename) {
-    // Use universal_html or js_interop for web downloads
-    // For now, use a base64 data URI approach that works across platforms
     final base64 = base64Encode(bytes);
     final mimeType = _guessMimeType(filename);
-    // This will be handled by the web engine via a data URI
-    // In a real web app, you'd use dart:html AnchorElement
-    // For cross-platform safety, we encode and trigger via JS interop
     final uri = 'data:$mimeType;base64,$base64';
-    _triggerDownload(uri, filename);
-  }
-
-  static void _triggerDownload(String uri, String filename) {
-    // Platform-safe: this will only work on web via dart:js_interop
-    // On non-web, this is a no-op handled by the kIsWeb guard above
+    trigger.triggerDownload(uri, filename);
   }
 
   static String _guessMimeType(String filename) {

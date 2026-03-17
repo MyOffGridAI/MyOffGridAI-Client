@@ -17,7 +17,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
   riverpod_annotation: ^2.6.1
   flutter_secure_storage: ^9.2.4
-  web_socket_channel: ^3.0.2
+
   fl_chart: ^0.70.2
   file_picker: ^8.3.7
   desktop_drop: ^0.4.4
@@ -31,6 +31,7 @@ dependencies:
   webview_flutter: ^4.10.0
   webview_flutter_android: ^4.3.0
   webview_flutter_wkwebview: ^3.18.0
+  epub_view: ^3.2.0
   pdfx: ^2.9.0
   path_provider: ^2.1.5
   open_filex: ^4.6.0

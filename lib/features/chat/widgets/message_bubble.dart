@@ -82,6 +82,7 @@ class MessageBubble extends StatelessWidget {
                         content: message.thinkingContent!,
                         isStreaming: isStreaming &&
                             message.content.isEmpty,
+                        thinkingTokenCount: message.thinkingTokenCount,
                       ),
                     ),
 

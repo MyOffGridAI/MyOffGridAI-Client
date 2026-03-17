@@ -20,21 +20,32 @@ class InferenceMetadata {
   final double inferenceTimeSeconds;
   final String? stopReason;
 
+  /// Estimated token count for the thinking/reasoning block, if present.
+  final int? thinkingTokenCount;
+
   const InferenceMetadata({
     required this.tokensGenerated,
     required this.tokensPerSecond,
     required this.inferenceTimeSeconds,
     this.stopReason,
+    this.thinkingTokenCount,
   });
 
   /// Creates an [InferenceMetadata] from a JSON map.
+  ///
+  /// Handles both nested metadata objects and flat done-event JSON where
+  /// fields like `totalTokens` and `thinkingTime` appear at the top level.
   factory InferenceMetadata.fromJson(Map<String, dynamic> json) {
     return InferenceMetadata(
-      tokensGenerated: json['tokensGenerated'] as int? ?? 0,
+      tokensGenerated:
+          json['tokensGenerated'] as int? ?? json['totalTokens'] as int? ?? 0,
       tokensPerSecond: (json['tokensPerSecond'] as num?)?.toDouble() ?? 0.0,
       inferenceTimeSeconds:
-          (json['inferenceTimeSeconds'] as num?)?.toDouble() ?? 0.0,
+          (json['inferenceTimeSeconds'] as num?)?.toDouble() ??
+              (json['thinkingTime'] as num?)?.toDouble() ??
+              0.0,
       stopReason: json['stopReason'] as String?,
+      thinkingTokenCount: json['thinkingTokenCount'] as int?,
     );
   }
 }
@@ -70,6 +81,9 @@ class InferenceStreamEvent {
     if (json['metadata'] is Map<String, dynamic>) {
       metadata =
           InferenceMetadata.fromJson(json['metadata'] as Map<String, dynamic>);
+    } else if (type == InferenceEventType.done) {
+      // Server sends done-event metadata as flat top-level fields.
+      metadata = InferenceMetadata.fromJson(json);
     }
 
     return InferenceStreamEvent(

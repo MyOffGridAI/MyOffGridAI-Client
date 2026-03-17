@@ -13,11 +13,15 @@ class ThinkingBlock extends StatefulWidget {
   /// Whether thinking content is still being streamed.
   final bool isStreaming;
 
+  /// Estimated token count for the thinking block, if available.
+  final int? thinkingTokenCount;
+
   /// Creates a [ThinkingBlock].
   const ThinkingBlock({
     super.key,
     required this.content,
     this.isStreaming = false,
+    this.thinkingTokenCount,
   });
 
   @override
@@ -145,7 +149,9 @@ class _ThinkingBlockState extends State<ThinkingBlock>
               ),
               const SizedBox(width: 4),
               Text(
-                'Thought process',
+                widget.thinkingTokenCount != null
+                    ? 'Thought process \u00b7 ${widget.thinkingTokenCount} tokens'
+                    : 'Thought process',
                 style: TextStyle(
                   fontSize: 11,
                   color: colorScheme.onSurface.withValues(alpha: 0.5),

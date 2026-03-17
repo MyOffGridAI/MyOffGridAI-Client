@@ -10,12 +10,6 @@ import 'package:myoffgridai_client/features/chat/widgets/thinking_indicator.dart
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
-/// Provider for the response time of the latest AI response per conversation.
-final responseTimeProvider =
-    StateProvider.autoDispose.family<Duration?, String>((ref, conversationId) {
-  return null;
-});
-
 /// Chat conversation screen showing messages and input field.
 ///
 /// Displays messages in a scrollable list with the input field at the

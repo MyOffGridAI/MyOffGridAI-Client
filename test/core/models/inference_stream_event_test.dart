@@ -110,6 +110,56 @@ void main() {
       expect(metadata.tokensPerSecond, 0.0);
       expect(metadata.inferenceTimeSeconds, 0.0);
       expect(metadata.stopReason, isNull);
+      expect(metadata.thinkingTokenCount, isNull);
+    });
+
+    test('parses thinkingTokenCount when present', () {
+      final json = {
+        'tokensGenerated': 100,
+        'tokensPerSecond': 20.0,
+        'inferenceTimeSeconds': 5.0,
+        'thinkingTokenCount': 42,
+      };
+
+      final metadata = InferenceMetadata.fromJson(json);
+
+      expect(metadata.thinkingTokenCount, 42);
+    });
+
+    test('leaves thinkingTokenCount null when absent', () {
+      final json = {
+        'tokensGenerated': 100,
+        'tokensPerSecond': 20.0,
+        'inferenceTimeSeconds': 5.0,
+      };
+
+      final metadata = InferenceMetadata.fromJson(json);
+
+      expect(metadata.thinkingTokenCount, isNull);
+    });
+
+    test('parses totalTokens as fallback for tokensGenerated', () {
+      final json = {
+        'totalTokens': 250,
+        'tokensPerSecond': 30.0,
+        'inferenceTimeSeconds': 8.3,
+      };
+
+      final metadata = InferenceMetadata.fromJson(json);
+
+      expect(metadata.tokensGenerated, 250);
+    });
+
+    test('parses thinkingTime as fallback for inferenceTimeSeconds', () {
+      final json = {
+        'tokensGenerated': 100,
+        'tokensPerSecond': 20.0,
+        'thinkingTime': 3.14,
+      };
+
+      final metadata = InferenceMetadata.fromJson(json);
+
+      expect(metadata.inferenceTimeSeconds, 3.14);
     });
   });
 
@@ -168,17 +218,27 @@ void main() {
       expect(event.metadata!.stopReason, 'stop');
     });
 
-    test('parses done event without metadata', () {
+    test('parses done event with flat metadata fields (server format)', () {
       final json = {
         'type': 'done',
         'messageId': 'msg-99',
+        'tokensPerSecond': 25.0,
+        'totalTokens': 150,
+        'thinkingTime': 2.5,
+        'thinkingTokenCount': 30,
+        'stopReason': 'stop',
       };
 
       final event = InferenceStreamEvent.fromJson(json);
 
       expect(event.type, InferenceEventType.done);
       expect(event.messageId, 'msg-99');
-      expect(event.metadata, isNull);
+      expect(event.metadata, isNotNull);
+      expect(event.metadata!.tokensPerSecond, 25.0);
+      expect(event.metadata!.tokensGenerated, 150);
+      expect(event.metadata!.inferenceTimeSeconds, 2.5);
+      expect(event.metadata!.thinkingTokenCount, 30);
+      expect(event.metadata!.stopReason, 'stop');
     });
 
     test('parses error event', () {
@@ -216,16 +276,19 @@ void main() {
       expect(event.content, 'Fallback content');
     });
 
-    test('ignores metadata when it is not a Map', () {
+    test('falls back to flat parsing when metadata is not a Map', () {
       final json = {
         'type': 'done',
         'metadata': 'not a map',
+        'tokensPerSecond': 10.0,
       };
 
       final event = InferenceStreamEvent.fromJson(json);
 
       expect(event.type, InferenceEventType.done);
-      expect(event.metadata, isNull);
+      // Falls back to flat JSON parsing for done events
+      expect(event.metadata, isNotNull);
+      expect(event.metadata!.tokensPerSecond, 10.0);
     });
 
     test('parses messageId from JSON', () {

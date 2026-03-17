@@ -218,6 +218,8 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isCritical = notification.severity == NotificationSeverity.critical;
+    final borderColor = _severityBorderColor(notification.severity);
 
     return Dismissible(
       key: Key(notification.id),
@@ -229,48 +231,72 @@ class _NotificationTile extends StatelessWidget {
         child: Icon(Icons.delete, color: colorScheme.onError),
       ),
       onDismissed: (_) => onDismissed(),
-      child: ListTile(
-        leading: _severityIcon(notification.severity),
-        title: Text(
-          notification.title,
-          style: TextStyle(
-            fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isCritical && !notification.isRead
+              ? Colors.red.withValues(alpha: 0.06)
+              : null,
+          border: Border(
+            left: BorderSide(color: borderColor, width: 4),
           ),
         ),
-        subtitle: Text(
-          notification.body,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        child: ListTile(
+          leading: _severityIcon(notification.severity),
+          title: Text(
+            notification.title,
+            style: TextStyle(
+              fontWeight:
+                  notification.isRead ? FontWeight.normal : FontWeight.bold,
+              color: isCritical ? Colors.red : null,
+            ),
+          ),
+          subtitle: Text(
+            notification.body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (notification.createdAt != null)
+                Text(
+                  DateFormatter.formatRelative(
+                    DateTime.parse(notification.createdAt!),
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              if (!notification.isRead)
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
+          ),
+          onTap: onTap,
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (notification.createdAt != null)
-              Text(
-                DateFormatter.formatRelative(
-                  DateTime.parse(notification.createdAt!),
-                ),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
-            if (!notification.isRead)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
-        ),
-        onTap: onTap,
       ),
     );
+  }
+
+  /// Returns the left border color for the given [severity].
+  Color _severityBorderColor(String severity) {
+    switch (severity) {
+      case NotificationSeverity.critical:
+        return Colors.red;
+      case NotificationSeverity.warning:
+        return Colors.orange;
+      default:
+        return Colors.blue;
+    }
   }
 
   Widget _severityIcon(String severity) {

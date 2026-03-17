@@ -14,7 +14,6 @@ void main() {
       String conversationId = 'conv-1',
       List<MessageModel> messages = const [],
       bool isThinking = false,
-      Duration? responseTime,
     }) {
       return ProviderScope(
         overrides: [
@@ -23,9 +22,6 @@ void main() {
           ),
           aiThinkingProvider.overrideWith(
             (ref, id) => isThinking,
-          ),
-          responseTimeProvider.overrideWith(
-            (ref, id) => responseTime,
           ),
           conversationsProvider.overrideWith(
             (ref) => <ConversationSummaryModel>[],
@@ -185,7 +181,6 @@ void main() {
             () => _ErrorChatMessagesNotifier(),
           ),
           aiThinkingProvider.overrideWith((ref, id) => false),
-          responseTimeProvider.overrideWith((ref, id) => null),
           conversationsProvider.overrideWith(
             (ref) => <ConversationSummaryModel>[],
           ),
@@ -240,7 +235,6 @@ void main() {
             () => _FakeChatMessagesNotifier([]),
           ),
           aiThinkingProvider.overrideWith((ref, id) => false),
-          responseTimeProvider.overrideWith((ref, id) => null),
           conversationsProvider.overrideWith(
             (ref) => [
               const ConversationSummaryModel(
@@ -271,7 +265,6 @@ void main() {
             () => _ApiErrorChatMessagesNotifier(),
           ),
           aiThinkingProvider.overrideWith((ref, id) => false),
-          responseTimeProvider.overrideWith((ref, id) => null),
           conversationsProvider.overrideWith(
             (ref) => <ConversationSummaryModel>[],
           ),
@@ -296,7 +289,6 @@ void main() {
             () => _ErrorChatMessagesNotifier(),
           ),
           aiThinkingProvider.overrideWith((ref, id) => false),
-          responseTimeProvider.overrideWith((ref, id) => null),
           conversationsProvider.overrideWith(
             (ref) => <ConversationSummaryModel>[],
           ),
@@ -320,7 +312,6 @@ void main() {
             () => _ApiErrorChatMessagesNotifier(),
           ),
           aiThinkingProvider.overrideWith((ref, id) => false),
-          responseTimeProvider.overrideWith((ref, id) => null),
           conversationsProvider.overrideWith(
             (ref) => <ConversationSummaryModel>[],
           ),

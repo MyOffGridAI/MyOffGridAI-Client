@@ -137,24 +137,10 @@ void main() {
       );
     });
 
-    testWidgets('shows unsupported format message for EPUB', (tester) async {
-      const ebook = EbookModel(
-        id: 'e1',
-        title: 'Epub Book',
-        format: 'EPUB',
-        fileSizeBytes: 100,
-      );
-      when(() => mockService.downloadEbookContent('e1'))
-          .thenAnswer((_) async => [0x50, 0x4B, 0x03, 0x04]);
-
-      await tester.pumpWidget(buildScreen(ebook));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.textContaining('not yet supported'),
-        findsOneWidget,
-      );
-    });
+    // EPUB format is now rendered via EpubView (C1). The epub_view
+    // package requires valid EPUB data and platform channels that are
+    // unavailable in unit tests. EPUB rendering is exercised via the
+    // format-switch routing (format 'EPUB' no longer hits _UnsupportedFormatView).
 
     testWidgets('shows empty content error for empty bytes', (tester) async {
       const ebook = EbookModel(

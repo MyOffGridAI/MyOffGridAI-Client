@@ -7,6 +7,7 @@ import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
+import 'package:epub_view/epub_view.dart' hide DefaultBuilderOptions;
 import 'package:pdfx/pdfx.dart';
 
 /// Displays an eBook for reading based on its format.
@@ -117,6 +118,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     final format = widget.ebook.format.toUpperCase();
     return switch (format) {
       'PDF' => _PdfReaderView(bytes: _contentBytes!),
+      'EPUB' => _EpubReaderView(bytes: _contentBytes!),
       'TXT' => _TextReaderView(bytes: _contentBytes!),
       _ => _UnsupportedFormatView(
           format: widget.ebook.format,
@@ -170,6 +172,48 @@ class _PdfReaderViewState extends State<_PdfReaderView> {
           title: 'PDF Error',
           message: 'Failed to render PDF: $error',
         ),
+      ),
+    );
+  }
+}
+
+// ── EPUB Reader ──────────────────────────────────────────────────────────
+
+/// Renders an EPUB document using [EpubView] with chapter navigation.
+class _EpubReaderView extends StatefulWidget {
+  final Uint8List bytes;
+
+  const _EpubReaderView({required this.bytes});
+
+  @override
+  State<_EpubReaderView> createState() => _EpubReaderViewState();
+}
+
+/// State for [_EpubReaderView] managing the EPUB controller lifecycle.
+class _EpubReaderViewState extends State<_EpubReaderView> {
+  late final EpubController _epubController;
+
+  @override
+  void initState() {
+    super.initState();
+    _epubController = EpubController(
+      document: EpubDocument.openData(widget.bytes),
+    );
+  }
+
+  @override
+  void dispose() {
+    _epubController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return EpubView(
+      controller: _epubController,
+      builders: EpubViewBuilders<DefaultBuilderOptions>(
+        options: const DefaultBuilderOptions(),
+        loaderBuilder: (_) => const LoadingIndicator(),
       ),
     );
   }

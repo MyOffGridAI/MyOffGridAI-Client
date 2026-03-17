@@ -5,7 +5,7 @@ import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
-import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
+
 
 class MockChatService extends Mock implements ChatService {}
 
@@ -233,36 +233,6 @@ void main() {
 
       // After send completes, thinking should be false again
       expect(container.read(aiThinkingProvider(conversationId)), isFalse);
-    });
-
-    test('stores response time after successful send', () async {
-      when(() => mockService.listMessages(conversationId))
-          .thenAnswer((_) async => []);
-
-      when(() => mockService.sendMessageStream(conversationId, 'test'))
-          .thenAnswer((_) => successStream());
-
-      final container = createContainer();
-      addTearDown(container.dispose);
-
-      await container
-          .read(chatMessagesNotifierProvider(conversationId).future);
-
-      // Before send, response time should be null
-      expect(
-        container.read(responseTimeProvider(conversationId)),
-        isNull,
-      );
-
-      await container
-          .read(chatMessagesNotifierProvider(conversationId).notifier)
-          .sendMessage('test');
-
-      // After send, response time should be set
-      final responseTime =
-          container.read(responseTimeProvider(conversationId));
-      expect(responseTime, isNotNull);
-      expect(responseTime, isA<Duration>());
     });
 
     test('accumulates thinking and content from stream events', () async {

@@ -157,6 +157,39 @@ void main() {
 
       expect(find.byType(Dismissible), findsOneWidget);
     });
+
+    testWidgets('critical notification title is red', (tester) async {
+      await tester.pumpWidget(buildScreen(notifications: [criticalNotif]));
+      await tester.pumpAndSettle();
+
+      final titleWidget = tester.widget<Text>(find.text('Sensor Alert'));
+      expect(titleWidget.style?.color, Colors.red);
+    });
+
+    testWidgets('info notification title is not red', (tester) async {
+      await tester.pumpWidget(buildScreen(notifications: [readNotif]));
+      await tester.pumpAndSettle();
+
+      final titleWidget = tester.widget<Text>(find.text('System OK'));
+      expect(titleWidget.style?.color, isNot(Colors.red));
+    });
+
+    testWidgets('notification tile has left border', (tester) async {
+      await tester.pumpWidget(buildScreen(notifications: [criticalNotif]));
+      await tester.pumpAndSettle();
+
+      // Find the Container wrapping the ListTile with border decoration
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final borderedContainer = containers.where((c) {
+        final decoration = c.decoration;
+        if (decoration is BoxDecoration && decoration.border is Border) {
+          final border = decoration.border as Border;
+          return border.left.width == 4;
+        }
+        return false;
+      });
+      expect(borderedContainer, isNotEmpty);
+    });
   });
 
   group('MQTT status', () {
