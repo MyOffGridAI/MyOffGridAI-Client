@@ -16,6 +16,8 @@ import 'package:myoffgridai_client/core/services/model_catalog_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/core/services/user_service.dart';
 import 'package:myoffgridai_client/features/settings/settings_screen.dart';
+import 'package:myoffgridai_client/features/settings/widgets/discover_model_list.dart';
+import 'package:myoffgridai_client/features/settings/widgets/model_detail_panel.dart';
 
 class MockApiClient extends Mock implements MyOffGridAIApiClient {}
 
@@ -2194,6 +2196,57 @@ void main() {
 
       // Dropdown should now show 'mistral'
       expect(find.text('mistral'), findsOneWidget);
+    });
+  });
+
+  group('SettingsScreen - Discover Tab', () {
+    testWidgets('Discover tab renders DiscoverModelList', (tester) async {
+      setLargeViewport(tester);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Navigate to Models tab then Discover sub-tab
+      await tester.tap(find.text('Models'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discover'));
+      await tester.pumpAndSettle();
+
+      // DiscoverModelList should be rendered (it shows empty state text)
+      expect(find.byType(DiscoverModelList), findsOneWidget);
+    });
+
+    testWidgets('empty detail state shows when no model selected',
+        (tester) async {
+      setLargeViewport(tester);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Models'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discover'));
+      await tester.pumpAndSettle();
+
+      // The empty detail state should show the placeholder text
+      expect(find.text('Select a model to see details'), findsOneWidget);
+      expect(find.byType(ModelDetailPanel), findsNothing);
+    });
+
+    testWidgets('search box is visible on Discover tab', (tester) async {
+      setLargeViewport(tester);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Models'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discover'));
+      await tester.pumpAndSettle();
+
+      // Search box should be present with the expected hint text
+      expect(
+        find.widgetWithText(
+            TextField, 'Search HuggingFace models (e.g. "llama 3 gguf")'),
+        findsOneWidget,
+      );
     });
   });
 }

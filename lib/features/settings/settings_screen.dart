@@ -1494,25 +1494,26 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: 3,
+                    SizedBox(
+                      width: 360,
                       child: DiscoverModelList(
                         results: _results,
                         onFileSelected: _onFileSelected,
                       ),
                     ),
-                    if (_selectedModel != null && _selectedFile != null)
-                      Expanded(
-                        flex: 2,
-                        child: ModelDetailPanel(
-                          model: _selectedModel!,
-                          initialFile: _selectedFile!,
-                          onClose: () => setState(() {
-                            _selectedModel = null;
-                            _selectedFile = null;
-                          }),
-                        ),
-                      ),
+                    const VerticalDivider(width: 1),
+                    Expanded(
+                      child: _selectedModel != null && _selectedFile != null
+                          ? ModelDetailPanel(
+                              model: _selectedModel!,
+                              initialFile: _selectedFile!,
+                              onClose: () => setState(() {
+                                _selectedModel = null;
+                                _selectedFile = null;
+                              }),
+                            )
+                          : _buildEmptyDetailState(),
+                    ),
                   ],
                 )
               : DiscoverModelList(
@@ -1524,6 +1525,25 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEmptyDetailState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.hub_outlined, size: 48,
+               color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 12),
+          Text(
+            'Select a model to see details',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
