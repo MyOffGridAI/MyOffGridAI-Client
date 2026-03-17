@@ -6,15 +6,23 @@ void main() {
   // InferenceEventType
   // ---------------------------------------------------------------------------
   group('InferenceEventType', () {
-    test('has four values', () {
-      expect(InferenceEventType.values, hasLength(4));
+    test('has eight values', () {
+      expect(InferenceEventType.values, hasLength(8));
     });
 
-    test('contains thinking, content, done, error', () {
+    test('contains all event types', () {
       expect(InferenceEventType.values, contains(InferenceEventType.thinking));
       expect(InferenceEventType.values, contains(InferenceEventType.content));
       expect(InferenceEventType.values, contains(InferenceEventType.done));
       expect(InferenceEventType.values, contains(InferenceEventType.error));
+      expect(InferenceEventType.values,
+          contains(InferenceEventType.judgeEvaluating));
+      expect(InferenceEventType.values,
+          contains(InferenceEventType.judgeResult));
+      expect(InferenceEventType.values,
+          contains(InferenceEventType.enhancedContent));
+      expect(InferenceEventType.values,
+          contains(InferenceEventType.enhancedDone));
     });
 
     test('name values match expected strings', () {
@@ -22,6 +30,10 @@ void main() {
       expect(InferenceEventType.content.name, 'content');
       expect(InferenceEventType.done.name, 'done');
       expect(InferenceEventType.error.name, 'error');
+      expect(InferenceEventType.judgeEvaluating.name, 'judgeEvaluating');
+      expect(InferenceEventType.judgeResult.name, 'judgeResult');
+      expect(InferenceEventType.enhancedContent.name, 'enhancedContent');
+      expect(InferenceEventType.enhancedDone.name, 'enhancedDone');
     });
   });
 
@@ -312,6 +324,51 @@ void main() {
       final event = InferenceStreamEvent.fromJson(json);
 
       expect(event.messageId, isNull);
+    });
+
+    // ── P15 new event types ──────────────────────────────────────────────
+
+    test('parses judge_evaluating event (snake_case)', () {
+      final json = {'type': 'judge_evaluating'};
+
+      final event = InferenceStreamEvent.fromJson(json);
+
+      expect(event.type, InferenceEventType.judgeEvaluating);
+    });
+
+    test('parses judge_result event with content object', () {
+      final json = {
+        'type': 'judge_result',
+        'content': {'score': 8.5, 'reason': 'Good', 'needsCloud': false},
+      };
+
+      final event = InferenceStreamEvent.fromJson(json);
+
+      expect(event.type, InferenceEventType.judgeResult);
+      // Content should be JSON-encoded string of the map
+      expect(event.content, isNotNull);
+      expect(event.content, contains('8.5'));
+      expect(event.content, contains('Good'));
+    });
+
+    test('parses enhanced_content event (snake_case)', () {
+      final json = {
+        'type': 'enhanced_content',
+        'content': 'Cloud-generated text chunk',
+      };
+
+      final event = InferenceStreamEvent.fromJson(json);
+
+      expect(event.type, InferenceEventType.enhancedContent);
+      expect(event.content, 'Cloud-generated text chunk');
+    });
+
+    test('parses enhanced_done event (snake_case)', () {
+      final json = {'type': 'enhanced_done'};
+
+      final event = InferenceStreamEvent.fromJson(json);
+
+      expect(event.type, InferenceEventType.enhancedDone);
     });
   });
 }

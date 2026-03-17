@@ -79,6 +79,8 @@ class _ChatConversationScreenState
         ref.watch(chatMessagesNotifierProvider(widget.conversationId));
     final isThinking =
         ref.watch(aiThinkingProvider(widget.conversationId));
+    final isJudgeEvaluating =
+        ref.watch(judgeEvaluatingProvider(widget.conversationId));
 
     // Get conversation title from the conversations list
     final conversationsAsync = ref.watch(conversationsProvider);
@@ -110,8 +112,10 @@ class _ChatConversationScreenState
                     chatMessagesNotifierProvider(widget.conversationId)),
               ),
               data: (messages) {
-                final itemCount = messages.length + (isThinking ? 1 : 0);
-                if (messages.isEmpty && !isThinking) {
+                final indicatorCount =
+                    (isThinking ? 1 : 0) + (isJudgeEvaluating ? 1 : 0);
+                final itemCount = messages.length + indicatorCount;
+                if (messages.isEmpty && !isThinking && !isJudgeEvaluating) {
                   return const Center(
                     child: Text('Send a message to start the conversation'),
                   );
@@ -123,10 +127,14 @@ class _ChatConversationScreenState
                   itemCount: itemCount,
                   itemBuilder: (context, index) {
                     // Index 0 = bottom of list (most recent)
-                    if (isThinking && index == 0) {
+                    if (isJudgeEvaluating && index == 0) {
+                      return const _JudgeEvaluatingIndicator();
+                    }
+                    if (isThinking &&
+                        index == (isJudgeEvaluating ? 1 : 0)) {
                       return const ThinkingIndicatorBubble();
                     }
-                    final msgIndex = isThinking ? index - 1 : index;
+                    final msgIndex = index - indicatorCount;
                     final msg = messages[messages.length - 1 - msgIndex];
                     final isStreaming = msg.id.startsWith('temp-assistant') ||
                         msg.id.startsWith('temp-regen');
@@ -354,5 +362,49 @@ class _ChatConversationScreenState
         );
       }
     });
+  }
+}
+
+/// Indicator shown while the AI judge is evaluating a response.
+class _JudgeEvaluatingIndicator extends StatelessWidget {
+  const _JudgeEvaluatingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colorScheme.tertiaryContainer,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colorScheme.onTertiaryContainer,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Judge evaluating...',
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onTertiaryContainer,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

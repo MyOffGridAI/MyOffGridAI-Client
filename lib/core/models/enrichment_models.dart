@@ -10,7 +10,8 @@ library;
 ///
 /// Mirrors the server's ExternalApiSettingsDto. Boolean flags indicate
 /// whether API keys are configured — actual key values are never sent
-/// to the client.
+/// to the client. Includes frontier provider settings (Grok, OpenAI)
+/// and AI judge configuration.
 class ExternalApiSettingsModel {
   final bool anthropicEnabled;
   final String anthropicModel;
@@ -21,6 +22,14 @@ class ExternalApiSettingsModel {
   final bool huggingFaceKeyConfigured;
   final int maxWebFetchSizeKb;
   final int searchResultLimit;
+  final bool grokEnabled;
+  final bool grokKeyConfigured;
+  final bool openAiEnabled;
+  final bool openAiKeyConfigured;
+  final String? preferredFrontierProvider;
+  final bool judgeEnabled;
+  final String? judgeModelFilename;
+  final double judgeScoreThreshold;
 
   const ExternalApiSettingsModel({
     required this.anthropicEnabled,
@@ -32,6 +41,14 @@ class ExternalApiSettingsModel {
     required this.huggingFaceKeyConfigured,
     required this.maxWebFetchSizeKb,
     required this.searchResultLimit,
+    required this.grokEnabled,
+    required this.grokKeyConfigured,
+    required this.openAiEnabled,
+    required this.openAiKeyConfigured,
+    this.preferredFrontierProvider,
+    required this.judgeEnabled,
+    this.judgeModelFilename,
+    required this.judgeScoreThreshold,
   });
 
   /// Creates an [ExternalApiSettingsModel] from a JSON map.
@@ -49,6 +66,16 @@ class ExternalApiSettingsModel {
           json['huggingFaceKeyConfigured'] as bool? ?? false,
       maxWebFetchSizeKb: json['maxWebFetchSizeKb'] as int? ?? 512,
       searchResultLimit: json['searchResultLimit'] as int? ?? 5,
+      grokEnabled: json['grokEnabled'] as bool? ?? false,
+      grokKeyConfigured: json['grokKeyConfigured'] as bool? ?? false,
+      openAiEnabled: json['openAiEnabled'] as bool? ?? false,
+      openAiKeyConfigured: json['openAiKeyConfigured'] as bool? ?? false,
+      preferredFrontierProvider:
+          json['preferredFrontierProvider'] as String?,
+      judgeEnabled: json['judgeEnabled'] as bool? ?? false,
+      judgeModelFilename: json['judgeModelFilename'] as String?,
+      judgeScoreThreshold:
+          (json['judgeScoreThreshold'] as num?)?.toDouble() ?? 7.0,
     );
   }
 }
@@ -57,7 +84,7 @@ class ExternalApiSettingsModel {
 ///
 /// Mirrors the server's UpdateExternalApiSettingsRequest. When a key
 /// field is null, the server preserves the existing value. An empty
-/// string clears the key.
+/// string clears the key. Includes frontier provider and judge settings.
 class UpdateExternalApiSettingsRequest {
   final String? anthropicApiKey;
   final String anthropicModel;
@@ -68,6 +95,14 @@ class UpdateExternalApiSettingsRequest {
   final bool huggingFaceEnabled;
   final int maxWebFetchSizeKb;
   final int searchResultLimit;
+  final String? grokApiKey;
+  final bool? grokEnabled;
+  final String? openAiApiKey;
+  final bool? openAiEnabled;
+  final String? preferredFrontierProvider;
+  final bool? judgeEnabled;
+  final String? judgeModelFilename;
+  final double? judgeScoreThreshold;
 
   const UpdateExternalApiSettingsRequest({
     this.anthropicApiKey,
@@ -79,6 +114,14 @@ class UpdateExternalApiSettingsRequest {
     required this.huggingFaceEnabled,
     required this.maxWebFetchSizeKb,
     required this.searchResultLimit,
+    this.grokApiKey,
+    this.grokEnabled,
+    this.openAiApiKey,
+    this.openAiEnabled,
+    this.preferredFrontierProvider,
+    this.judgeEnabled,
+    this.judgeModelFilename,
+    this.judgeScoreThreshold,
   });
 
   /// Serializes this request to a JSON map for the API.
@@ -93,6 +136,17 @@ class UpdateExternalApiSettingsRequest {
       'huggingFaceEnabled': huggingFaceEnabled,
       'maxWebFetchSizeKb': maxWebFetchSizeKb,
       'searchResultLimit': searchResultLimit,
+      if (grokApiKey != null) 'grokApiKey': grokApiKey,
+      if (grokEnabled != null) 'grokEnabled': grokEnabled,
+      if (openAiApiKey != null) 'openAiApiKey': openAiApiKey,
+      if (openAiEnabled != null) 'openAiEnabled': openAiEnabled,
+      if (preferredFrontierProvider != null)
+        'preferredFrontierProvider': preferredFrontierProvider,
+      if (judgeEnabled != null) 'judgeEnabled': judgeEnabled,
+      if (judgeModelFilename != null)
+        'judgeModelFilename': judgeModelFilename,
+      if (judgeScoreThreshold != null)
+        'judgeScoreThreshold': judgeScoreThreshold,
     };
   }
 }

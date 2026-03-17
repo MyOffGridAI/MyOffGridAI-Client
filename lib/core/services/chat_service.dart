@@ -275,5 +275,14 @@ final aiThinkingProvider =
   return false;
 });
 
+/// Provider tracking judge evaluation state per conversation.
+///
+/// Set to true when a `judge_evaluating` SSE event arrives, false when
+/// `judge_result` arrives or the stream completes.
+final judgeEvaluatingProvider =
+    StateProvider.autoDispose.family<bool, String>((ref, conversationId) {
+  return false;
+});
+
 /// Provider for sidebar collapsed state.
 final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);

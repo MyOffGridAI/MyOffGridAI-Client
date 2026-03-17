@@ -41,7 +41,14 @@ class AppConstants {
   static const String systemBasePath = '/api/system';
   static const String enrichmentBasePath = '/api/enrichment';
   static const String externalApiSettingsPath = '/api/settings/external-apis';
+  static const String judgeBasePath = '/api/ai/judge';
   static const String libraryBasePath = '/api/library';
+
+  // AI Judge defaults
+  static const double defaultJudgeScoreThreshold = 7.0;
+
+  // Frontier providers
+  static const List<String> frontierProviders = ['CLAUDE', 'GROK', 'OPENAI'];
 
   // Route names
   static const String routeLogin = '/login';

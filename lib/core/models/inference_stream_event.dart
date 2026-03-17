@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// The type of event emitted during an inference SSE stream.
 enum InferenceEventType {
   /// Thinking/reasoning content (from `<think>` blocks).
@@ -11,7 +13,34 @@ enum InferenceEventType {
 
   /// An error occurred during inference.
   error,
+
+  /// The AI judge is evaluating the local response quality.
+  judgeEvaluating,
+
+  /// Judge evaluation complete — content contains score JSON.
+  judgeResult,
+
+  /// Tokens from the cloud frontier model (enhanced response).
+  enhancedContent,
+
+  /// Enhanced response stream from the cloud model is complete.
+  enhancedDone,
 }
+
+/// Maps server-sent snake_case type strings to [InferenceEventType] values.
+///
+/// The server sends event types as lowercase snake_case (e.g. "judge_evaluating"),
+/// while Dart enum names use camelCase. This map bridges the two conventions.
+const _serverTypeMap = <String, InferenceEventType>{
+  'thinking': InferenceEventType.thinking,
+  'content': InferenceEventType.content,
+  'done': InferenceEventType.done,
+  'error': InferenceEventType.error,
+  'judge_evaluating': InferenceEventType.judgeEvaluating,
+  'judge_result': InferenceEventType.judgeResult,
+  'enhanced_content': InferenceEventType.enhancedContent,
+  'enhanced_done': InferenceEventType.enhancedDone,
+};
 
 /// Metadata returned with a [InferenceEventType.done] event.
 class InferenceMetadata {
@@ -69,13 +98,11 @@ class InferenceStreamEvent {
 
   /// Parses an SSE data line into an [InferenceStreamEvent].
   ///
-  /// Expects a JSON object with at least a `type` field.
+  /// Expects a JSON object with at least a `type` field. Uses [_serverTypeMap]
+  /// to handle the server's snake_case type strings.
   factory InferenceStreamEvent.fromJson(Map<String, dynamic> json) {
     final typeStr = json['type'] as String? ?? 'content';
-    final type = InferenceEventType.values.firstWhere(
-      (e) => e.name == typeStr,
-      orElse: () => InferenceEventType.content,
-    );
+    final type = _serverTypeMap[typeStr] ?? InferenceEventType.content;
 
     InferenceMetadata? metadata;
     if (json['metadata'] is Map<String, dynamic>) {
@@ -86,9 +113,19 @@ class InferenceStreamEvent {
       metadata = InferenceMetadata.fromJson(json);
     }
 
+    // For judge_result, content is a nested JSON object (score, reason, needsCloud).
+    // We serialize it back to JSON string for the notifier to parse.
+    dynamic rawContent = json['content'];
+    String? contentStr;
+    if (rawContent is Map) {
+      contentStr = jsonEncode(rawContent);
+    } else {
+      contentStr = rawContent as String?;
+    }
+
     return InferenceStreamEvent(
       type: type,
-      content: json['content'] as String?,
+      content: contentStr,
       metadata: metadata,
       messageId: json['messageId'] as String?,
     );

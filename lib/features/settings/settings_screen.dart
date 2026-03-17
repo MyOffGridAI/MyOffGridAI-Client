@@ -12,10 +12,14 @@ import 'package:myoffgridai_client/core/models/system_models.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
 import 'package:myoffgridai_client/core/models/enrichment_models.dart';
 import 'package:myoffgridai_client/core/models/model_catalog_models.dart';
+import 'package:myoffgridai_client/core/models/judge_models.dart';
 import 'package:myoffgridai_client/core/services/enrichment_service.dart';
+import 'package:myoffgridai_client/core/services/judge_service.dart';
 import 'package:myoffgridai_client/core/services/model_catalog_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/core/services/user_service.dart';
+import 'package:myoffgridai_client/features/settings/widgets/discover_model_list.dart';
+import 'package:myoffgridai_client/features/settings/widgets/model_detail_panel.dart';
 import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
@@ -41,7 +45,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -57,6 +61,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         title: const Text('Settings'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           tabs: const [
             Tab(text: 'General'),
             Tab(text: 'Users'),
@@ -64,6 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             Tab(text: 'File Storage'),
             Tab(text: 'Models'),
             Tab(text: 'External APIs'),
+            Tab(text: 'AI Judge'),
           ],
         ),
       ),
@@ -76,6 +82,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const _FileStorageTab(),
           const _ModelsTab(),
           const _ExternalApisTab(),
+          const _AiJudgeTab(),
         ],
       ),
     );
@@ -1166,7 +1173,7 @@ class _FileStorageTabState extends ConsumerState<_FileStorageTab> {
 
 /// The Models tab for browsing, downloading, and managing LM Studio models.
 ///
-/// Contains three sub-tabs: Local Models, Downloads, and Discover.
+/// Contains two sub-tabs: Local Models and Discover.
 class _ModelsTab extends ConsumerStatefulWidget {
   const _ModelsTab();
 
@@ -1174,7 +1181,7 @@ class _ModelsTab extends ConsumerStatefulWidget {
   ConsumerState<_ModelsTab> createState() => _ModelsTabState();
 }
 
-/// State for [_ModelsTab] managing the three sub-tab layout.
+/// State for [_ModelsTab] managing the two sub-tab layout.
 class _ModelsTabState extends ConsumerState<_ModelsTab>
     with SingleTickerProviderStateMixin {
   late TabController _subTabController;
@@ -1182,7 +1189,7 @@ class _ModelsTabState extends ConsumerState<_ModelsTab>
   @override
   void initState() {
     super.initState();
-    _subTabController = TabController(length: 3, vsync: this);
+    _subTabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -1199,7 +1206,6 @@ class _ModelsTabState extends ConsumerState<_ModelsTab>
           controller: _subTabController,
           tabs: const [
             Tab(text: 'Local Models'),
-            Tab(text: 'Downloads'),
             Tab(text: 'Discover'),
           ],
         ),
@@ -1208,9 +1214,8 @@ class _ModelsTabState extends ConsumerState<_ModelsTab>
             controller: _subTabController,
             children: [
               _LocalModelsSubTab(onNavigateToDiscover: () {
-                _subTabController.animateTo(2);
+                _subTabController.animateTo(1);
               }),
-              const _DownloadsSubTab(),
               const _DiscoverSubTab(),
             ],
           ),
@@ -1384,242 +1389,12 @@ class _LocalModelCard extends ConsumerWidget {
   }
 }
 
-/// Sub-tab showing active and recent downloads with progress.
-class _DownloadsSubTab extends ConsumerWidget {
-  const _DownloadsSubTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final downloadsAsync = ref.watch(activeDownloadsProvider);
-
-    return downloadsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Failed to load downloads',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: () => ref.invalidate(activeDownloadsProvider),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-      data: (downloads) {
-        if (downloads.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.cloud_download_outlined,
-                  size: 64,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.3),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No active downloads',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(activeDownloadsProvider),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: downloads.length,
-            itemBuilder: (context, index) {
-              final dl = downloads[index];
-              return _DownloadProgressCard(progress: dl);
-            },
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Card displaying download progress with a progress bar and cancel button.
-class _DownloadProgressCard extends ConsumerStatefulWidget {
-  final DownloadProgressModel progress;
-
-  const _DownloadProgressCard({required this.progress});
-
-  @override
-  ConsumerState<_DownloadProgressCard> createState() =>
-      _DownloadProgressCardState();
-}
-
-/// State for [_DownloadProgressCard] managing the SSE progress stream.
-class _DownloadProgressCardState
-    extends ConsumerState<_DownloadProgressCard> {
-  StreamSubscription<DownloadProgressModel>? _subscription;
-  late DownloadProgressModel _current;
-
-  @override
-  void initState() {
-    super.initState();
-    _current = widget.progress;
-    if (_current.isActive) {
-      _subscribeToProgress();
-    }
-  }
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
-
-  void _subscribeToProgress() {
-    final service = ref.read(modelCatalogServiceProvider);
-    _subscription = service
-        .streamDownloadProgress(_current.downloadId)
-        .listen(
-      (progress) {
-        if (mounted) setState(() => _current = progress);
-      },
-      onError: (_) {},
-      onDone: () {
-        ref.invalidate(activeDownloadsProvider);
-        ref.invalidate(localModelsProvider);
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isActive = _current.isActive;
-    final statusColor = _current.isComplete
-        ? Colors.green
-        : _current.isFailed
-            ? theme.colorScheme.error
-            : _current.isCancelled
-                ? Colors.orange
-                : theme.colorScheme.primary;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _current.filename,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    _current.status,
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: statusColor),
-                  ),
-                ),
-              ],
-            ),
-            if (_current.repoId.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                _current.repoId,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: _current.totalBytes > 0
-                  ? _current.bytesDownloaded / _current.totalBytes
-                  : null,
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_current.percentComplete.toStringAsFixed(1)}%'
-                  ' · ${SizeFormatter.formatBytes(_current.bytesDownloaded)}'
-                  '${_current.totalBytes > 0 ? ' / ${SizeFormatter.formatBytes(_current.totalBytes)}' : ''}',
-                  style: theme.textTheme.bodySmall,
-                ),
-                if (isActive)
-                  Text(
-                    '${SizeFormatter.formatBytes(_current.speedBytesPerSecond.round())}/s',
-                    style: theme.textTheme.bodySmall,
-                  ),
-              ],
-            ),
-            if (isActive) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => _cancelDownload(context),
-                  icon: const Icon(Icons.cancel_outlined, size: 18),
-                  label: const Text('Cancel'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                  ),
-                ),
-              ),
-            ],
-            if (_current.isFailed && _current.errorMessage != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                _current.errorMessage!,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _cancelDownload(BuildContext context) async {
-    try {
-      final service = ref.read(modelCatalogServiceProvider);
-      await service.cancelDownload(_current.downloadId);
-      ref.invalidate(activeDownloadsProvider);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to cancel download')),
-        );
-      }
-    }
-  }
-}
-
 /// Sub-tab for searching and browsing the HuggingFace model catalog.
+/// Discover sub-tab with two-panel LM Studio-style layout.
+///
+/// On wide screens (>=600px), shows a model list on the left and a detail
+/// panel on the right. On narrow screens, shows the model list with a
+/// bottom sheet detail panel when a file is selected.
 class _DiscoverSubTab extends ConsumerStatefulWidget {
   const _DiscoverSubTab();
 
@@ -1627,12 +1402,15 @@ class _DiscoverSubTab extends ConsumerStatefulWidget {
   ConsumerState<_DiscoverSubTab> createState() => _DiscoverSubTabState();
 }
 
-/// State for [_DiscoverSubTab] managing search input and results.
 class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
   final _searchController = TextEditingController();
   List<HfModelModel> _results = [];
   bool _searching = false;
   String? _error;
+
+  /// Currently selected model + file for the detail panel.
+  HfModelModel? _selectedModel;
+  HfModelFileModel? _selectedFile;
 
   @override
   void dispose() {
@@ -1664,8 +1442,17 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
     }
   }
 
+  void _onFileSelected(HfModelModel model, HfModelFileModel file) {
+    setState(() {
+      _selectedModel = model;
+      _selectedFile = file;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 600;
+
     return Column(
       children: [
         Padding(
@@ -1703,54 +1490,92 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
             ),
           ),
         Expanded(
-          child: _results.isEmpty && !_searching
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.hub_outlined,
-                        size: 64,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.3),
+          child: isWide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: DiscoverModelList(
+                        results: _results,
+                        onFileSelected: _onFileSelected,
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Search for GGUF models on HuggingFace',
-                        style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    if (_selectedModel != null && _selectedFile != null)
+                      Expanded(
+                        flex: 2,
+                        child: ModelDetailPanel(
+                          model: _selectedModel!,
+                          initialFile: _selectedFile!,
+                          onClose: () => setState(() {
+                            _selectedModel = null;
+                            _selectedFile = null;
+                          }),
+                        ),
                       ),
-                    ],
-                  ),
+                  ],
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _results.length,
-                  itemBuilder: (context, index) {
-                    return _CatalogModelCard(model: _results[index]);
+              : DiscoverModelList(
+                  results: _results,
+                  onFileSelected: (model, file) {
+                    _onFileSelected(model, file);
+                    _showDetailBottomSheet(context, model, file);
                   },
                 ),
         ),
       ],
     );
   }
+
+  void _showDetailBottomSheet(
+      BuildContext context, HfModelModel model, HfModelFileModel file) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => ModelDetailPanel(
+          model: model,
+          initialFile: file,
+          onClose: () => Navigator.of(ctx).pop(),
+        ),
+      ),
+    );
+  }
 }
 
-/// Card displaying a HuggingFace catalog model with expandable file list.
-class _CatalogModelCard extends ConsumerStatefulWidget {
+/// Card displaying a HuggingFace catalog model with expandable file list
+/// and inline download progress.
+class _CatalogModelCard extends StatefulWidget {
+  /// The HuggingFace model to display.
   final HfModelModel model;
 
-  const _CatalogModelCard({required this.model});
+  /// Active downloads keyed by "repoId/filename".
+  final Map<String, DownloadProgressModel> activeDownloads;
+
+  /// Callback to start a download for a given repoId and filename.
+  final Future<void> Function(String repoId, String filename) onStartDownload;
+
+  /// Callback to cancel a download for a given repoId and filename.
+  final Future<void> Function(String repoId, String filename) onCancelDownload;
+
+  const _CatalogModelCard({
+    required this.model,
+    required this.activeDownloads,
+    required this.onStartDownload,
+    required this.onCancelDownload,
+  });
 
   @override
-  ConsumerState<_CatalogModelCard> createState() => _CatalogModelCardState();
+  State<_CatalogModelCard> createState() => _CatalogModelCardState();
 }
 
 /// State for [_CatalogModelCard] managing the expanded/collapsed file list.
-class _CatalogModelCardState extends ConsumerState<_CatalogModelCard> {
+class _CatalogModelCardState extends State<_CatalogModelCard> {
   bool _expanded = false;
-  String? _downloadingFile;
 
   @override
   Widget build(BuildContext context) {
@@ -1791,36 +1616,12 @@ class _CatalogModelCardState extends ConsumerState<_CatalogModelCard> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Column(
                 children: ggufFiles.map((file) {
-                  final isDownloading = _downloadingFile == file.filename;
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      file.filename,
-                      style: theme.textTheme.bodyMedium,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      [
-                        file.formattedSize,
-                        if (file.quantLabel.isNotEmpty) file.quantLabel,
-                      ].join(' · '),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    trailing: isDownloading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.download),
-                            tooltip: 'Download',
-                            onPressed: () =>
-                                _startDownload(context, model.id, file.filename),
-                          ),
-                  );
+                  final key = '${model.id}/${file.filename}';
+                  final progress = widget.activeDownloads[key];
+                  if (progress != null) {
+                    return _buildInlineProgress(theme, file, progress);
+                  }
+                  return _buildFileRow(theme, model, file);
                 }).toList(),
               ),
             ),
@@ -1840,36 +1641,162 @@ class _CatalogModelCardState extends ConsumerState<_CatalogModelCard> {
     );
   }
 
-  Future<void> _startDownload(
-    BuildContext context,
-    String repoId,
-    String filename,
-  ) async {
-    setState(() => _downloadingFile = filename);
-    try {
-      final service = ref.read(modelCatalogServiceProvider);
-      await service.startDownload(repoId: repoId, filename: filename);
-      ref.invalidate(activeDownloadsProvider);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download started: $filename')),
-        );
-      }
-    } on ApiException catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to start download')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _downloadingFile = null);
-    }
+  /// Builds the default file row with a download button.
+  Widget _buildFileRow(
+    ThemeData theme,
+    HfModelModel model,
+    HfModelFileModel file,
+  ) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        file.filename,
+        style: theme.textTheme.bodyMedium,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        [
+          file.formattedSize,
+          if (file.quantLabel.isNotEmpty) file.quantLabel,
+        ].join(' · '),
+        style: theme.textTheme.bodySmall,
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.download),
+        tooltip: 'Download',
+        onPressed: () => widget.onStartDownload(model.id, file.filename),
+      ),
+    );
+  }
+
+  /// Builds the inline download progress UI replacing the file row.
+  Widget _buildInlineProgress(
+    ThemeData theme,
+    HfModelFileModel file,
+    DownloadProgressModel progress,
+  ) {
+    final statusColor = progress.isComplete
+        ? Colors.green
+        : progress.isFailed
+            ? theme.colorScheme.error
+            : progress.isCancelled
+                ? Colors.orange
+                : theme.colorScheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  file.filename,
+                  style: theme.textTheme.bodyMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  progress.status,
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: statusColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+            value: progress.totalBytes > 0
+                ? progress.bytesDownloaded / progress.totalBytes
+                : null,
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  '${progress.percentComplete.toStringAsFixed(1)}%'
+                  ' · ${SizeFormatter.formatBytes(progress.bytesDownloaded)}'
+                  '${progress.totalBytes > 0 ? ' / ${SizeFormatter.formatBytes(progress.totalBytes)}' : ''}',
+                  style: theme.textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (progress.isActive)
+                Text(
+                  '${SizeFormatter.formatBytes(progress.speedBytesPerSecond.round())}/s',
+                  style: theme.textTheme.bodySmall,
+                ),
+            ],
+          ),
+          if (progress.isActive)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => widget.onCancelDownload(
+                  progress.repoId,
+                  progress.filename,
+                ),
+                icon: const Icon(Icons.cancel_outlined, size: 18),
+                label: const Text('Cancel'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                ),
+              ),
+            ),
+          if (progress.isComplete)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 18),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Complete',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.green),
+                  ),
+                ],
+              ),
+            ),
+          if (progress.isFailed) ...[
+            if (progress.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  progress.errorMessage!,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.error),
+                ),
+              ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => widget.onStartDownload(
+                  progress.repoId,
+                  progress.filename,
+                ),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   String _formatCount(int count) {
@@ -1896,10 +1823,15 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
   final _anthropicKeyController = TextEditingController();
   final _braveKeyController = TextEditingController();
   final _hfTokenController = TextEditingController();
+  final _grokKeyController = TextEditingController();
+  final _openAiKeyController = TextEditingController();
   String _anthropicModel = 'claude-sonnet-4-20250514';
   bool _anthropicEnabled = false;
   bool _braveEnabled = false;
   bool _hfEnabled = false;
+  bool _grokEnabled = false;
+  bool _openAiEnabled = false;
+  String _preferredFrontierProvider = 'CLAUDE';
   int _maxWebFetchSizeKb = 512;
   int _searchResultLimit = 5;
   bool _loaded = false;
@@ -1907,12 +1839,16 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
   bool _obscureAnthropicKey = true;
   bool _obscureBraveKey = true;
   bool _obscureHfToken = true;
+  bool _obscureGrokKey = true;
+  bool _obscureOpenAiKey = true;
 
   @override
   void dispose() {
     _anthropicKeyController.dispose();
     _braveKeyController.dispose();
     _hfTokenController.dispose();
+    _grokKeyController.dispose();
+    _openAiKeyController.dispose();
     super.dispose();
   }
 
@@ -1962,6 +1898,10 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
               _anthropicEnabled = settings.anthropicEnabled;
               _braveEnabled = settings.braveEnabled;
               _hfEnabled = settings.huggingFaceEnabled;
+              _grokEnabled = settings.grokEnabled;
+              _openAiEnabled = settings.openAiEnabled;
+              _preferredFrontierProvider =
+                  settings.preferredFrontierProvider ?? 'CLAUDE';
               _maxWebFetchSizeKb = settings.maxWebFetchSizeKb;
               _searchResultLimit = settings.searchResultLimit;
               _loaded = true;
@@ -2125,6 +2065,125 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Grok (xAI) ──
+                _buildSectionHeader(context, 'Grok (xAI)'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SwitchListTile(
+                          title: const Text('Enable Grok'),
+                          subtitle: Text(settings.grokKeyConfigured
+                              ? 'API key configured'
+                              : 'No API key configured'),
+                          value: _grokEnabled,
+                          onChanged: (v) =>
+                              setState(() => _grokEnabled = v),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _grokKeyController,
+                          obscureText: _obscureGrokKey,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.key),
+                            labelText: settings.grokKeyConfigured
+                                ? 'Grok API Key (leave blank to keep)'
+                                : 'Grok API Key',
+                            border: const OutlineInputBorder(),
+                            helperText:
+                                'Enter a new key, or leave blank to keep existing',
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureGrokKey
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: () => setState(
+                                  () => _obscureGrokKey = !_obscureGrokKey),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── OpenAI ──
+                _buildSectionHeader(context, 'OpenAI'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SwitchListTile(
+                          title: const Text('Enable OpenAI'),
+                          subtitle: Text(settings.openAiKeyConfigured
+                              ? 'API key configured'
+                              : 'No API key configured'),
+                          value: _openAiEnabled,
+                          onChanged: (v) =>
+                              setState(() => _openAiEnabled = v),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _openAiKeyController,
+                          obscureText: _obscureOpenAiKey,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.key),
+                            labelText: settings.openAiKeyConfigured
+                                ? 'OpenAI API Key (leave blank to keep)'
+                                : 'OpenAI API Key',
+                            border: const OutlineInputBorder(),
+                            helperText:
+                                'Enter a new key, or leave blank to keep existing',
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureOpenAiKey
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: () => setState(() =>
+                                  _obscureOpenAiKey = !_obscureOpenAiKey),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Preferred Frontier Provider ──
+                _buildSectionHeader(context, 'Preferred Frontier Provider'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: DropdownButtonFormField<String>(
+                      value: _preferredFrontierProvider,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.cloud),
+                        labelText: 'Preferred Provider',
+                        border: OutlineInputBorder(),
+                        helperText:
+                            'Cloud provider tried first for response enhancement',
+                      ),
+                      items: AppConstants.frontierProviders
+                          .map((p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(p),
+                              ))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _preferredFrontierProvider = v);
+                        }
+                      },
                     ),
                   ),
                 ),
@@ -2315,6 +2374,8 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
       final anthropicKey = _anthropicKeyController.text;
       final braveKey = _braveKeyController.text;
       final hfToken = _hfTokenController.text;
+      final grokKey = _grokKeyController.text;
+      final openAiKey = _openAiKeyController.text;
       await service.updateExternalApiSettings(
         UpdateExternalApiSettingsRequest(
           anthropicApiKey:
@@ -2325,6 +2386,11 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
           braveEnabled: _braveEnabled,
           huggingFaceToken: hfToken.isNotEmpty ? hfToken : null,
           huggingFaceEnabled: _hfEnabled,
+          grokApiKey: grokKey.isNotEmpty ? grokKey : null,
+          grokEnabled: _grokEnabled,
+          openAiApiKey: openAiKey.isNotEmpty ? openAiKey : null,
+          openAiEnabled: _openAiEnabled,
+          preferredFrontierProvider: _preferredFrontierProvider,
           maxWebFetchSizeKb: _maxWebFetchSizeKb,
           searchResultLimit: _searchResultLimit,
         ),
@@ -2334,6 +2400,8 @@ class _ExternalApisTabState extends ConsumerState<_ExternalApisTab> {
       _anthropicKeyController.clear();
       _braveKeyController.clear();
       _hfTokenController.clear();
+      _grokKeyController.clear();
+      _openAiKeyController.clear();
       _loaded = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2557,6 +2625,288 @@ class _RegisterUserDialogState extends State<_RegisterUserDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Register'),
+        ),
+      ],
+    );
+  }
+}
+
+/// AI Judge settings tab for managing the judge model process and testing.
+///
+/// Shows judge status, start/stop controls, and a test form for evaluating
+/// query/response pairs. Restricted to ADMIN and OWNER roles.
+class _AiJudgeTab extends ConsumerStatefulWidget {
+  const _AiJudgeTab();
+
+  @override
+  ConsumerState<_AiJudgeTab> createState() => _AiJudgeTabState();
+}
+
+class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
+  final _queryController = TextEditingController();
+  final _responseController = TextEditingController();
+  bool _testing = false;
+  JudgeTestResultModel? _testResult;
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    _responseController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startJudge() async {
+    try {
+      final service = ref.read(judgeServiceProvider);
+      await service.start();
+      ref.invalidate(judgeStatusProvider);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopJudge() async {
+    try {
+      final service = ref.read(judgeServiceProvider);
+      await service.stop();
+      ref.invalidate(judgeStatusProvider);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  Future<void> _runTest() async {
+    final query = _queryController.text.trim();
+    final response = _responseController.text.trim();
+    if (query.isEmpty || response.isEmpty) return;
+
+    setState(() {
+      _testing = true;
+      _testResult = null;
+    });
+
+    try {
+      final service = ref.read(judgeServiceProvider);
+      final result = await service.test(query: query, response: response);
+      if (mounted) setState(() => _testResult = result);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusAsync = ref.watch(judgeStatusProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Status section
+        Text('Judge Status', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        statusAsync.when(
+          loading: () => const LoadingIndicator(),
+          error: (error, _) => Text(
+            'Failed to load judge status',
+            style: TextStyle(color: colorScheme.error),
+          ),
+          data: (status) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        status.processRunning
+                            ? Icons.check_circle
+                            : Icons.cancel,
+                        color: status.processRunning
+                            ? Colors.green
+                            : colorScheme.error,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        status.processRunning
+                            ? 'Process running on port ${status.port}'
+                            : 'Process not running',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        status.enabled ? Icons.toggle_on : Icons.toggle_off,
+                        color: status.enabled
+                            ? Colors.green
+                            : colorScheme.onSurface.withValues(alpha: 0.4),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(status.enabled ? 'Judge enabled' : 'Judge disabled'),
+                    ],
+                  ),
+                  if (status.judgeModelFilename != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Model: ${status.judgeModelFilename}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                  Text(
+                    'Score threshold: ${status.scoreThreshold.toStringAsFixed(1)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FilledButton.icon(
+                        onPressed: status.processRunning ? null : _startJudge,
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Start'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: status.processRunning ? _stopJudge : null,
+                        icon: const Icon(Icons.stop),
+                        label: const Text('Stop'),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Refresh status',
+                        onPressed: () => ref.invalidate(judgeStatusProvider),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Test section
+        Text('Test Evaluation',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _queryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Query',
+                    hintText: 'Enter a test query...',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _responseController,
+                  decoration: const InputDecoration(
+                    labelText: 'Response',
+                    hintText: 'Enter the response to evaluate...',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _testing ? null : _runTest,
+                    icon: _testing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.gavel),
+                    label: const Text('Run Test'),
+                  ),
+                ),
+                if (_testResult != null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  if (!_testResult!.judgeAvailable)
+                    Text(
+                      _testResult!.error ?? 'Judge is not available',
+                      style: TextStyle(color: colorScheme.error),
+                    )
+                  else ...[
+                    Row(
+                      children: [
+                        Text(
+                          'Score: ${_testResult!.score.toStringAsFixed(1)}/10',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (_testResult!.needsCloud)
+                          Chip(
+                            label: const Text('Needs cloud'),
+                            avatar: const Icon(Icons.cloud, size: 16),
+                            backgroundColor: colorScheme.tertiaryContainer,
+                          ),
+                      ],
+                    ),
+                    if (_testResult!.reason != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          _testResult!.reason!,
+                          style: TextStyle(
+                            color:
+                                colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    if (_testResult!.error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          _testResult!.error!,
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ),
+                  ],
+                ],
+              ],
+            ),
+          ),
         ),
       ],
     );

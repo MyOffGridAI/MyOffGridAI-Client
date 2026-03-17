@@ -91,7 +91,10 @@ class HfModelModel {
 
 /// A single file (quantization) available in a HuggingFace model repo.
 ///
-/// Represents a downloadable file with size and quantization information.
+/// Represents a downloadable file with size, quantization, and recommendation
+/// metadata. When enriched by the server's QuantizationRecommendationService,
+/// fields like [qualityLabel], [qualityRank], [estimatedRamBytes], and
+/// [isRecommended] are populated.
 class HfModelFileModel {
   /// The relative filename (e.g. "model-Q4_K_M.gguf").
   final String filename;
@@ -99,16 +102,39 @@ class HfModelFileModel {
   /// File size in bytes (nullable — not all repos report size).
   final int? sizeBytes;
 
+  /// Whether this is the server-recommended variant for the user's system.
+  final bool isRecommended;
+
+  /// Human-readable quality description from the server (e.g. "Medium — balanced (most popular)").
+  final String? qualityLabel;
+
+  /// Integer quality rank, higher is better (nullable).
+  final int? qualityRank;
+
+  /// Estimated RAM in bytes required to load this model (nullable).
+  final int? estimatedRamBytes;
+
+  /// The parsed quantization type name from the server (e.g. "Q4_K_M").
+  final String? quantizationType;
+
   /// Creates an [HfModelFileModel].
   const HfModelFileModel({
     required this.filename,
     this.sizeBytes,
+    this.isRecommended = false,
+    this.qualityLabel,
+    this.qualityRank,
+    this.estimatedRamBytes,
+    this.quantizationType,
   });
 
   /// Quantization label derived from filename (e.g. "Q4_K_M", "Q8_0", "F16").
+  ///
+  /// Falls back to [quantizationType] from the server if the filename regex
+  /// does not match.
   String get quantLabel {
     final match = RegExp(r'[.-](Q\d+_K_[A-Z]+|Q\d+_\d+|Q\d+|F\d+|IQ\d+_[A-Z]+)').firstMatch(filename);
-    return match?.group(1) ?? '';
+    return match?.group(1) ?? quantizationType ?? '';
   }
 
   /// Human-readable file size.
@@ -117,11 +143,25 @@ class HfModelFileModel {
     return SizeFormatter.formatBytes(sizeBytes!);
   }
 
+  /// Estimated RAM in megabytes, or null if not available.
+  double? get estimatedRamMb =>
+      estimatedRamBytes != null ? estimatedRamBytes! / (1024 * 1024) : null;
+
+  /// Whether this model fits in the device's available RAM.
+  ///
+  /// Returns true if [estimatedRamBytes] is null (unknown = assume it fits).
+  bool get fitsInRam => estimatedRamBytes == null || isRecommended;
+
   /// Creates an [HfModelFileModel] from a JSON map.
   factory HfModelFileModel.fromJson(Map<String, dynamic> json) {
     return HfModelFileModel(
       filename: json['rfilename'] as String? ?? json['filename'] as String? ?? '',
       sizeBytes: json['size'] as int?,
+      isRecommended: json['recommended'] as bool? ?? false,
+      qualityLabel: json['qualityLabel'] as String?,
+      qualityRank: json['qualityRank'] as int?,
+      estimatedRamBytes: json['estimatedRamBytes'] as int?,
+      quantizationType: json['quantizationType'] as String?,
     );
   }
 }

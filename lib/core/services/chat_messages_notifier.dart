@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
@@ -8,7 +10,8 @@ import 'package:myoffgridai_client/core/services/chat_service.dart';
 /// and SSE streaming support.
 ///
 /// When a user sends a message, the bubble appears immediately in the UI
-/// while an SSE stream delivers typed events (thinking, content, done).
+/// while an SSE stream delivers typed events (thinking, content, done,
+/// judge_evaluating, judge_result, enhanced_content, enhanced_done).
 /// The assistant message is built up incrementally as chunks arrive.
 class ChatMessagesNotifier
     extends AutoDisposeFamilyAsyncNotifier<List<MessageModel>, String> {
@@ -26,6 +29,10 @@ class ChatMessagesNotifier
   ///    - `thinking`: Accumulates thinking content on the assistant bubble.
   ///    - `content`: Accumulates response content on the assistant bubble.
   ///    - `done`: Sets inference metadata and finalizes the message.
+  ///    - `judge_evaluating`: Sets the judge evaluating flag.
+  ///    - `judge_result`: Stores the judge score/reason on the bubble.
+  ///    - `enhanced_content`: Replaces content with cloud-enhanced tokens.
+  ///    - `enhanced_done`: Finalizes the enhanced response.
   /// 4. Re-fetches messages from server to get the persisted state.
   /// 5. On error: removes the temp message, clears thinking, rethrows.
   Future<void> sendMessage(String content) async {
@@ -51,6 +58,10 @@ class ChatMessagesNotifier
 
     final contentBuffer = StringBuffer();
     final thinkingBuffer = StringBuffer();
+    final enhancedContentBuffer = StringBuffer();
+    double? judgeScore;
+    String? judgeReason;
+    String? sourceTag;
 
     try {
       final service = ref.read(chatServiceProvider);
@@ -93,6 +104,9 @@ class ChatMessagesNotifier
                 inferenceTimeSeconds: event.metadata!.inferenceTimeSeconds,
                 stopReason: event.metadata!.stopReason,
                 thinkingTokenCount: event.metadata!.thinkingTokenCount,
+                sourceTag: sourceTag,
+                judgeScore: judgeScore,
+                judgeReason: judgeReason,
               );
             }
 
@@ -102,6 +116,42 @@ class ChatMessagesNotifier
               assistantTempId,
               content: event.content ?? 'An error occurred during inference.',
             );
+
+          case InferenceEventType.judgeEvaluating:
+            ref.read(judgeEvaluatingProvider(conversationId).notifier).state = true;
+
+          case InferenceEventType.judgeResult:
+            ref.read(judgeEvaluatingProvider(conversationId).notifier).state = false;
+            if (event.content != null) {
+              try {
+                final judgeData = jsonDecode(event.content!) as Map<String, dynamic>;
+                judgeScore = (judgeData['score'] as num?)?.toDouble();
+                judgeReason = judgeData['reason'] as String?;
+              } catch (_) {
+                // Malformed judge result — skip
+              }
+            }
+
+          case InferenceEventType.enhancedContent:
+            // First enhanced chunk — clear local content and start building enhanced
+            if (enhancedContentBuffer.isEmpty) {
+              sourceTag = 'ENHANCED';
+            }
+            enhancedContentBuffer.write(event.content ?? '');
+            _upsertAssistantBubble(
+              assistantTempId,
+              content: enhancedContentBuffer.toString(),
+              thinkingContent: thinkingBuffer.isEmpty
+                  ? null
+                  : thinkingBuffer.toString(),
+              sourceTag: 'ENHANCED',
+              judgeScore: judgeScore,
+              judgeReason: judgeReason,
+            );
+
+          case InferenceEventType.enhancedDone:
+            // Enhanced stream complete — final content is in enhancedContentBuffer
+            sourceTag = 'ENHANCED';
         }
       }
 
@@ -129,6 +179,7 @@ class ChatMessagesNotifier
       rethrow;
     } finally {
       ref.read(aiThinkingProvider(conversationId).notifier).state = false;
+      ref.read(judgeEvaluatingProvider(conversationId).notifier).state = false;
     }
   }
 
@@ -144,6 +195,9 @@ class ChatMessagesNotifier
     double? inferenceTimeSeconds,
     String? stopReason,
     int? thinkingTokenCount,
+    String? sourceTag,
+    double? judgeScore,
+    String? judgeReason,
   }) {
     final current = state.valueOrNull ?? [];
     final msg = MessageModel(
@@ -156,6 +210,9 @@ class ChatMessagesNotifier
       inferenceTimeSeconds: inferenceTimeSeconds,
       stopReason: stopReason,
       thinkingTokenCount: thinkingTokenCount,
+      sourceTag: sourceTag,
+      judgeScore: judgeScore,
+      judgeReason: judgeReason,
     );
 
     final idx = current.indexWhere((m) => m.id == id);
@@ -193,6 +250,10 @@ class ChatMessagesNotifier
 
     final contentBuffer = StringBuffer();
     final thinkingBuffer = StringBuffer();
+    final enhancedContentBuffer = StringBuffer();
+    double? judgeScore;
+    String? judgeReason;
+    String? sourceTag;
 
     try {
       final service = ref.read(chatServiceProvider);
@@ -237,6 +298,10 @@ class ChatMessagesNotifier
                 tokensPerSecond: event.metadata!.tokensPerSecond,
                 inferenceTimeSeconds: event.metadata!.inferenceTimeSeconds,
                 stopReason: event.metadata!.stopReason,
+                thinkingTokenCount: event.metadata!.thinkingTokenCount,
+                sourceTag: sourceTag,
+                judgeScore: judgeScore,
+                judgeReason: judgeReason,
               );
             }
 
@@ -245,6 +310,40 @@ class ChatMessagesNotifier
               assistantTempId,
               content: event.content ?? 'An error occurred during inference.',
             );
+
+          case InferenceEventType.judgeEvaluating:
+            ref.read(judgeEvaluatingProvider(conversationId).notifier).state = true;
+
+          case InferenceEventType.judgeResult:
+            ref.read(judgeEvaluatingProvider(conversationId).notifier).state = false;
+            if (event.content != null) {
+              try {
+                final judgeData = jsonDecode(event.content!) as Map<String, dynamic>;
+                judgeScore = (judgeData['score'] as num?)?.toDouble();
+                judgeReason = judgeData['reason'] as String?;
+              } catch (_) {
+                // Malformed judge result — skip
+              }
+            }
+
+          case InferenceEventType.enhancedContent:
+            if (enhancedContentBuffer.isEmpty) {
+              sourceTag = 'ENHANCED';
+            }
+            enhancedContentBuffer.write(event.content ?? '');
+            _upsertAssistantBubble(
+              assistantTempId,
+              content: enhancedContentBuffer.toString(),
+              thinkingContent: thinkingBuffer.isEmpty
+                  ? null
+                  : thinkingBuffer.toString(),
+              sourceTag: 'ENHANCED',
+              judgeScore: judgeScore,
+              judgeReason: judgeReason,
+            );
+
+          case InferenceEventType.enhancedDone:
+            sourceTag = 'ENHANCED';
         }
       }
 
@@ -258,6 +357,7 @@ class ChatMessagesNotifier
       rethrow;
     } finally {
       ref.read(aiThinkingProvider(conversationId).notifier).state = false;
+      ref.read(judgeEvaluatingProvider(conversationId).notifier).state = false;
     }
   }
 }

@@ -96,6 +96,12 @@ void main() {
     huggingFaceKeyConfigured: false,
     maxWebFetchSizeKb: 512,
     searchResultLimit: 5,
+    grokEnabled: false,
+    grokKeyConfigured: false,
+    openAiEnabled: false,
+    openAiKeyConfigured: false,
+    judgeEnabled: false,
+    judgeScoreThreshold: 7.0,
   );
 
   const testSystemStatus = SystemStatusModel(
@@ -1295,6 +1301,12 @@ void main() {
           huggingFaceKeyConfigured: false,
           maxWebFetchSizeKb: 512,
           searchResultLimit: 5,
+          grokEnabled: false,
+          grokKeyConfigured: false,
+          openAiEnabled: false,
+          openAiKeyConfigured: false,
+          judgeEnabled: false,
+          judgeScoreThreshold: 7.0,
         ),
       ));
       await tester.pumpAndSettle();
@@ -1302,7 +1314,7 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      expect(find.text('No API key configured'), findsNWidgets(2));
+      expect(find.text('No API key configured'), findsNWidgets(4));
     });
 
     testWidgets('shows Brave Search section', (tester) async {
@@ -1367,7 +1379,7 @@ void main() {
       expect(find.text('Save'), findsOneWidget);
     });
 
-    testWidgets('shows three SwitchListTile toggles', (tester) async {
+    testWidgets('shows five SwitchListTile toggles', (tester) async {
       setLargeViewport(tester);
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
@@ -1375,7 +1387,7 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SwitchListTile), findsNWidgets(3));
+      expect(find.byType(SwitchListTile), findsNWidgets(5));
     });
 
     testWidgets('shows Anthropic API key field with label', (tester) async {
@@ -1412,8 +1424,8 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      // 3 visibility_off icons (all keys obscured by default)
-      expect(find.byIcon(Icons.visibility_off), findsNWidgets(3));
+      // 5 visibility_off icons (all keys obscured by default)
+      expect(find.byIcon(Icons.visibility_off), findsNWidgets(5));
     });
 
     testWidgets('shows key icons for API key fields', (tester) async {
@@ -1424,7 +1436,7 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.key), findsNWidgets(3));
+      expect(find.byIcon(Icons.key), findsNWidgets(5));
     });
 
     testWidgets('tapping Save calls updateExternalApiSettings',
@@ -1536,7 +1548,7 @@ void main() {
 
       expect(
         find.text('Enter a new key, or leave blank to keep existing'),
-        findsNWidgets(2),
+        findsNWidgets(4),
       );
     });
 
@@ -1550,7 +1562,7 @@ void main() {
 
       // Anthropic is currently enabled; tap to disable
       final switches = find.byType(SwitchListTile);
-      expect(switches, findsNWidgets(3));
+      expect(switches, findsNWidgets(5));
       await tester.tap(switches.first);
       await tester.pumpAndSettle();
     });
@@ -1577,9 +1589,9 @@ void main() {
       await tester.tap(find.text('External APIs'));
       await tester.pumpAndSettle();
 
-      // All three keys have visibility_off icons by default
+      // All five keys have visibility_off icons by default
       final visIcons = find.byIcon(Icons.visibility_off);
-      expect(visIcons, findsNWidgets(3));
+      expect(visIcons, findsNWidgets(5));
 
       // Tap first visibility toggle (Anthropic key)
       await tester.tap(visIcons.first);

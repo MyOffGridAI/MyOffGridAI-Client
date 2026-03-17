@@ -38,6 +38,9 @@ void main() {
       expect(model.inferenceTimeSeconds, isNull);
       expect(model.stopReason, isNull);
       expect(model.thinkingTokenCount, isNull);
+      expect(model.sourceTag, isNull);
+      expect(model.judgeScore, isNull);
+      expect(model.judgeReason, isNull);
     });
 
     test('isUser returns true for USER role', () {
@@ -159,6 +162,62 @@ void main() {
       expect(model.stopReason, 'length');
       expect(model.thinkingTokenCount, 80);
       expect(model.createdAt, '2026-03-16T10:00:00Z');
+    });
+
+    // ── P15 new fields ──────────────────────────────────────────────────
+    test('parses sourceTag from JSON', () {
+      final json = {
+        'id': 'msg-10',
+        'role': 'ASSISTANT',
+        'content': 'Enhanced response',
+        'sourceTag': 'ENHANCED',
+      };
+
+      final model = MessageModel.fromJson(json);
+
+      expect(model.sourceTag, 'ENHANCED');
+      expect(model.isEnhanced, isTrue);
+    });
+
+    test('parses judgeScore from JSON', () {
+      final json = {
+        'id': 'msg-11',
+        'role': 'ASSISTANT',
+        'content': 'Response',
+        'judgeScore': 8.5,
+      };
+
+      final model = MessageModel.fromJson(json);
+
+      expect(model.judgeScore, 8.5);
+      expect(model.hasJudgeScore, isTrue);
+    });
+
+    test('parses judgeReason from JSON', () {
+      final json = {
+        'id': 'msg-12',
+        'role': 'ASSISTANT',
+        'content': 'Response',
+        'judgeReason': 'Accurate and detailed',
+      };
+
+      final model = MessageModel.fromJson(json);
+
+      expect(model.judgeReason, 'Accurate and detailed');
+    });
+
+    test('isEnhanced returns false for LOCAL sourceTag', () {
+      final model = MessageModel.fromJson({
+        'id': '1',
+        'role': 'ASSISTANT',
+        'sourceTag': 'LOCAL',
+      });
+      expect(model.isEnhanced, isFalse);
+    });
+
+    test('hasJudgeScore returns false when null', () {
+      final model = MessageModel.fromJson({'id': '1'});
+      expect(model.hasJudgeScore, isFalse);
     });
 
     // ── copyWith ────────────────────────────────────────────────────────

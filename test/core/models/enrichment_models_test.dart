@@ -12,6 +12,14 @@ void main() {
         'braveKeyConfigured': false,
         'maxWebFetchSizeKb': 1024,
         'searchResultLimit': 10,
+        'grokEnabled': true,
+        'grokKeyConfigured': true,
+        'openAiEnabled': false,
+        'openAiKeyConfigured': false,
+        'preferredFrontierProvider': 'GROK',
+        'judgeEnabled': true,
+        'judgeModelFilename': 'judge-model.gguf',
+        'judgeScoreThreshold': 8.0,
       };
 
       final model = ExternalApiSettingsModel.fromJson(json);
@@ -25,6 +33,14 @@ void main() {
       expect(model.huggingFaceKeyConfigured, isFalse);
       expect(model.maxWebFetchSizeKb, 1024);
       expect(model.searchResultLimit, 10);
+      expect(model.grokEnabled, isTrue);
+      expect(model.grokKeyConfigured, isTrue);
+      expect(model.openAiEnabled, isFalse);
+      expect(model.openAiKeyConfigured, isFalse);
+      expect(model.preferredFrontierProvider, 'GROK');
+      expect(model.judgeEnabled, isTrue);
+      expect(model.judgeModelFilename, 'judge-model.gguf');
+      expect(model.judgeScoreThreshold, 8.0);
     });
 
     test('handles missing fields with defaults', () {
@@ -41,6 +57,24 @@ void main() {
       expect(model.huggingFaceKeyConfigured, isFalse);
       expect(model.maxWebFetchSizeKb, 512);
       expect(model.searchResultLimit, 5);
+      expect(model.grokEnabled, isFalse);
+      expect(model.grokKeyConfigured, isFalse);
+      expect(model.openAiEnabled, isFalse);
+      expect(model.openAiKeyConfigured, isFalse);
+      expect(model.preferredFrontierProvider, isNull);
+      expect(model.judgeEnabled, isFalse);
+      expect(model.judgeModelFilename, isNull);
+      expect(model.judgeScoreThreshold, 7.0);
+    });
+
+    test('parses judgeScoreThreshold from integer to double', () {
+      final json = {
+        'judgeScoreThreshold': 8,
+      };
+
+      final model = ExternalApiSettingsModel.fromJson(json);
+
+      expect(model.judgeScoreThreshold, 8.0);
     });
   });
 
@@ -56,6 +90,14 @@ void main() {
         huggingFaceEnabled: true,
         maxWebFetchSizeKb: 1024,
         searchResultLimit: 10,
+        grokApiKey: 'grok-key-789',
+        grokEnabled: true,
+        openAiApiKey: 'sk-openai-abc',
+        openAiEnabled: true,
+        preferredFrontierProvider: 'GROK',
+        judgeEnabled: true,
+        judgeModelFilename: 'judge.gguf',
+        judgeScoreThreshold: 8.5,
       );
 
       final json = request.toJson();
@@ -69,6 +111,14 @@ void main() {
       expect(json['huggingFaceEnabled'], isTrue);
       expect(json['maxWebFetchSizeKb'], 1024);
       expect(json['searchResultLimit'], 10);
+      expect(json['grokApiKey'], 'grok-key-789');
+      expect(json['grokEnabled'], isTrue);
+      expect(json['openAiApiKey'], 'sk-openai-abc');
+      expect(json['openAiEnabled'], isTrue);
+      expect(json['preferredFrontierProvider'], 'GROK');
+      expect(json['judgeEnabled'], isTrue);
+      expect(json['judgeModelFilename'], 'judge.gguf');
+      expect(json['judgeScoreThreshold'], 8.5);
     });
 
     test('toJson omits null key fields', () {
@@ -86,6 +136,14 @@ void main() {
       expect(json.containsKey('anthropicApiKey'), isFalse);
       expect(json.containsKey('braveApiKey'), isFalse);
       expect(json.containsKey('huggingFaceToken'), isFalse);
+      expect(json.containsKey('grokApiKey'), isFalse);
+      expect(json.containsKey('grokEnabled'), isFalse);
+      expect(json.containsKey('openAiApiKey'), isFalse);
+      expect(json.containsKey('openAiEnabled'), isFalse);
+      expect(json.containsKey('preferredFrontierProvider'), isFalse);
+      expect(json.containsKey('judgeEnabled'), isFalse);
+      expect(json.containsKey('judgeModelFilename'), isFalse);
+      expect(json.containsKey('judgeScoreThreshold'), isFalse);
       expect(json['anthropicModel'], 'claude-sonnet-4-20250514');
       expect(json['anthropicEnabled'], isFalse);
       expect(json['braveEnabled'], isFalse);
@@ -175,6 +233,14 @@ void main() {
       expect(request.anthropicApiKey, isNull);
       expect(request.braveApiKey, isNull);
       expect(request.huggingFaceToken, isNull);
+      expect(request.grokApiKey, isNull);
+      expect(request.grokEnabled, isNull);
+      expect(request.openAiApiKey, isNull);
+      expect(request.openAiEnabled, isNull);
+      expect(request.preferredFrontierProvider, isNull);
+      expect(request.judgeEnabled, isNull);
+      expect(request.judgeModelFilename, isNull);
+      expect(request.judgeScoreThreshold, isNull);
     });
   });
 }

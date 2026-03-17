@@ -1,7 +1,8 @@
 /// Represents a chat message.
 ///
 /// Mirrors the server's MessageDto. The [role] field uses the server's
-/// enum values: USER, ASSISTANT, SYSTEM.
+/// enum values: USER, ASSISTANT, SYSTEM. The [sourceTag] indicates
+/// whether the response was generated locally or enhanced by a cloud model.
 class MessageModel {
   final String id;
   final String role;
@@ -13,6 +14,9 @@ class MessageModel {
   final double? inferenceTimeSeconds;
   final String? stopReason;
   final int? thinkingTokenCount;
+  final String? sourceTag;
+  final double? judgeScore;
+  final String? judgeReason;
   final String? createdAt;
 
   const MessageModel({
@@ -26,6 +30,9 @@ class MessageModel {
     this.inferenceTimeSeconds,
     this.stopReason,
     this.thinkingTokenCount,
+    this.sourceTag,
+    this.judgeScore,
+    this.judgeReason,
     this.createdAt,
   });
 
@@ -42,6 +49,9 @@ class MessageModel {
       inferenceTimeSeconds: (json['inferenceTimeSeconds'] as num?)?.toDouble(),
       stopReason: json['stopReason'] as String?,
       thinkingTokenCount: json['thinkingTokenCount'] as int?,
+      sourceTag: json['sourceTag'] as String?,
+      judgeScore: (json['judgeScore'] as num?)?.toDouble(),
+      judgeReason: json['judgeReason'] as String?,
       createdAt: json['createdAt'] as String?,
     );
   }
@@ -51,6 +61,12 @@ class MessageModel {
 
   /// Whether this message was sent by the assistant.
   bool get isAssistant => role == 'ASSISTANT';
+
+  /// Whether this message was enhanced by a cloud frontier model.
+  bool get isEnhanced => sourceTag == 'ENHANCED';
+
+  /// Whether the judge scored this message.
+  bool get hasJudgeScore => judgeScore != null;
 
   /// Creates a copy with the given fields replaced.
   MessageModel copyWith({
@@ -64,6 +80,9 @@ class MessageModel {
     double? inferenceTimeSeconds,
     String? stopReason,
     int? thinkingTokenCount,
+    String? sourceTag,
+    double? judgeScore,
+    String? judgeReason,
     String? createdAt,
   }) {
     return MessageModel(
@@ -77,6 +96,9 @@ class MessageModel {
       inferenceTimeSeconds: inferenceTimeSeconds ?? this.inferenceTimeSeconds,
       stopReason: stopReason ?? this.stopReason,
       thinkingTokenCount: thinkingTokenCount ?? this.thinkingTokenCount,
+      sourceTag: sourceTag ?? this.sourceTag,
+      judgeScore: judgeScore ?? this.judgeScore,
+      judgeReason: judgeReason ?? this.judgeReason,
       createdAt: createdAt ?? this.createdAt,
     );
   }

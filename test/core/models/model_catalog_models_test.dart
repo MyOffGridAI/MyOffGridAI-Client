@@ -194,6 +194,134 @@ void main() {
       const file = HfModelFileModel(filename: 'model.gguf');
       expect(file.formattedSize, 'Unknown');
     });
+
+    // ── P15 new fields ──────────────────────────────────────────────────
+    test('parses isRecommended from JSON', () {
+      final json = {
+        'rfilename': 'model-Q4_K_M.gguf',
+        'recommended': true,
+      };
+
+      final file = HfModelFileModel.fromJson(json);
+
+      expect(file.isRecommended, isTrue);
+    });
+
+    test('isRecommended defaults to false', () {
+      final file = HfModelFileModel.fromJson(<String, dynamic>{});
+      expect(file.isRecommended, isFalse);
+    });
+
+    test('parses qualityLabel from JSON', () {
+      final json = {
+        'rfilename': 'model-Q4_K_M.gguf',
+        'qualityLabel': 'Medium — balanced (most popular)',
+      };
+
+      final file = HfModelFileModel.fromJson(json);
+
+      expect(file.qualityLabel, 'Medium — balanced (most popular)');
+    });
+
+    test('parses qualityRank from JSON', () {
+      final json = {
+        'rfilename': 'model-Q4_K_M.gguf',
+        'qualityRank': 8,
+      };
+
+      final file = HfModelFileModel.fromJson(json);
+
+      expect(file.qualityRank, 8);
+    });
+
+    test('parses estimatedRamBytes from JSON', () {
+      final json = {
+        'rfilename': 'model-Q4_K_M.gguf',
+        'estimatedRamBytes': 8589934592,
+      };
+
+      final file = HfModelFileModel.fromJson(json);
+
+      expect(file.estimatedRamBytes, 8589934592);
+    });
+
+    test('parses quantizationType from JSON', () {
+      final json = {
+        'rfilename': 'model-Q4_K_M.gguf',
+        'quantizationType': 'Q4_K_M',
+      };
+
+      final file = HfModelFileModel.fromJson(json);
+
+      expect(file.quantizationType, 'Q4_K_M');
+    });
+
+    test('estimatedRamMb converts bytes to megabytes', () {
+      const file = HfModelFileModel(
+        filename: 'model.gguf',
+        estimatedRamBytes: 8589934592, // 8192 MB
+      );
+
+      expect(file.estimatedRamMb, closeTo(8192.0, 0.1));
+    });
+
+    test('estimatedRamMb returns null when estimatedRamBytes is null', () {
+      const file = HfModelFileModel(filename: 'model.gguf');
+      expect(file.estimatedRamMb, isNull);
+    });
+
+    test('fitsInRam returns true when estimatedRamBytes is null', () {
+      const file = HfModelFileModel(filename: 'model.gguf');
+      expect(file.fitsInRam, isTrue);
+    });
+
+    test('fitsInRam returns true when isRecommended', () {
+      const file = HfModelFileModel(
+        filename: 'model.gguf',
+        estimatedRamBytes: 999999999999,
+        isRecommended: true,
+      );
+      expect(file.fitsInRam, isTrue);
+    });
+
+    test('fitsInRam returns false when not recommended and RAM is known', () {
+      const file = HfModelFileModel(
+        filename: 'model.gguf',
+        estimatedRamBytes: 999999999999,
+        isRecommended: false,
+      );
+      expect(file.fitsInRam, isFalse);
+    });
+
+    test('quantLabel falls back to quantizationType from server', () {
+      const file = HfModelFileModel(
+        filename: 'model.gguf',
+        quantizationType: 'Q5_K_S',
+      );
+      expect(file.quantLabel, 'Q5_K_S');
+    });
+
+    test('parses all P15 fields together from JSON', () {
+      final json = {
+        'rfilename': 'model-Q6_K.gguf',
+        'size': 5000000000,
+        'recommended': true,
+        'qualityLabel': 'High quality',
+        'qualityRank': 10,
+        'estimatedRamBytes': 7516192768,
+        'quantizationType': 'Q6_K',
+      };
+
+      final file = HfModelFileModel.fromJson(json);
+
+      expect(file.filename, 'model-Q6_K.gguf');
+      expect(file.sizeBytes, 5000000000);
+      expect(file.isRecommended, isTrue);
+      expect(file.qualityLabel, 'High quality');
+      expect(file.qualityRank, 10);
+      expect(file.estimatedRamBytes, 7516192768);
+      expect(file.quantizationType, 'Q6_K');
+    });
   });
 
   group('DownloadProgressModel', () {

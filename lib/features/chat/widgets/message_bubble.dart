@@ -126,6 +126,26 @@ class MessageBubble extends StatelessWidget {
                         ],
                       ),
                     ),
+
+                  // Source tag and judge score badges (assistant only)
+                  if (!isUser &&
+                      (message.sourceTag != null || message.hasJudgeScore))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (message.sourceTag != null)
+                            _SourceTagBadge(sourceTag: message.sourceTag!),
+                          if (message.hasJudgeScore)
+                            _JudgeScoreChip(
+                              score: message.judgeScore!,
+                              reason: message.judgeReason,
+                            ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -214,6 +234,102 @@ class _AssistantMarkdownContent extends StatelessWidget {
         'code': _CodeBlockBuilder(),
       },
     );
+  }
+}
+
+/// Badge showing whether a response was generated locally or enhanced by cloud.
+class _SourceTagBadge extends StatelessWidget {
+  /// The source tag value (e.g. "LOCAL", "ENHANCED").
+  final String sourceTag;
+
+  const _SourceTagBadge({required this.sourceTag});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnhanced = sourceTag == 'ENHANCED';
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isEnhanced
+            ? colorScheme.tertiary.withValues(alpha: 0.15)
+            : colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isEnhanced ? Icons.cloud : Icons.computer,
+            size: 12,
+            color: isEnhanced
+                ? colorScheme.tertiary
+                : colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            isEnhanced ? 'Cloud-enhanced' : 'Local',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: isEnhanced
+                  ? colorScheme.tertiary
+                  : colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chip showing the AI judge quality score with a color indicator.
+class _JudgeScoreChip extends StatelessWidget {
+  /// The quality score from 1 to 10.
+  final double score;
+
+  /// Brief explanation of the score (shown on tap via tooltip).
+  final String? reason;
+
+  const _JudgeScoreChip({required this.score, this.reason});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final scoreColor = _scoreColor(score, colorScheme);
+
+    return Tooltip(
+      message: reason ?? 'Quality score: ${score.toStringAsFixed(1)}/10',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: scoreColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.gavel, size: 12, color: scoreColor),
+            const SizedBox(width: 3),
+            Text(
+              score.toStringAsFixed(1),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: scoreColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _scoreColor(double score, ColorScheme colorScheme) {
+    if (score >= 8.0) return Colors.green;
+    if (score >= 6.0) return Colors.orange;
+    return colorScheme.error;
   }
 }
 
