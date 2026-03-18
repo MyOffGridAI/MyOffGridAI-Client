@@ -16,10 +16,11 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.text('Thought process'), findsOneWidget);
+        expect(find.textContaining('Thought process'), findsOneWidget);
       });
 
-      testWidgets('shows expand_more icon', (tester) async {
+      testWidgets('shows down-triangle character in collapsed chip',
+          (tester) async {
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
@@ -29,7 +30,7 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.byIcon(Icons.expand_more), findsOneWidget);
+        expect(find.textContaining('\u25be'), findsOneWidget);
       });
 
       testWidgets('does not show the full content text', (tester) async {
@@ -45,7 +46,7 @@ void main() {
         expect(find.text('Hidden reasoning details'), findsNothing);
       });
 
-      testWidgets('shows psychology icon', (tester) async {
+      testWidgets('shows thought-balloon emoji', (tester) async {
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
@@ -55,7 +56,7 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.byIcon(Icons.psychology), findsOneWidget);
+        expect(find.textContaining('\u{1F4AD}'), findsOneWidget);
       });
     });
 
@@ -76,7 +77,7 @@ void main() {
         await tester.pump();
 
         expect(
-          find.text('Thought process \u00b7 42 tokens'),
+          find.text('Thought process \u00b7 42 tokens \u25be'),
           findsOneWidget,
         );
       });
@@ -92,7 +93,7 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.text('Thought process'), findsOneWidget);
+        expect(find.text('Thought process \u25be'), findsOneWidget);
       });
     });
 
@@ -113,14 +114,14 @@ void main() {
         expect(find.text('Detailed thinking text'), findsNothing);
 
         // Tap to expand
-        await tester.tap(find.text('Thought process'));
+        await tester.tap(find.textContaining('Thought process'));
         await tester.pump();
 
         // Expanded: content visible
         expect(find.text('Detailed thinking text'), findsOneWidget);
       });
 
-      testWidgets('expanded state shows expand_less icon for collapsing',
+      testWidgets('expanded state shows up-triangle for collapsing',
           (tester) async {
         await tester.pumpWidget(
           const MaterialApp(
@@ -132,10 +133,10 @@ void main() {
         await tester.pump();
 
         // Tap to expand
-        await tester.tap(find.text('Thought process'));
+        await tester.tap(find.textContaining('Thought process'));
         await tester.pump();
 
-        expect(find.byIcon(Icons.expand_less), findsOneWidget);
+        expect(find.textContaining('\u25b4'), findsOneWidget);
       });
 
       testWidgets('tapping expanded header collapses back', (tester) async {
@@ -149,13 +150,13 @@ void main() {
         await tester.pump();
 
         // Expand
-        await tester.tap(find.text('Thought process'));
+        await tester.tap(find.textContaining('Thought process'));
         await tester.pump();
 
         expect(find.text('Collapsible reasoning'), findsOneWidget);
 
-        // Collapse by tapping the header row in expanded state
-        await tester.tap(find.text('Thought process'));
+        // Collapse by tapping the header in expanded state
+        await tester.tap(find.textContaining('Thought process'));
         await tester.pump();
 
         expect(find.text('Collapsible reasoning'), findsNothing);
@@ -164,7 +165,7 @@ void main() {
 
     // ── Streaming state ───────────────────────────────────────────────────
     group('streaming state', () {
-      testWidgets('shows "Thinking..." text with progress indicator',
+      testWidgets('shows thought-balloon emoji and "Thinking..." with progress indicator',
           (tester) async {
         await tester.pumpWidget(
           const MaterialApp(
@@ -179,6 +180,7 @@ void main() {
         await tester.pump();
 
         expect(find.text('Thinking...'), findsOneWidget);
+        expect(find.textContaining('\u{1F4AD}'), findsOneWidget);
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
       });
 
@@ -213,7 +215,7 @@ void main() {
 
         // Pump multiple frames to exercise the pulse animation
         for (int i = 0; i < 10; i++) {
-          await tester.pump(const Duration(milliseconds: 150));
+          await tester.pump(const Duration(milliseconds: 120));
         }
 
         expect(find.byType(ThinkingBlock), findsOneWidget);
@@ -222,7 +224,8 @@ void main() {
 
     // ── Widget lifecycle ──────────────────────────────────────────────────
     group('widget lifecycle', () {
-      testWidgets('transitions from streaming to collapsed when isStreaming becomes false',
+      testWidgets(
+          'transitions from streaming to collapsed after 500ms delay',
           (tester) async {
         // Start streaming
         await tester.pumpWidget(
@@ -252,9 +255,148 @@ void main() {
         );
         await tester.pump();
 
-        // Should collapse; "Thinking..." gone, "Thought process" chip shown
+        // After stopping, the streaming UI disappears but the block
+        // should still be expanded (showing full content) during grace period
+        // Pump past the 500ms delay
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Should collapse; "Thinking..." gone, chip shown
         expect(find.text('Thinking...'), findsNothing);
-        expect(find.text('Thought process'), findsOneWidget);
+        expect(find.textContaining('Thought process'), findsOneWidget);
+      });
+
+      testWidgets('remains expanded during 500ms grace period',
+          (tester) async {
+        // Start streaming
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: 'Grace period thought',
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Stop streaming
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: 'Grace period thought',
+                isStreaming: false,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // At 250ms: still expanded (content visible)
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.text('Grace period thought'), findsOneWidget);
+
+        // At 500ms: collapses
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.text('Grace period thought'), findsNothing);
+        expect(find.textContaining('Thought process'), findsOneWidget);
+      });
+
+      testWidgets('auto-scrolls when content changes during streaming',
+          (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: 'Short',
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Update with longer content
+        final longContent = 'Short\n' * 50;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: longContent,
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Verify SingleChildScrollView exists (auto-scroll mechanism)
+        expect(find.byType(SingleChildScrollView), findsOneWidget);
+      });
+
+      testWidgets('applies 200px max height during streaming',
+          (tester) async {
+        final manyLines = 'Line\n' * 100;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: manyLines,
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final constrainedBoxes = tester.widgetList<ConstrainedBox>(
+          find.byType(ConstrainedBox),
+        );
+        final match = constrainedBoxes.where(
+          (cb) => cb.constraints.maxHeight == 200,
+        );
+        expect(match, isNotEmpty);
+      });
+
+      testWidgets('user can expand collapsed chip after stream ends',
+          (tester) async {
+        // Start streaming
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: 'Re-expandable content',
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Stop streaming and wait for collapse
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: 'Re-expandable content',
+                isStreaming: false,
+              ),
+            ),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Verify collapsed
+        expect(find.textContaining('Thought process'), findsOneWidget);
+        expect(find.text('Re-expandable content'), findsNothing);
+
+        // Tap to expand
+        await tester.tap(find.textContaining('Thought process'));
+        await tester.pump();
+
+        // Content visible again
+        expect(find.text('Re-expandable content'), findsOneWidget);
       });
     });
   });

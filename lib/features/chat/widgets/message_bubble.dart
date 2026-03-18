@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:myoffgridai_client/core/models/message_model.dart';
+import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/features/chat/widgets/thinking_block.dart';
 import 'package:myoffgridai_client/features/chat/widgets/inference_metadata_row.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_action_bar.dart';
@@ -15,12 +17,15 @@ import 'package:myoffgridai_client/features/chat/widgets/message_action_bar.dart
 /// User messages are right-aligned with the primary color. Assistant messages
 /// are left-aligned with a surface container background and include markdown
 /// rendering, optional thinking blocks, metadata, and action buttons.
-class MessageBubble extends StatelessWidget {
+class MessageBubble extends ConsumerWidget {
   /// The message to display.
   final MessageModel message;
 
   /// Whether this bubble is currently streaming (content still arriving).
   final bool isStreaming;
+
+  /// The conversation ID this message belongs to (used to watch thinking state).
+  final String conversationId;
 
   /// Called when the user taps "Edit" on their own message.
   final ValueChanged<MessageModel>? onEdit;
@@ -38,6 +43,7 @@ class MessageBubble extends StatelessWidget {
   const MessageBubble({
     super.key,
     required this.message,
+    required this.conversationId,
     this.isStreaming = false,
     this.onEdit,
     this.onDelete,
@@ -46,9 +52,11 @@ class MessageBubble extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isUser = message.isUser;
     final colorScheme = Theme.of(context).colorScheme;
+    final isThinking = ref.watch(aiThinkingProvider(conversationId));
+    final isCurrentlyStreamingThinking = isThinking && isStreaming;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -80,8 +88,7 @@ class MessageBubble extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: ThinkingBlock(
                         content: message.thinkingContent!,
-                        isStreaming: isStreaming &&
-                            message.content.isEmpty,
+                        isStreaming: isCurrentlyStreamingThinking,
                         thinkingTokenCount: message.thinkingTokenCount,
                       ),
                     ),

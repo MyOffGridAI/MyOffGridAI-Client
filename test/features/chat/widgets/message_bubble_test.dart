@@ -1,30 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
+import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_bubble.dart';
 import 'package:myoffgridai_client/features/chat/widgets/thinking_block.dart';
 import 'package:myoffgridai_client/features/chat/widgets/inference_metadata_row.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_action_bar.dart';
 
 void main() {
+  const testConversationId = 'test-conv-1';
+
   Widget buildBubble({
     required MessageModel message,
     bool isStreaming = false,
+    bool isThinking = false,
+    String conversationId = testConversationId,
     ValueChanged<MessageModel>? onEdit,
     ValueChanged<MessageModel>? onDelete,
     ValueChanged<MessageModel>? onRegenerate,
     ValueChanged<MessageModel>? onBranch,
   }) {
-    return MaterialApp(
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: MessageBubble(
-            message: message,
-            isStreaming: isStreaming,
-            onEdit: onEdit,
-            onDelete: onDelete,
-            onRegenerate: onRegenerate,
-            onBranch: onBranch,
+    return ProviderScope(
+      overrides: [
+        aiThinkingProvider(conversationId).overrideWith(
+          (ref) => isThinking,
+        ),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: MessageBubble(
+              message: message,
+              conversationId: conversationId,
+              isStreaming: isStreaming,
+              onEdit: onEdit,
+              onDelete: onDelete,
+              onRegenerate: onRegenerate,
+              onBranch: onBranch,
+            ),
           ),
         ),
       ),
@@ -122,7 +136,8 @@ void main() {
       expect(find.byType(ThinkingBlock), findsNothing);
     });
 
-    testWidgets('hides ThinkingBlock for user messages even with thinking content',
+    testWidgets(
+        'hides ThinkingBlock for user messages even with thinking content',
         (tester) async {
       const msg = MessageModel(
         id: 'm7',
@@ -155,7 +170,8 @@ void main() {
       expect(find.byType(InferenceMetadataRow), findsOneWidget);
     });
 
-    testWidgets('hides InferenceMetadataRow during streaming', (tester) async {
+    testWidgets('hides InferenceMetadataRow during streaming',
+        (tester) async {
       const msg = MessageModel(
         id: 'm9',
         role: 'ASSISTANT',
@@ -164,7 +180,8 @@ void main() {
         inferenceTimeSeconds: 1.0,
       );
 
-      await tester.pumpWidget(buildBubble(message: msg, isStreaming: true));
+      await tester.pumpWidget(
+          buildBubble(message: msg, isStreaming: true));
       await tester.pump();
 
       expect(find.byType(InferenceMetadataRow), findsNothing);
@@ -195,7 +212,8 @@ void main() {
         hasRagContext: false,
       );
 
-      await tester.pumpWidget(buildBubble(message: msg, isStreaming: true));
+      await tester.pumpWidget(
+          buildBubble(message: msg, isStreaming: true));
       await tester.pump();
 
       expect(find.byType(MessageActionBar), findsNothing);
@@ -243,6 +261,121 @@ void main() {
       await tester.pump();
 
       expect(find.byType(MessageBubble), findsOneWidget);
+    });
+
+    // ── aiThinkingProvider integration tests ────────────────────────────
+    group('aiThinkingProvider integration', () {
+      testWidgets(
+          'passes isStreaming=true to ThinkingBlock when aiThinkingProvider=true and isStreaming=true',
+          (tester) async {
+        const msg = MessageModel(
+          id: 'm20',
+          role: 'ASSISTANT',
+          content: '',
+          hasRagContext: false,
+          thinkingContent: 'Reasoning live...',
+        );
+
+        await tester.pumpWidget(buildBubble(
+          message: msg,
+          isStreaming: true,
+          isThinking: true,
+        ));
+        await tester.pump();
+
+        final thinkingBlock = tester.widget<ThinkingBlock>(
+          find.byType(ThinkingBlock),
+        );
+        expect(thinkingBlock.isStreaming, isTrue);
+      });
+
+      testWidgets(
+          'passes isStreaming=false to ThinkingBlock when aiThinkingProvider=false',
+          (tester) async {
+        const msg = MessageModel(
+          id: 'm21',
+          role: 'ASSISTANT',
+          content: 'Done thinking',
+          hasRagContext: false,
+          thinkingContent: 'Reasoning complete',
+        );
+
+        await tester.pumpWidget(buildBubble(
+          message: msg,
+          isStreaming: true,
+          isThinking: false,
+        ));
+        await tester.pump();
+
+        final thinkingBlock = tester.widget<ThinkingBlock>(
+          find.byType(ThinkingBlock),
+        );
+        expect(thinkingBlock.isStreaming, isFalse);
+      });
+
+      testWidgets(
+          'passes isStreaming=false to ThinkingBlock when isStreaming=false even if aiThinkingProvider=true',
+          (tester) async {
+        const msg = MessageModel(
+          id: 'm22',
+          role: 'ASSISTANT',
+          content: 'Response',
+          hasRagContext: false,
+          thinkingContent: 'Past thoughts',
+        );
+
+        await tester.pumpWidget(buildBubble(
+          message: msg,
+          isStreaming: false,
+          isThinking: true,
+        ));
+        await tester.pump();
+
+        final thinkingBlock = tester.widget<ThinkingBlock>(
+          find.byType(ThinkingBlock),
+        );
+        expect(thinkingBlock.isStreaming, isFalse);
+      });
+
+      testWidgets('does not show ThinkingBlock when thinkingContent is null',
+          (tester) async {
+        const msg = MessageModel(
+          id: 'm23',
+          role: 'ASSISTANT',
+          content: 'No thinking',
+          hasRagContext: false,
+        );
+
+        await tester.pumpWidget(buildBubble(
+          message: msg,
+          isStreaming: true,
+          isThinking: true,
+        ));
+        await tester.pump();
+
+        expect(find.byType(ThinkingBlock), findsNothing);
+      });
+
+      testWidgets(
+          'does not show ThinkingBlock when thinkingContent is empty string',
+          (tester) async {
+        const msg = MessageModel(
+          id: 'm24',
+          role: 'ASSISTANT',
+          content: 'No thinking',
+          hasRagContext: false,
+          thinkingContent: '',
+        );
+
+        await tester.pumpWidget(buildBubble(
+          message: msg,
+          isStreaming: true,
+          isThinking: true,
+        ));
+        await tester.pump();
+
+        expect(find.byType(ThinkingBlock), findsNothing);
+      });
     });
   });
 }

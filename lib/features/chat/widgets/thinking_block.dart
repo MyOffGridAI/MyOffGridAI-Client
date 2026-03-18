@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 /// Collapsible block showing the AI's thinking/reasoning process.
 ///
 /// Three visual states:
-/// - **Streaming**: Expanded with a pulsing border, showing live thinking text.
-/// - **Collapsed** (default after stream): Shows "Thought for Xs" as a chip.
+/// - **Streaming**: Expanded with a pulsing border, showing live thinking text
+///   inside a scroll-constrained view (max 200 px).
+/// - **Collapsed** (default after stream): Shows a compact chip with token count.
 /// - **Expanded**: User tapped to reveal the full thinking content.
 class ThinkingBlock extends StatefulWidget {
   /// The thinking text content.
@@ -32,13 +34,14 @@ class _ThinkingBlockState extends State<ThinkingBlock>
     with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   late final AnimationController _pulseController;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1200),
     );
     if (widget.isStreaming) {
       _pulseController.repeat(reverse: true);
@@ -49,17 +52,36 @@ class _ThinkingBlockState extends State<ThinkingBlock>
   @override
   void didUpdateWidget(ThinkingBlock oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (widget.isStreaming && !_pulseController.isAnimating) {
+      // Streaming just started
       _pulseController.repeat(reverse: true);
       _isExpanded = true;
-    } else if (!widget.isStreaming && _pulseController.isAnimating) {
+    } else if (!widget.isStreaming && oldWidget.isStreaming) {
+      // Streaming just stopped — delay collapse by 500ms
       _pulseController.stop();
-      _isExpanded = false;
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() => _isExpanded = false);
+        }
+      });
+    }
+
+    // Auto-scroll to bottom when content changes during streaming
+    if (widget.isStreaming && widget.content != oldWidget.content) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(
+            _scrollController.position.maxScrollExtent,
+          );
+        }
+      });
     }
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -74,7 +96,7 @@ class _ThinkingBlockState extends State<ThinkingBlock>
       return AnimatedBuilder(
         animation: _pulseController,
         builder: (context, child) {
-          final pulseOpacity = 0.3 + (_pulseController.value * 0.4);
+          final pulseOpacity = 0.4 + (_pulseController.value * 0.6);
           return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
@@ -92,15 +114,11 @@ class _ThinkingBlockState extends State<ThinkingBlock>
               children: [
                 Row(
                   children: [
-                    SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
-                        color: colorScheme.primary,
-                      ),
+                    const Text(
+                      '\u{1F4AD}',
+                      style: TextStyle(fontSize: 12),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Text(
                       'Thinking...',
                       style: TextStyle(
@@ -109,15 +127,30 @@ class _ThinkingBlockState extends State<ThinkingBlock>
                         color: colorScheme.primary,
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: colorScheme.primary,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  widget.content,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
-                    fontStyle: FontStyle.italic,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Text(
+                      widget.content,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -127,8 +160,11 @@ class _ThinkingBlockState extends State<ThinkingBlock>
       );
     }
 
-    // Collapsed state: chip showing "Thought for Xs"
+    // Collapsed state: chip
     if (!_isExpanded) {
+      final label = widget.thinkingTokenCount != null
+          ? 'Thought process \u00b7 ${widget.thinkingTokenCount} tokens \u25be'
+          : 'Thought process \u25be';
       return GestureDetector(
         onTap: () => setState(() => _isExpanded = true),
         child: Container(
@@ -142,26 +178,17 @@ class _ThinkingBlockState extends State<ThinkingBlock>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.psychology,
-                size: 14,
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
+              const Text(
+                '\u{1F4AD}',
+                style: TextStyle(fontSize: 12),
               ),
               const SizedBox(width: 4),
               Text(
-                widget.thinkingTokenCount != null
-                    ? 'Thought process \u00b7 ${widget.thinkingTokenCount} tokens'
-                    : 'Thought process',
+                label,
                 style: TextStyle(
                   fontSize: 11,
                   color: colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.expand_more,
-                size: 14,
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ],
           ),
@@ -170,6 +197,9 @@ class _ThinkingBlockState extends State<ThinkingBlock>
     }
 
     // Expanded state: full thinking content
+    final headerLabel = widget.thinkingTokenCount != null
+        ? '\u{1F4AD} Thought process \u00b7 ${widget.thinkingTokenCount} tokens \u25b4'
+        : '\u{1F4AD} Thought process \u25b4';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -187,29 +217,13 @@ class _ThinkingBlockState extends State<ThinkingBlock>
         children: [
           GestureDetector(
             onTap: () => setState(() => _isExpanded = false),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.psychology,
-                  size: 14,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Thought process',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.expand_less,
-                  size: 14,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ],
+            child: Text(
+              headerLabel,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
             ),
           ),
           const SizedBox(height: 6),

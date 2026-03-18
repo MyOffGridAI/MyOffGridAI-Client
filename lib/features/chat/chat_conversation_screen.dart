@@ -141,6 +141,7 @@ class _ChatConversationScreenState
 
                     return MessageBubble(
                       message: msg,
+                      conversationId: widget.conversationId,
                       isStreaming: isStreaming,
                       onEdit: msg.isUser ? _handleEdit : null,
                       onDelete: _handleDelete,
