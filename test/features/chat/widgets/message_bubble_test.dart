@@ -1,44 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
-import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_bubble.dart';
 import 'package:myoffgridai_client/features/chat/widgets/thinking_block.dart';
 import 'package:myoffgridai_client/features/chat/widgets/inference_metadata_row.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_action_bar.dart';
 
 void main() {
-  const testConversationId = 'test-conv-1';
-
   Widget buildBubble({
     required MessageModel message,
     bool isStreaming = false,
-    bool isThinking = false,
-    String conversationId = testConversationId,
+    bool isActivelyThinking = false,
     ValueChanged<MessageModel>? onEdit,
     ValueChanged<MessageModel>? onDelete,
     ValueChanged<MessageModel>? onRegenerate,
     ValueChanged<MessageModel>? onBranch,
   }) {
-    return ProviderScope(
-      overrides: [
-        aiThinkingProvider(conversationId).overrideWith(
-          (ref) => isThinking,
-        ),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: MessageBubble(
-              message: message,
-              conversationId: conversationId,
-              isStreaming: isStreaming,
-              onEdit: onEdit,
-              onDelete: onDelete,
-              onRegenerate: onRegenerate,
-              onBranch: onBranch,
-            ),
+    return MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: MessageBubble(
+            message: message,
+            isStreaming: isStreaming,
+            isActivelyThinking: isActivelyThinking,
+            onEdit: onEdit,
+            onDelete: onDelete,
+            onRegenerate: onRegenerate,
+            onBranch: onBranch,
           ),
         ),
       ),
@@ -263,10 +251,10 @@ void main() {
       expect(find.byType(MessageBubble), findsOneWidget);
     });
 
-    // ── aiThinkingProvider integration tests ────────────────────────────
-    group('aiThinkingProvider integration', () {
+    // ── isActivelyThinking integration tests ────────────────────────────
+    group('isActivelyThinking integration', () {
       testWidgets(
-          'passes isStreaming=true to ThinkingBlock when aiThinkingProvider=true and isStreaming=true',
+          'passes isStreaming=true to ThinkingBlock when isActivelyThinking=true and isStreaming=true',
           (tester) async {
         const msg = MessageModel(
           id: 'm20',
@@ -279,7 +267,7 @@ void main() {
         await tester.pumpWidget(buildBubble(
           message: msg,
           isStreaming: true,
-          isThinking: true,
+          isActivelyThinking: true,
         ));
         await tester.pump();
 
@@ -290,7 +278,7 @@ void main() {
       });
 
       testWidgets(
-          'passes isStreaming=false to ThinkingBlock when aiThinkingProvider=false',
+          'passes isStreaming=false to ThinkingBlock when isActivelyThinking=false',
           (tester) async {
         const msg = MessageModel(
           id: 'm21',
@@ -303,7 +291,7 @@ void main() {
         await tester.pumpWidget(buildBubble(
           message: msg,
           isStreaming: true,
-          isThinking: false,
+          isActivelyThinking: false,
         ));
         await tester.pump();
 
@@ -314,7 +302,7 @@ void main() {
       });
 
       testWidgets(
-          'passes isStreaming=false to ThinkingBlock when isStreaming=false even if aiThinkingProvider=true',
+          'passes isStreaming=false to ThinkingBlock when isStreaming=false even if isActivelyThinking=true',
           (tester) async {
         const msg = MessageModel(
           id: 'm22',
@@ -327,7 +315,7 @@ void main() {
         await tester.pumpWidget(buildBubble(
           message: msg,
           isStreaming: false,
-          isThinking: true,
+          isActivelyThinking: true,
         ));
         await tester.pump();
 
@@ -349,7 +337,7 @@ void main() {
         await tester.pumpWidget(buildBubble(
           message: msg,
           isStreaming: true,
-          isThinking: true,
+          isActivelyThinking: true,
         ));
         await tester.pump();
 
@@ -370,7 +358,7 @@ void main() {
         await tester.pumpWidget(buildBubble(
           message: msg,
           isStreaming: true,
-          isThinking: true,
+          isActivelyThinking: true,
         ));
         await tester.pump();
 
