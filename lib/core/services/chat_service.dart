@@ -7,6 +7,7 @@ import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/conversation_model.dart';
 import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
+import 'package:myoffgridai_client/core/services/log_service.dart';
 
 /// Service for chat conversation and message operations.
 ///
@@ -239,9 +240,11 @@ class ChatService {
 
           try {
             final json = jsonDecode(payload) as Map<String, dynamic>;
-            yield InferenceStreamEvent.fromJson(json);
-          } catch (_) {
-            // Skip malformed JSON lines
+            final event = InferenceStreamEvent.fromJson(json);
+            LogService.instance.debug('SSE', 'type=${event.type.name} content=${event.content?.substring(0, event.content!.length.clamp(0, 50))}');
+            yield event;
+          } catch (e) {
+            LogService.instance.error('SSE', 'Parse error: payload=$payload', e);
           }
         }
       }

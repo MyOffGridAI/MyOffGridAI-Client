@@ -9,6 +9,7 @@ import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/models/notification_model.dart';
 import 'package:myoffgridai_client/core/services/local_notification_service.dart';
+import 'package:myoffgridai_client/core/services/log_service.dart';
 import 'package:myoffgridai_client/core/services/notification_service.dart';
 
 /// MQTT connection status.
@@ -131,7 +132,7 @@ class MqttServiceNotifier extends StateNotifier<MqttState> {
         _scheduleReconnect();
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('MQTT connect error: $e');
+      LogService.instance.error('MQTT', 'Connect error', e);
       state = state.copyWith(
         connectionState: MqttConnectionStatus.error,
         errorMessage: e.toString(),
@@ -161,9 +162,7 @@ class MqttServiceNotifier extends StateNotifier<MqttState> {
     final userTopic = '${AppConstants.mqttTopicPrefix}$userId/notifications';
     _client!.subscribe(userTopic, MqttQos.atLeastOnce);
     _client!.subscribe(AppConstants.mqttBroadcastTopic, MqttQos.atLeastOnce);
-    if (kDebugMode) {
-      debugPrint('MQTT subscribed: $userTopic, ${AppConstants.mqttBroadcastTopic}');
-    }
+    LogService.instance.info('MQTT', 'Subscribed: $userTopic, ${AppConstants.mqttBroadcastTopic}');
   }
 
   void _listenForMessages() {
@@ -199,22 +198,22 @@ class MqttServiceNotifier extends StateNotifier<MqttState> {
         final localService = _ref.read(localNotificationServiceProvider);
         localService.showAlertNotification(notification);
       } catch (e) {
-        if (kDebugMode) debugPrint('Failed to show local notification: $e');
+        LogService.instance.error('MQTT', 'Failed to show notification', e);
       }
 
       // Refresh notification list
       try {
         _ref.invalidate(notificationsProvider);
       } catch (e) {
-        if (kDebugMode) debugPrint('Failed to invalidate notifications: $e');
+        LogService.instance.error('MQTT', 'Failed to invalidate notifications', e);
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('MQTT message parse error: $e');
+      LogService.instance.error('MQTT', 'Message parse error', e);
     }
   }
 
   void _onConnected() {
-    if (kDebugMode) debugPrint('MQTT connected');
+    LogService.instance.info('MQTT', 'Connected');
     state = MqttState(
       connectionState: MqttConnectionStatus.connected,
       connectedAt: DateTime.now(),
@@ -223,7 +222,7 @@ class MqttServiceNotifier extends StateNotifier<MqttState> {
   }
 
   void _onDisconnected() {
-    if (kDebugMode) debugPrint('MQTT disconnected');
+    LogService.instance.info('MQTT', 'Disconnected');
     if (_userId != null) {
       state = state.copyWith(
         connectionState: MqttConnectionStatus.disconnected,
@@ -233,7 +232,7 @@ class MqttServiceNotifier extends StateNotifier<MqttState> {
   }
 
   void _onAutoReconnect() {
-    if (kDebugMode) debugPrint('MQTT auto-reconnecting');
+    LogService.instance.info('MQTT', 'Auto-reconnecting');
     state = state.copyWith(connectionState: MqttConnectionStatus.connecting);
   }
 

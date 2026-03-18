@@ -7,6 +7,7 @@ import 'package:myoffgridai_client/config/theme.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/services/local_notification_service.dart';
+import 'package:myoffgridai_client/core/services/log_service.dart';
 
 /// Entry point for the MyOffGridAI client application.
 ///
@@ -15,6 +16,9 @@ import 'package:myoffgridai_client/core/services/local_notification_service.dart
 /// within a [ProviderScope].
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final logService = LogService();
+  await logService.initialize();
 
   final storage = SecureStorageService();
   final serverUrl = await storage.getServerUrl();
@@ -26,6 +30,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [
+        logServiceProvider.overrideWithValue(logService),
         secureStorageProvider.overrideWithValue(storage),
         localNotificationServiceProvider
             .overrideWithValue(localNotifications),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
+import 'package:myoffgridai_client/core/services/log_service.dart';
 
 /// Dio-based HTTP client for communicating with the MyOffGridAI server.
 ///
@@ -30,9 +31,7 @@ class MyOffGridAIApiClient {
           ),
         ) {
     _dio.interceptors.add(_AuthInterceptor(storage: _storage, client: this));
-    if (kDebugMode) {
-      _dio.interceptors.add(_LoggingInterceptor());
-    }
+    _dio.interceptors.add(_LoggingInterceptor());
   }
 
   /// The underlying [Dio] instance, exposed for testing.
@@ -323,26 +322,26 @@ class _AuthInterceptor extends Interceptor {
   }
 }
 
-/// Debug-only interceptor that logs HTTP method, path, and status code.
+/// Interceptor that logs HTTP method, path, and status code to [LogService].
 ///
-/// Only added when [kDebugMode] is true. Never logs Authorization
-/// headers or request bodies to avoid leaking credentials.
+/// Never logs Authorization headers or request bodies to avoid leaking
+/// credentials.
 class _LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    debugPrint('[API] ${options.method} ${options.path}');
+    LogService.instance.debug('API', '${options.method} ${options.path}');
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrint('[API] ${response.statusCode} ${response.requestOptions.path}');
+    LogService.instance.debug('API', '${response.statusCode} ${response.requestOptions.path}');
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrint('[API] ERROR ${err.response?.statusCode} ${err.requestOptions.path}');
+    LogService.instance.error('API', 'ERROR ${err.response?.statusCode} ${err.requestOptions.path}');
     handler.next(err);
   }
 }

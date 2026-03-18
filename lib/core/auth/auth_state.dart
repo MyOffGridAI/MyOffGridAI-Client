@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/auth/auth_service.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
 import 'package:myoffgridai_client/core/services/device_registration_service.dart';
 import 'package:myoffgridai_client/core/services/foreground_service_manager.dart';
+import 'package:myoffgridai_client/core/services/log_service.dart';
 import 'package:myoffgridai_client/core/services/mqtt_service.dart';
 
 /// Manages the authentication state for the application.
@@ -122,21 +122,21 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
         final regService = ref.read(deviceRegistrationServiceProvider);
         await regService.registerDevice();
       } catch (e) {
-        if (kDebugMode) debugPrint('Device registration failed: $e');
+        LogService.instance.error('AUTH', 'Device registration failed', e);
       }
 
       try {
         final foregroundManager = ref.read(foregroundServiceManagerProvider);
         await foregroundManager.startService();
       } catch (e) {
-        if (kDebugMode) debugPrint('Foreground service start failed: $e');
+        LogService.instance.error('AUTH', 'Foreground service start failed', e);
       }
 
       try {
         final mqttNotifier = ref.read(mqttServiceProvider.notifier);
         await mqttNotifier.connect(userId);
       } catch (e) {
-        if (kDebugMode) debugPrint('MQTT connect failed: $e');
+        LogService.instance.error('AUTH', 'MQTT connect failed', e);
       }
     });
   }
@@ -147,14 +147,14 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
       final mqttNotifier = ref.read(mqttServiceProvider.notifier);
       mqttNotifier.disconnect();
     } catch (e) {
-      if (kDebugMode) debugPrint('MQTT disconnect failed: $e');
+      LogService.instance.error('AUTH', 'MQTT disconnect failed', e);
     }
 
     try {
       final foregroundManager = ref.read(foregroundServiceManagerProvider);
       foregroundManager.stopService();
     } catch (e) {
-      if (kDebugMode) debugPrint('Foreground service stop failed: $e');
+      LogService.instance.error('AUTH', 'Foreground service stop failed', e);
     }
   }
 

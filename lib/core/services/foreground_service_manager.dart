@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/constants.dart';
+import 'package:myoffgridai_client/core/services/log_service.dart';
 
 /// Manages the Android foreground service that keeps the MQTT connection alive
 /// when the app is in the background.
@@ -45,7 +46,7 @@ class ForegroundServiceManager {
     );
 
     _running = true;
-    if (kDebugMode) debugPrint('Foreground service started');
+    LogService.instance.info('FG_SVC', 'Foreground service started');
   }
 
   /// Stops the foreground service on Android.
@@ -57,7 +58,7 @@ class ForegroundServiceManager {
 
     await FlutterForegroundTask.stopService();
     _running = false;
-    if (kDebugMode) debugPrint('Foreground service stopped');
+    LogService.instance.info('FG_SVC', 'Foreground service stopped');
   }
 }
 
