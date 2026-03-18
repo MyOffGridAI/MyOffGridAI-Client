@@ -138,21 +138,24 @@ class _ThinkingBlockState extends State<ThinkingBlock>
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 200),
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    child: Text(
-                      widget.content,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        fontStyle: FontStyle.italic,
+                // Only show the content area when text has arrived
+                if (widget.content.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      child: Text(
+                        widget.content,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           );

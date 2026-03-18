@@ -6,7 +6,7 @@ import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_bubble.dart';
-import 'package:myoffgridai_client/features/chat/widgets/thinking_indicator.dart';
+
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 
@@ -112,10 +112,9 @@ class _ChatConversationScreenState
                     chatMessagesNotifierProvider(widget.conversationId)),
               ),
               data: (messages) {
-                final indicatorCount =
-                    (isThinking ? 1 : 0) + (isJudgeEvaluating ? 1 : 0);
+                final indicatorCount = isJudgeEvaluating ? 1 : 0;
                 final itemCount = messages.length + indicatorCount;
-                if (messages.isEmpty && !isThinking && !isJudgeEvaluating) {
+                if (messages.isEmpty && !isJudgeEvaluating) {
                   return const Center(
                     child: Text('Send a message to start the conversation'),
                   );
@@ -129,10 +128,6 @@ class _ChatConversationScreenState
                     // Index 0 = bottom of list (most recent)
                     if (isJudgeEvaluating && index == 0) {
                       return const _JudgeEvaluatingIndicator();
-                    }
-                    if (isThinking &&
-                        index == (isJudgeEvaluating ? 1 : 0)) {
-                      return const ThinkingIndicatorBubble();
                     }
                     final msgIndex = index - indicatorCount;
                     final msg = messages[messages.length - 1 - msgIndex];

@@ -325,12 +325,13 @@ void main() {
         expect(thinkingBlock.isStreaming, isFalse);
       });
 
-      testWidgets('does not show ThinkingBlock when thinkingContent is null',
+      testWidgets(
+          'shows ThinkingBlock when isActivelyThinking and isStreaming even with null thinkingContent',
           (tester) async {
         const msg = MessageModel(
           id: 'm23',
           role: 'ASSISTANT',
-          content: 'No thinking',
+          content: '',
           hasRagContext: false,
         );
 
@@ -341,16 +342,21 @@ void main() {
         ));
         await tester.pump();
 
-        expect(find.byType(ThinkingBlock), findsNothing);
+        expect(find.byType(ThinkingBlock), findsOneWidget);
+        final thinkingBlock = tester.widget<ThinkingBlock>(
+          find.byType(ThinkingBlock),
+        );
+        expect(thinkingBlock.isStreaming, isTrue);
+        expect(thinkingBlock.content, '');
       });
 
       testWidgets(
-          'does not show ThinkingBlock when thinkingContent is empty string',
+          'shows ThinkingBlock when isActivelyThinking and isStreaming with empty thinkingContent',
           (tester) async {
         const msg = MessageModel(
           id: 'm24',
           role: 'ASSISTANT',
-          content: 'No thinking',
+          content: '',
           hasRagContext: false,
           thinkingContent: '',
         );
@@ -359,6 +365,26 @@ void main() {
           message: msg,
           isStreaming: true,
           isActivelyThinking: true,
+        ));
+        await tester.pump();
+
+        expect(find.byType(ThinkingBlock), findsOneWidget);
+      });
+
+      testWidgets(
+          'does not show ThinkingBlock for non-streaming message with null thinkingContent',
+          (tester) async {
+        const msg = MessageModel(
+          id: 'm25',
+          role: 'ASSISTANT',
+          content: 'Response',
+          hasRagContext: false,
+        );
+
+        await tester.pumpWidget(buildBubble(
+          message: msg,
+          isStreaming: false,
+          isActivelyThinking: false,
         ));
         await tester.pump();
 

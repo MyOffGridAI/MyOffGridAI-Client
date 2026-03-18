@@ -200,6 +200,70 @@ void main() {
         expect(find.text('Live streaming content'), findsOneWidget);
       });
 
+      testWidgets(
+          'shows Thinking... header with spinner when content is empty and isStreaming',
+          (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: '',
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Thinking...'), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        // No content text area should be visible
+        expect(find.byType(SingleChildScrollView), findsNothing);
+      });
+
+      testWidgets('hides content area when content is empty during streaming',
+          (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: '',
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // ConstrainedBox wrapping the scroll view should not exist
+        final constrainedBoxes = tester.widgetList<ConstrainedBox>(
+          find.byType(ConstrainedBox),
+        );
+        final match = constrainedBoxes.where(
+          (cb) => cb.constraints.maxHeight == 200,
+        );
+        expect(match, isEmpty);
+      });
+
+      testWidgets(
+          'shows content area when content is non-empty during streaming',
+          (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ThinkingBlock(
+                content: 'Reasoning text',
+                isStreaming: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Reasoning text'), findsOneWidget);
+        expect(find.byType(SingleChildScrollView), findsOneWidget);
+      });
+
       testWidgets('renders without crashing during animation',
           (tester) async {
         await tester.pumpWidget(

@@ -56,6 +56,9 @@ class ChatMessagesNotifier
     // Show thinking indicator
     ref.read(aiThinkingProvider(conversationId).notifier).state = true;
 
+    // Create assistant bubble immediately so ThinkingBlock shows
+    _upsertAssistantBubble(assistantTempId, content: '');
+
     final contentBuffer = StringBuffer();
     final thinkingBuffer = StringBuffer();
     final enhancedContentBuffer = StringBuffer();
@@ -262,6 +265,9 @@ class ChatMessagesNotifier
       // Remove the old assistant message from UI
       final current = state.valueOrNull ?? [];
       state = AsyncData(current.where((m) => m.id != messageId).toList());
+
+      // Create assistant bubble immediately so ThinkingBlock shows
+      _upsertAssistantBubble(assistantTempId, content: '');
 
       await for (final event
           in service.regenerateMessage(conversationId, messageId)) {

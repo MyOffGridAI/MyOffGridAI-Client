@@ -7,6 +7,7 @@ import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/models/conversation_model.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
+import 'package:myoffgridai_client/features/chat/widgets/thinking_block.dart';
 
 void main() {
   group('ChatConversationScreen', () {
@@ -150,7 +151,7 @@ void main() {
       expect(find.text('2.5s \u00b7 14.3 tok/s'), findsOneWidget);
     });
 
-    testWidgets('shows thinking indicator when AI is thinking',
+    testWidgets('shows ThinkingBlock in assistant bubble when AI is thinking',
         (tester) async {
       final messages = [
         MessageModel.fromJson({
@@ -159,18 +160,27 @@ void main() {
           'content': 'Hello',
           'hasRagContext': false,
         }),
+        // Temp assistant bubble created immediately by ChatMessagesNotifier
+        const MessageModel(
+          id: 'temp-assistant-123',
+          role: 'ASSISTANT',
+          content: '',
+          hasRagContext: false,
+        ),
       ];
 
       await tester.pumpWidget(buildScreen(
         messages: messages,
         isThinking: true,
       ));
-      // Use pump() instead of pumpAndSettle -- thinking indicator has animations
+      // Use pump() instead of pumpAndSettle -- ThinkingBlock has animations
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // ThinkingIndicatorBubble should be visible along with the user message
+      // User message visible
       expect(find.text('Hello'), findsOneWidget);
+      // ThinkingBlock visible inside the assistant bubble
+      expect(find.byType(ThinkingBlock), findsOneWidget);
     });
 
     testWidgets('shows error view when messages fail to load',

@@ -81,12 +81,17 @@ class MessageBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Thinking block (assistant only)
-                  if (!isUser && message.thinkingContent != null &&
-                      message.thinkingContent!.isNotEmpty)
+                  // Show when: (a) there IS thinking content, OR
+                  // (b) the model is actively thinking and this is the
+                  //     streaming bubble (handles "waiting for first chunk")
+                  if (!isUser &&
+                      ((message.thinkingContent != null &&
+                              message.thinkingContent!.isNotEmpty) ||
+                          (isActivelyThinking && isStreaming)))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: ThinkingBlock(
-                        content: message.thinkingContent!,
+                        content: message.thinkingContent ?? '',
                         isStreaming: isActivelyThinking && isStreaming,
                         thinkingTokenCount: message.thinkingTokenCount,
                       ),
