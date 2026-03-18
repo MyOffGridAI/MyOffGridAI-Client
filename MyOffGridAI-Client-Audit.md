@@ -1,8 +1,8 @@
 # MyOffGridAI-Client — Codebase Audit
 
-**Audit Date:** 2026-03-17T12:29:55Z
+**Audit Date:** 2026-03-18T00:22:40Z
 **Branch:** main
-**Commit:** f209898ce82cf8e3abe6e4e706ebe64be7d7f38c P13-Client: Complete all outstanding items (C1-C8)
+**Commit:** 3f8d787eb623885c1b0a9518e0f3dfa54022e6ce P15-Fix: Wire LM Studio-style Discover tab layout into settings screen
 **Auditor:** Claude Code (Automated)
 **Purpose:** Zero-context reference for AI-assisted development
 **Audit File:** MyOffGridAI-Client-Audit.md
@@ -20,14 +20,14 @@
 
 ```
 Project Name:          MyOffGridAI-Client
-Repository URL:        https://github.com/adamallard/MyOffGridAI-Client (inferred)
+Repository URL:        https://github.com/MyOffGridAI/MyOffGridAI-Client (assumed)
 Primary Language:      Dart / Flutter
 Dart SDK Version:      ^3.11.0
-Build Tool:            Flutter CLI + pub
+Build Tool:            Flutter SDK + pub
 Current Branch:        main
-Latest Commit Hash:    f209898ce82cf8e3abe6e4e706ebe64be7d7f38c
-Latest Commit Message: P13-Client: Complete all outstanding items (C1-C8)
-Audit Timestamp:       2026-03-17T12:29:55Z
+Latest Commit Hash:    3f8d787eb623885c1b0a9518e0f3dfa54022e6ce
+Latest Commit Message: P15-Fix: Wire LM Studio-style Discover tab layout into settings screen
+Audit Timestamp:       2026-03-18T00:22:59Z
 ```
 
 ---
@@ -35,48 +35,212 @@ Audit Timestamp:       2026-03-17T12:29:55Z
 ## 2. Directory Structure
 
 ```
-lib/                           (95 Dart files, ~19,226 lines)
-├── main.dart                  ← App entry point
-├── config/
-│   ├── constants.dart         ← All app-wide constants (URLs, keys, routes, UI)
-│   ├── router.dart            ← GoRouter with auth guards
-│   └── theme.dart             ← Light/dark themes, brand colors, ThemeNotifier
-├── core/
-│   ├── api/
-│   │   ├── api_exception.dart ← Typed HTTP exception
-│   │   ├── api_response.dart  ← Server envelope wrapper
-│   │   ├── myoffgridai_api_client.dart ← Dio HTTP client with JWT interceptor
-│   │   └── providers.dart     ← System status, model health, connection polling
-│   ├── auth/
-│   │   ├── auth_service.dart  ← Login/register/logout/refresh
-│   │   ├── auth_state.dart    ← AuthNotifier (JWT decode, token lifecycle)
-│   │   └── secure_storage_service.dart ← FlutterSecureStorage wrapper with cache
-│   ├── models/                (19 files, 42 classes, 1 enum, 10 static-const enum-equivalents)
-│   └── services/              (20 files, 22 classes, 113 public methods, 40 Riverpod providers)
-├── features/
-│   ├── auth/                  (4 screens: login, register, users, device-not-setup)
-│   ├── books/                 (2 screens: list, reader)
-│   ├── chat/                  (2 screens + 5 widgets: list, conversation, message bubble, etc.)
-│   ├── events/                (2 files: screen + dialog)
-│   ├── insights/              (1 screen: combined insights + notifications tabs)
-│   ├── inventory/             (1 screen)
-│   ├── knowledge/             (3 screens: list, detail, editor)
-│   ├── memory/                (1 screen)
-│   ├── notifications/         (1 screen)
-│   ├── privacy/               (1 screen: fortress + sovereignty + audit tabs)
-│   ├── search/                (1 screen: unified cross-domain search)
-│   ├── sensors/               (3 screens: list, detail, add)
-│   ├── settings/              (1 screen: 6-tab mega settings)
-│   ├── skills/                (1 screen)
-│   └── system/                (1 screen)
-├── shared/
-│   ├── utils/                 (6 files: date, download, platform, size formatters)
-│   └── widgets/               (9 files: app shell, nav panel, dialogs, status widgets)
-
-test/                          (93 Dart files, ~33,172 lines, 1,737 test cases)
+./.claude/settings.local.json
+./analysis_options.yaml
+./CONVENTIONS.md
+./lib/config/constants.dart
+./lib/config/router.dart
+./lib/config/theme.dart
+./lib/core/api/api_exception.dart
+./lib/core/api/api_response.dart
+./lib/core/api/myoffgridai_api_client.dart
+./lib/core/api/providers.dart
+./lib/core/auth/auth_service.dart
+./lib/core/auth/auth_state.dart
+./lib/core/auth/secure_storage_service.dart
+./lib/core/models/conversation_model.dart
+./lib/core/models/device_registration_model.dart
+./lib/core/models/enrichment_models.dart
+./lib/core/models/event_model.dart
+./lib/core/models/inference_stream_event.dart
+./lib/core/models/insight_model.dart
+./lib/core/models/inventory_item_model.dart
+./lib/core/models/judge_models.dart
+./lib/core/models/knowledge_document_model.dart
+./lib/core/models/library_models.dart
+./lib/core/models/memory_model.dart
+./lib/core/models/message_model.dart
+./lib/core/models/model_catalog_models.dart
+./lib/core/models/notification_model.dart
+./lib/core/models/page_response.dart
+./lib/core/models/privacy_models.dart
+./lib/core/models/sensor_model.dart
+./lib/core/models/skill_model.dart
+./lib/core/models/system_models.dart
+./lib/core/models/user_model.dart
+./lib/core/services/chat_messages_notifier.dart
+./lib/core/services/chat_service.dart
+./lib/core/services/device_registration_service.dart
+./lib/core/services/enrichment_service.dart
+./lib/core/services/event_service.dart
+./lib/core/services/foreground_service_manager.dart
+./lib/core/services/insight_service.dart
+./lib/core/services/inventory_service.dart
+./lib/core/services/judge_service.dart
+./lib/core/services/knowledge_service.dart
+./lib/core/services/library_service.dart
+./lib/core/services/local_notification_service.dart
+./lib/core/services/memory_service.dart
+./lib/core/services/model_catalog_service.dart
+./lib/core/services/mqtt_service.dart
+./lib/core/services/notification_service.dart
+./lib/core/services/privacy_service.dart
+./lib/core/services/sensor_service.dart
+./lib/core/services/skills_service.dart
+./lib/core/services/system_service.dart
+./lib/core/services/user_service.dart
+./lib/features/auth/device_not_setup_screen.dart
+./lib/features/auth/login_screen.dart
+./lib/features/auth/register_screen.dart
+./lib/features/auth/users_screen.dart
+./lib/features/books/book_reader_screen.dart
+./lib/features/books/books_screen.dart
+./lib/features/chat/chat_conversation_screen.dart
+./lib/features/chat/chat_list_screen.dart
+./lib/features/chat/widgets/inference_metadata_row.dart
+./lib/features/chat/widgets/message_action_bar.dart
+./lib/features/chat/widgets/message_bubble.dart
+./lib/features/chat/widgets/thinking_block.dart
+./lib/features/chat/widgets/thinking_indicator.dart
+./lib/features/events/event_dialog.dart
+./lib/features/events/events_screen.dart
+./lib/features/insights/insights_screen.dart
+./lib/features/inventory/inventory_screen.dart
+./lib/features/knowledge/document_detail_screen.dart
+./lib/features/knowledge/document_editor_screen.dart
+./lib/features/knowledge/knowledge_screen.dart
+./lib/features/memory/memory_screen.dart
+./lib/features/notifications/notifications_screen.dart
+./lib/features/privacy/privacy_screen.dart
+./lib/features/search/search_screen.dart
+./lib/features/sensors/add_sensor_screen.dart
+./lib/features/sensors/sensor_detail_screen.dart
+./lib/features/sensors/sensors_screen.dart
+./lib/features/settings/settings_screen.dart
+./lib/features/settings/widgets/discover_model_list.dart
+./lib/features/settings/widgets/model_detail_panel.dart
+./lib/features/settings/widgets/smart_quant_selector.dart
+./lib/features/skills/skills_screen.dart
+./lib/features/system/system_screen.dart
+./lib/main.dart
+./lib/shared/utils/date_formatter.dart
+./lib/shared/utils/download_trigger_stub.dart
+./lib/shared/utils/download_trigger_web.dart
+./lib/shared/utils/download_utils.dart
+./lib/shared/utils/platform_utils.dart
+./lib/shared/utils/size_formatter.dart
+./lib/shared/widgets/app_shell.dart
+./lib/shared/widgets/confirmation_dialog.dart
+./lib/shared/widgets/connection_lost_banner.dart
+./lib/shared/widgets/empty_state_view.dart
+./lib/shared/widgets/error_view.dart
+./lib/shared/widgets/loading_indicator.dart
+./lib/shared/widgets/navigation_panel.dart
+./lib/shared/widgets/notification_badge.dart
+./lib/shared/widgets/system_status_bar.dart
+./MyOffGridAI-Client-Architecture.md
+./MyOffGridAI-Client-Audit.md
+./pubspec.yaml
+./README.md
+./test/config/constants_test.dart
+./test/config/router_coverage_test.dart
+./test/config/router_test.dart
+./test/config/theme_test.dart
+./test/core/api/myoffgridai_api_client_test.dart
+./test/core/api/providers_test.dart
+./test/core/auth/auth_service_test.dart
+./test/core/auth/auth_state_test.dart
+./test/core/auth/secure_storage_service_test.dart
+./test/core/models/conversation_model_test.dart
+./test/core/models/device_registration_model_test.dart
+./test/core/models/enrichment_models_test.dart
+./test/core/models/event_model_test.dart
+./test/core/models/inference_stream_event_test.dart
+./test/core/models/insight_model_test.dart
+./test/core/models/inventory_item_model_test.dart
+./test/core/models/judge_models_test.dart
+./test/core/models/knowledge_document_model_test.dart
+./test/core/models/library_models_test.dart
+./test/core/models/memory_model_test.dart
+./test/core/models/message_model_test.dart
+./test/core/models/model_catalog_models_test.dart
+./test/core/models/notification_model_test.dart
+./test/core/models/page_response_test.dart
+./test/core/models/privacy_models_test.dart
+./test/core/models/sensor_model_test.dart
+./test/core/models/skill_model_test.dart
+./test/core/models/system_models_test.dart
+./test/core/models/user_model_test.dart
+./test/core/services/chat_messages_notifier_test.dart
+./test/core/services/chat_service_test.dart
+./test/core/services/device_registration_service_test.dart
+./test/core/services/enrichment_service_test.dart
+./test/core/services/event_service_test.dart
+./test/core/services/foreground_service_manager_test.dart
+./test/core/services/insight_service_test.dart
+./test/core/services/inventory_service_test.dart
+./test/core/services/knowledge_service_test.dart
+./test/core/services/library_service_test.dart
+./test/core/services/local_notification_service_test.dart
+./test/core/services/memory_service_test.dart
+./test/core/services/model_catalog_service_test.dart
+./test/core/services/mqtt_service_test.dart
+./test/core/services/notification_service_test.dart
+./test/core/services/privacy_service_test.dart
+./test/core/services/sensor_service_test.dart
+./test/core/services/skills_service_test.dart
+./test/core/services/system_service_test.dart
+./test/core/services/user_service_test.dart
+./test/features/auth/device_not_setup_screen_test.dart
+./test/features/auth/login_screen_test.dart
+./test/features/auth/register_screen_test.dart
+./test/features/auth/users_screen_test.dart
+./test/features/books/book_reader_screen_test.dart
+./test/features/books/books_screen_test.dart
+./test/features/chat/chat_conversation_screen_test.dart
+./test/features/chat/chat_list_screen_test.dart
+./test/features/chat/widgets/inference_metadata_row_test.dart
+./test/features/chat/widgets/message_action_bar_test.dart
+./test/features/chat/widgets/message_bubble_test.dart
+./test/features/chat/widgets/thinking_block_test.dart
+./test/features/chat/widgets/thinking_indicator_test.dart
+./test/features/events/event_dialog_test.dart
+./test/features/events/events_screen_test.dart
+./test/features/insights/insights_screen_test.dart
+./test/features/inventory/inventory_screen_test.dart
+./test/features/knowledge/document_detail_screen_test.dart
+./test/features/knowledge/document_editor_screen_test.dart
+./test/features/knowledge/knowledge_screen_test.dart
+./test/features/memory/memory_screen_test.dart
+./test/features/notifications/notifications_screen_test.dart
+./test/features/privacy/privacy_screen_test.dart
+./test/features/search/search_screen_test.dart
+./test/features/sensors/add_sensor_screen_test.dart
+./test/features/sensors/sensor_detail_screen_test.dart
+./test/features/sensors/sensors_screen_test.dart
+./test/features/settings/settings_screen_test.dart
+./test/features/skills/skills_screen_test.dart
+./test/features/system/system_screen_test.dart
+./test/shared/utils/date_formatter_test.dart
+./test/shared/utils/download_trigger_stub_test.dart
+./test/shared/utils/download_utils_test.dart
+./test/shared/utils/platform_utils_test.dart
+./test/shared/utils/size_formatter_test.dart
+./test/shared/widgets/app_shell_test.dart
+./test/shared/widgets/confirmation_dialog_test.dart
+./test/shared/widgets/connection_lost_banner_test.dart
+./test/shared/widgets/empty_state_view_test.dart
+./test/shared/widgets/error_view_test.dart
+./test/shared/widgets/loading_indicator_test.dart
+./test/shared/widgets/navigation_panel_test.dart
+./test/shared/widgets/notification_badge_test.dart
+./test/shared/widgets/system_status_bar_test.dart
+./test/widget_test.dart
+./web/index.html
+./web/manifest.json
 ```
 
-Single-module Flutter project. Source in `lib/`, tests mirror source structure in `test/`. No code generation (no build_runner output, no `.g.dart`/`.freezed.dart` files). Architecture: feature-first with shared core layer (API client, auth, models, services).
+**Layout:** Single-module Flutter client application. Source code is in `lib/` organized by feature. `lib/config/` holds app-wide configuration (routing, theme, constants). `lib/core/` contains the API client, auth layer, data models, and services. `lib/features/` has per-feature screens and widgets. `lib/shared/` holds reusable utilities and widgets. `test/` mirrors `lib/` structure 1:1.
 
 ---
 
@@ -84,534 +248,874 @@ Single-module Flutter project. Source in `lib/`, tests mirror source structure i
 
 **Build file:** `pubspec.yaml`
 
+### Dependencies
+
 | Dependency | Version | Purpose |
 |---|---|---|
-| flutter | SDK | UI framework |
-| flutter_localizations | SDK | i18n support |
+| flutter (sdk) | — | Core Flutter framework |
+| flutter_localizations (sdk) | — | Internationalization support |
 | cupertino_icons | ^1.0.8 | iOS-style icons |
-| dio | ^5.7.0 | HTTP client |
+| dio | ^5.7.0 | HTTP client for REST API calls |
 | go_router | ^14.8.1 | Declarative routing |
 | flutter_riverpod | ^2.6.1 | State management |
-| riverpod_annotation | ^2.6.1 | Riverpod codegen annotations |
-| flutter_secure_storage | ^9.2.4 | Encrypted storage (tokens, prefs) |
-| fl_chart | ^0.70.2 | Charts (sensor history) |
-| file_picker | ^8.3.7 | Native file picker (uploads) |
+| riverpod_annotation | ^2.6.1 | Riverpod code generation annotations |
+| flutter_secure_storage | ^9.2.4 | Secure token/credential storage |
+| fl_chart | ^0.70.2 | Chart/graph rendering |
+| file_picker | ^8.3.7 | File selection dialog |
 | desktop_drop | ^0.4.4 | Drag-and-drop file support |
 | cross_file | ^0.3.5+2 | Cross-platform file abstraction |
-| intl | ^0.20.2 | Date/number formatting |
-| flutter_quill | ^11.4.0 | Rich text editor (knowledge docs) |
-| mqtt_client | ^10.2.1 | MQTT for push notifications |
-| flutter_local_notifications | ^17.2.3 | Local push notification display |
-| flutter_foreground_task | ^8.13.0 | Android foreground service |
-| permission_handler | ^11.3.1 | Runtime permissions |
-| webview_flutter | ^4.10.0 | WebView (Kiwix browser) |
+| intl | ^0.20.2 | Date/number formatting, i18n |
+| flutter_quill | ^11.4.0 | Rich text editor |
+| mqtt_client | ^10.2.1 | MQTT pub/sub messaging |
+| flutter_local_notifications | ^17.2.3 | Local push notifications |
+| flutter_foreground_task | ^8.13.0 | Background/foreground service |
+| permission_handler | ^11.3.1 | Runtime permission requests |
+| webview_flutter | ^4.10.0 | Embedded web views |
 | webview_flutter_android | ^4.3.0 | Android WebView impl |
-| webview_flutter_wkwebview | ^3.18.0 | iOS WebView impl |
-| epub_view | ^3.2.0 | EPUB reader |
-| pdfx | ^2.9.0 | PDF reader |
+| webview_flutter_wkwebview | ^3.18.0 | iOS WKWebView impl |
+| epub_view | ^3.2.0 | EPUB book reader |
+| pdfx | ^2.9.0 | PDF viewer |
 | path_provider | ^2.1.5 | Platform file paths |
-| open_filex | ^4.6.0 | Open files in OS viewer |
+| open_filex | ^4.6.0 | Open files with system app |
 | cached_network_image | ^3.4.1 | Image caching |
-| flutter_markdown | ^0.7.4+3 | Markdown rendering (chat) |
+| flutter_markdown | ^0.7.4+3 | Markdown rendering |
 | markdown | ^7.3.0 | Markdown parsing |
-| flutter_highlight | ^0.7.0 | Syntax highlighting (code blocks) |
+| flutter_highlight | ^0.7.0 | Code syntax highlighting |
 | highlight | ^0.7.0 | Syntax highlighting engine |
 
-**Dev Dependencies:**
+### Dev Dependencies
 
 | Dependency | Version | Purpose |
 |---|---|---|
-| flutter_test | SDK | Testing framework |
-| flutter_lints | ^6.0.0 | Lint rules |
+| flutter_test (sdk) | — | Widget/unit testing framework |
+| flutter_lints | ^6.0.0 | Dart lint rules |
 | build_runner | ^2.4.15 | Code generation runner |
-| riverpod_generator | ^2.6.3 | Riverpod codegen |
+| riverpod_generator | ^2.6.3 | Riverpod provider codegen |
 | mockito | ^5.4.6 | Mock framework |
-| mocktail | ^1.0.4 | Lightweight mock framework |
+| mocktail | ^1.0.4 | Mock framework (no codegen) |
 
-**Build commands:**
+### Build Commands
+
 ```
-Build:   flutter build <platform>
+Build:   flutter build apk / flutter build ios / flutter build web
 Test:    flutter test
 Run:     flutter run
-Analyze: flutter analyze
+Package: flutter build appbundle (Android) / flutter build ipa (iOS)
 ```
 
 ---
 
 ## 4. Configuration & Infrastructure Summary
 
-**Configuration is centralized in `lib/config/constants.dart`** — no YAML/properties files. All server URLs, timeouts, API paths, route names, storage keys, UI constants, MQTT settings, and notification channel IDs are defined as static constants in `AppConstants`.
+### Configuration Files
 
-**Key facts:**
-- Default server URL: `http://localhost:8080` (web) / `http://offgrid.local:8080` (native)
-- Connect timeout: 10s, Receive timeout: 120s, SSE timeout: 5min
-- MQTT port: 1883, Kiwix port: 8888
-- Pagination defaults: page size 20, max 100
-- Responsive breakpoints: mobile < 600px, tablet < 1200px
-- Theme persistence: FlutterSecureStorage (in-memory cache fallback for web)
+- **`pubspec.yaml`** — App identity (myoffgridai_client v1.0.0+1), Dart SDK ^3.11.0, all dependencies.
+- **`analysis_options.yaml`** — Extends `package:flutter_lints/flutter.yaml`, disables `unnecessary_underscores`.
+- **`lib/config/constants.dart`** — All app-wide constants. Server URL defaults: `localhost:8080` (web) / `offgrid.local:8080` (native). API paths, route names, pagination, timeouts, MQTT config, UI breakpoints, validation rules.
+- **`web/manifest.json`** — PWA manifest. Theme `#2D5016`, background `#1A1A14`.
+- **`web/index.html`** — Flutter web bootstrap.
 
-**Analysis options:** `analysis_options.yaml` — minimal, includes `package:flutter_lints/flutter.yaml`, disables `unnecessary_underscores`.
+### Connection Map
 
-**Connection map:**
 ```
-Database:       None (client-only; server manages persistence)
-Cache:          In-memory token/pref cache in SecureStorageService
-Message Broker: MQTT (mosquitto on server, mqtt_client in Flutter)
-External APIs:  MyOffGridAI-Server (REST + SSE), Kiwix serve (WebView), Gutenberg/Gutendex (via server proxy)
-Cloud Services: None (offline-first architecture)
+Backend API:     http://localhost:8080 (web) / http://offgrid.local:8080 (native)
+MQTT Broker:     offgrid.local:1883 (pub/sub real-time messaging)
+Kiwix Server:    localhost:8888 (offline library/ebook serving)
+Database:        None (client-side only — all persistence via API)
+Cache:           None (client-side only)
+Message Broker:  MQTT (mqtt_client package, topic prefix /myoffgridai/)
+External APIs:   None directly — all external API calls routed through backend
+Cloud Services:  None
 ```
 
-**CI/CD:** None detected.
+### CI/CD
+
+None detected.
 
 ---
 
 ## 5. Startup & Runtime Behavior
 
-**Entry point:** `lib/main.dart` → `Future<void> main()`
+**Entry point:** `lib/main.dart` → `main()`
 
-**Startup sequence:**
+### Startup Sequence
 1. `WidgetsFlutterBinding.ensureInitialized()`
-2. `SecureStorageService()` created
-3. Server URL resolved from secure storage (default: `http://localhost:8080` on web)
-4. `LocalNotificationService.initialize()` — plugin init + Android channel creation
+2. `SecureStorageService()` instantiated
+3. Server URL resolved from secure storage (defaults: `localhost:8080` web, `offgrid.local:8080` native)
+4. `LocalNotificationService.initialize()` — sets up local push notifications
 5. `ProviderScope` created with overrides for `secureStorageProvider`, `localNotificationServiceProvider`, `apiClientProvider`
-6. `MyOffGridAIApp` widget launched — `MaterialApp.router` with `GoRouter`, light/dark themes
+6. `MyOffGridAIApp` widget launched — `MaterialApp.router` with GoRouter, light/dark theme, localization
 
-**Post-login initialization (non-blocking):**
-1. Device registration with server (MQTT topic assignment)
-2. Android foreground service start (no-op on iOS/web)
-3. MQTT connection to Mosquitto broker
+### Auth Guard (Router)
+- Unauthenticated users → redirected to `/login`
+- Authenticated users hitting `/login` or `/register` → redirected to `/`
+- `/users` restricted to `ROLE_OWNER` or `ROLE_ADMIN`
 
-**Scheduled/polling tasks:**
-- Connection status: polls `/api/system/status` every 10 seconds
-- Model health: polls `/api/models/health` every 60 seconds
-- Notification count: polls `/api/notifications/unread-count` every 30 seconds
+### Background Services
+- MQTT client for real-time pub/sub (topic prefix `/myoffgridai/`)
+- Flutter foreground service for persistent connection on mobile
+- Notification polling every 30 seconds
+- Connection health polling every 10 seconds
+- Model health polling every 60 seconds
 
-**Health check:** No dedicated health endpoint on client; relies on `connectionStatusProvider` polling server's `/api/system/status`.
+### Health Check
+No dedicated health endpoint on the client. The client checks backend health via `/api/system` endpoints.
 
 ---
 
 ## 6. Entity / Data Model Layer
 
-This is a Flutter client — no database entities. All models are DTOs that mirror server-side entities.
+This is a Flutter client — models are DTOs for JSON serialization, not database entities. All persistence is server-side.
 
-### Model Inventory (42 classes across 19 files)
+### user_model.dart
+```
+UserModel
+  Fields: id (String), username (String), displayName (String), role (String), isActive (bool)
+  Methods: fromJson(), toJson()
+```
 
-**lib/core/models/conversation_model.dart:**
-- `ConversationModel` — id, title?, isArchived, messageCount, createdAt?, updatedAt?
-- `ConversationSummaryModel` — id, title?, isArchived, messageCount, updatedAt?, lastMessagePreview?
+### page_response.dart
+```
+PageResponse<T> (Generic)
+  Fields: content (List<T>), totalElements (int), totalPages (int), number (int), size (int), first (bool), last (bool), empty (bool)
+  Methods: fromJson(json, itemFactory)
+```
 
-**lib/core/models/device_registration_model.dart:**
-- `DeviceRegistrationModel` — id, deviceId, deviceName, platform, mqttClientId, lastSeenAt?
+### conversation_model.dart
+```
+ConversationModel
+  Fields: id (String), title (String?), isArchived (bool), messageCount (int), createdAt (String?), updatedAt (String?)
+  Methods: fromJson()
 
-**lib/core/models/enrichment_models.dart:**
-- `ExternalApiSettingsModel` — anthropicEnabled, anthropicModel, anthropicKeyConfigured, braveEnabled, braveKeyConfigured, huggingFaceEnabled, huggingFaceKeyConfigured, maxWebFetchSizeKb, searchResultLimit
-- `UpdateExternalApiSettingsRequest` — API key fields (nullable), boolean toggles, limits; has `toJson()`
-- `SearchResultModel` — title, url, description, publishedDate?
-- `EnrichmentStatusModel` — claudeAvailable, braveAvailable, maxWebFetchSizeKb, searchResultLimit
+ConversationSummaryModel
+  Fields: id (String), title (String?), isArchived (bool), messageCount (int), updatedAt (String?), lastMessagePreview (String?)
+  Methods: fromJson()
+```
 
-**lib/core/models/event_model.dart:**
-- `ScheduledEventModel` — 17 fields (id, userId?, name, description?, eventType, isEnabled, cronExpression?, recurringIntervalMinutes?, sensorId?, thresholdOperator?, thresholdValue?, actionType, actionPayload, lastTriggeredAt?, nextFireAt?, createdAt?, updatedAt?); has `toJson()`
-- `EventType` — SCHEDULED, SENSOR_THRESHOLD, RECURRING (static constants)
-- `ActionType` — PUSH_NOTIFICATION, AI_PROMPT, AI_SUMMARY (static constants)
-- `ThresholdOperator` — ABOVE, BELOW, EQUALS (static constants)
+### message_model.dart
+```
+MessageModel
+  Fields: id (String), role (String), content (String), tokenCount (int?), hasRagContext (bool), thinkingContent (String?), tokensPerSecond (double?), inferenceTimeSeconds (double?), stopReason (String?), thinkingTokenCount (int?), sourceTag (String?), judgeScore (double?), judgeReason (String?), createdAt (String?)
+  Methods: fromJson(), copyWith()
+  Getters: isUser, isAssistant, isEnhanced, hasJudgeScore
+```
 
-**lib/core/models/inference_stream_event.dart:**
-- `InferenceEventType` (enum) — thinking, content, done, error
-- `InferenceMetadata` — tokensGenerated, tokensPerSecond, inferenceTimeSeconds, stopReason?, thinkingTokenCount?
-- `InferenceStreamEvent` — type, content?, metadata?, messageId?
+### memory_model.dart
+```
+MemoryModel
+  Fields: id (String), content (String), importance (String), tags (String?), sourceConversationId (String?), createdAt (String?), updatedAt (String?), lastAccessedAt (String?), accessCount (int)
+  Methods: fromJson()
+  Getters: tagList (List<String>)
 
-**lib/core/models/insight_model.dart:**
-- `InsightModel` — id, content, category, isRead, isDismissed, generatedAt?, readAt?
-- `InsightCategory` — SECURITY, EFFICIENCY, HEALTH, MAINTENANCE, SUSTAINABILITY, PLANNING
+MemorySearchResultModel
+  Fields: memory (MemoryModel), similarityScore (double)
+  Methods: fromJson()
+```
 
-**lib/core/models/inventory_item_model.dart:**
-- `InventoryItemModel` — id, name, category, quantity, unit?, notes?, lowStockThreshold?, createdAt?, updatedAt?; getter `isLowStock`
-- `InventoryCategory` — FOOD, WATER, FUEL, TOOLS, MEDICINE, SPARE_PARTS, OTHER
+### knowledge_document_model.dart
+```
+KnowledgeDocumentModel
+  Fields: id (String), filename (String), displayName (String?), mimeType (String?), fileSizeBytes (int), status (String), errorMessage (String?), chunkCount (int), uploadedAt (String?), processedAt (String?), hasContent (bool), editable (bool)
+  Methods: fromJson()
+  Getters: isProcessing, isIndexed, isFailed
 
-**lib/core/models/knowledge_document_model.dart:**
-- `KnowledgeDocumentModel` — id, filename, displayName?, mimeType?, fileSizeBytes, status, errorMessage?, chunkCount, uploadedAt?, processedAt?, hasContent, editable; getters: isProcessing, isIndexed, isFailed
-- `DocumentContentModel` — documentId, title, content?, mimeType?, editable
-- `KnowledgeSearchResultModel` — chunkId, documentId, documentName, content, pageNumber?, chunkIndex, similarityScore
+DocumentContentModel
+  Fields: documentId (String), title (String), content (String?), mimeType (String?), editable (bool)
+  Methods: fromJson()
 
-**lib/core/models/library_models.dart:**
-- `ZimFileModel` — id, filename, displayName?, description?, language?, category?, fileSizeBytes, articleCount, mediaCount, createdDate?, kiwixBookId?, uploadedAt?, uploadedBy?
-- `EbookModel` — id, title, author?, description?, isbn?, publisher?, publishedYear?, language?, format, fileSizeBytes, gutenbergId?, downloadCount, hasCoverImage, uploadedAt?, uploadedBy?; getter `isFromGutenberg`
-- `KiwixStatusModel` — available, url?, bookCount
-- `GutenbergBookModel` — id, title, authors, subjects, languages, downloadCount, formats; getter `hasEpub`
-- `GutenbergSearchResultModel` — count, next?, previous?, results (List<GutenbergBookModel>)
+KnowledgeSearchResultModel
+  Fields: chunkId (String), documentId (String), documentName (String), content (String), pageNumber (int?), chunkIndex (int), similarityScore (double)
+  Methods: fromJson()
+```
 
-**lib/core/models/memory_model.dart:**
-- `MemoryModel` — id, content, importance, tags?, sourceConversationId?, createdAt?, updatedAt?, lastAccessedAt?, accessCount; getter `tagList`
-- `MemorySearchResultModel` — memory (MemoryModel), similarityScore
+### skill_model.dart
+```
+SkillModel
+  Fields: id (String), name (String), displayName (String), description (String?), version (String?), author (String?), category (String?), isEnabled (bool), isBuiltIn (bool), parametersSchema (String?), createdAt (String?), updatedAt (String?)
+  Methods: fromJson()
 
-**lib/core/models/message_model.dart:**
-- `MessageModel` — id, role, content, tokenCount?, hasRagContext, thinkingContent?, tokensPerSecond?, inferenceTimeSeconds?, stopReason?, thinkingTokenCount?, createdAt?; getters: isUser, isAssistant; `copyWith()`
+SkillExecutionModel
+  Fields: id (String), skillId (String), skillName (String), userId (String?), status (String), inputParams (String?), outputResult (String?), errorMessage (String?), startedAt (String?), completedAt (String?), durationMs (int?)
+  Methods: fromJson()
+  Getters: isRunning, isSuccess, isFailed
+```
 
-**lib/core/models/model_catalog_models.dart:**
-- `HfModelModel` — id, author, modelId, downloads, likes, tags, isGated, lastModified?, files; getters: hasGguf, hasMlx, ggufFiles
-- `HfModelFileModel` — filename, sizeBytes?; getters: quantLabel, formattedSize
-- `DownloadProgressModel` — downloadId, repoId, filename, status, bytesDownloaded, totalBytes, percentComplete, speedBytesPerSecond, estimatedSecondsRemaining, errorMessage?; getters: isActive, isComplete, isFailed, isCancelled
-- `LocalModelFileModel` — filename, repoId?, format, sizeBytes, lastModified?, isCurrentlyLoaded
+### inventory_item_model.dart
+```
+InventoryItemModel
+  Fields: id (String), name (String), category (String), quantity (double), unit (String?), notes (String?), lowStockThreshold (double?), createdAt (String?), updatedAt (String?)
+  Methods: fromJson()
+  Getters: isLowStock
 
-**lib/core/models/notification_model.dart:**
-- `NotificationModel` — id, title, body, type, severity, isRead, createdAt?, readAt?, metadata?
-- `NotificationType` — SENSOR_ALERT, SYSTEM_HEALTH, INSIGHT_READY, MODEL_UPDATE, GENERAL
-- `NotificationSeverity` — INFO, WARNING, CRITICAL
+InventoryCategory (Constants)
+  Values: food, water, fuel, tools, medicine, spareParts, other
+```
 
-**lib/core/models/page_response.dart:**
-- `PageResponse<T>` — content, totalElements, totalPages, number, size, first, last, empty
+### sensor_model.dart
+```
+SensorModel
+  Fields: id (String), name (String), type (String), portPath (String?), baudRate (int), dataFormat (String?), valueField (String?), unit (String?), isActive (bool), pollIntervalSeconds (int), lowThreshold (double?), highThreshold (double?), createdAt (String?), updatedAt (String?)
+  Methods: fromJson()
 
-**lib/core/models/privacy_models.dart:**
-- `FortressStatusModel` — enabled, enabledAt?, enabledByUsername?, verified
-- `DataInventoryModel` — conversationCount, messageCount, memoryCount, knowledgeDocumentCount, sensorCount, insightCount
-- `AuditSummaryModel` — successCount, failureCount, deniedCount, windowStart?, windowEnd?
-- `SovereigntyReportModel` — generatedAt?, fortressStatus?, outboundTrafficVerification?, dataInventory?, auditSummary?, encryptionStatus?, telemetryStatus?, lastVerifiedAt?
-- `AuditLogModel` — id, userId?, username?, action, resourceType?, resourceId?, httpMethod?, requestPath?, outcome, responseStatus?, durationMs?, timestamp?
-- `WipeResultModel` — targetUserId?, stepsCompleted, completedAt?, success
-- `AuditOutcome` — SUCCESS, FAILURE, DENIED
+SensorReadingModel
+  Fields: id (String), sensorId (String), value (double), rawData (String?), recordedAt (String?)
+  Methods: fromJson()
 
-**lib/core/models/sensor_model.dart:**
-- `SensorModel` — id, name, type, portPath?, baudRate, dataFormat?, valueField?, unit?, isActive, pollIntervalSeconds, lowThreshold?, highThreshold?, createdAt?, updatedAt?
-- `SensorReadingModel` — id, sensorId, value, rawData?, recordedAt?
-- `SensorTestResultModel` — success, portPath, baudRate, sampleData?, message
-- `SensorType` — TEMPERATURE, HUMIDITY, PRESSURE, SOIL_MOISTURE, WIND_SPEED, SOLAR_RADIATION
-- `DataFormat` — CSV_LINE, JSON_LINE, RAW_TEXT
+SensorTestResultModel
+  Fields: success (bool), portPath (String), baudRate (int), sampleData (String?), message (String)
+  Methods: fromJson()
 
-**lib/core/models/skill_model.dart:**
-- `SkillModel` — id, name, displayName, description?, version?, author?, category?, isEnabled, isBuiltIn, parametersSchema?, createdAt?, updatedAt?
-- `SkillExecutionModel` — id, skillId, skillName, userId?, status, inputParams?, outputResult?, errorMessage?, startedAt?, completedAt?, durationMs?; getters: isRunning, isSuccess, isFailed
+SensorType (Constants): temperature, humidity, pressure, soilMoisture, windSpeed, solarRadiation
+DataFormat (Constants): csvLine, jsonLine, rawText
+```
 
-**lib/core/models/system_models.dart:**
-- `SystemStatusModel` — initialized, instanceName?, fortressEnabled, wifiConfigured, serverVersion?, timestamp?
-- `OllamaModelInfoModel` — name, size, modifiedAt?
-- `AiSettingsModel` — modelName, temperature, similarityThreshold, memoryTopK, ragMaxContextTokens, contextSize, contextMessageLimit; `toJson()`
-- `StorageSettingsModel` — knowledgeStoragePath, totalSpaceMb, usedSpaceMb, freeSpaceMb, maxUploadSizeMb; `toJson()`
-- `ActiveModelInfo` — modelName?, embedModelName?
+### event_model.dart
+```
+ScheduledEventModel
+  Fields: id (String), userId (String?), name (String), description (String?), eventType (String), isEnabled (bool), cronExpression (String?), recurringIntervalMinutes (int?), sensorId (String?), thresholdOperator (String?), thresholdValue (double?), actionType (String), actionPayload (String), lastTriggeredAt (String?), nextFireAt (String?), createdAt (String?), updatedAt (String?)
+  Methods: fromJson(), toJson()
 
-**lib/core/models/user_model.dart:**
-- `UserModel` — id, username, displayName, role, isActive; `toJson()`
+EventType (Constants): scheduled, sensorThreshold, recurring
+ActionType (Constants): pushNotification, aiPrompt, aiSummary
+ThresholdOperator (Constants): above, below, equals
+```
 
-**Patterns:** All models use `const` constructors, `final` fields (immutable), hand-written `fromJson`/`toJson`. No code generation.
+### insight_model.dart
+```
+InsightModel
+  Fields: id (String), content (String), category (String), isRead (bool), isDismissed (bool), generatedAt (String?), readAt (String?)
+  Methods: fromJson()
+
+InsightCategory (Constants): security, efficiency, health, maintenance, sustainability, planning
+```
+
+### notification_model.dart
+```
+NotificationModel
+  Fields: id (String), title (String), body (String), type (String), severity (String), isRead (bool), createdAt (String?), readAt (String?), metadata (String?)
+  Methods: fromJson()
+
+NotificationType (Constants): sensorAlert, systemHealth, insightReady, modelUpdate, general
+NotificationSeverity (Constants): info, warning, critical
+```
+
+### device_registration_model.dart
+```
+DeviceRegistrationModel
+  Fields: id (String), deviceId (String), deviceName (String), platform (String), mqttClientId (String), lastSeenAt (String?)
+  Methods: fromJson()
+```
+
+### privacy_models.dart
+```
+FortressStatusModel
+  Fields: enabled (bool), enabledAt (String?), enabledByUsername (String?), verified (bool)
+
+DataInventoryModel
+  Fields: conversationCount (int), messageCount (int), memoryCount (int), knowledgeDocumentCount (int), sensorCount (int), insightCount (int)
+
+AuditSummaryModel
+  Fields: successCount (int), failureCount (int), deniedCount (int), windowStart (String?), windowEnd (String?)
+
+SovereigntyReportModel
+  Fields: generatedAt (String?), fortressStatus (FortressStatusModel?), outboundTrafficVerification (String?), dataInventory (DataInventoryModel?), auditSummary (AuditSummaryModel?), encryptionStatus (String?), telemetryStatus (String?), lastVerifiedAt (String?)
+
+AuditLogModel
+  Fields: id (String), userId (String?), username (String?), action (String), resourceType (String?), resourceId (String?), httpMethod (String?), requestPath (String?), outcome (String), responseStatus (int?), durationMs (int?), timestamp (String?)
+
+WipeResultModel
+  Fields: targetUserId (String?), stepsCompleted (int), completedAt (String?), success (bool)
+
+AuditOutcome (Constants): success, failure, denied
+All: fromJson() factory constructors
+```
+
+### system_models.dart
+```
+SystemStatusModel
+  Fields: initialized (bool), instanceName (String?), fortressEnabled (bool), wifiConfigured (bool), serverVersion (String?), timestamp (String?)
+
+OllamaModelInfoModel
+  Fields: name (String), size (int), modifiedAt (String?)
+
+AiSettingsModel
+  Fields: modelName (String), temperature (double), similarityThreshold (double), memoryTopK (int), ragMaxContextTokens (int), contextSize (int), contextMessageLimit (int)
+  Methods: fromJson(), toJson()
+
+StorageSettingsModel
+  Fields: knowledgeStoragePath (String), totalSpaceMb (int), usedSpaceMb (int), freeSpaceMb (int), maxUploadSizeMb (int)
+  Methods: fromJson(), toJson()
+
+ActiveModelInfo
+  Fields: modelName (String?), embedModelName (String?)
+```
+
+### enrichment_models.dart
+```
+ExternalApiSettingsModel
+  Fields: anthropicEnabled (bool), anthropicModel (String), anthropicKeyConfigured (bool), braveEnabled (bool), braveKeyConfigured (bool), huggingFaceEnabled (bool), huggingFaceKeyConfigured (bool), maxWebFetchSizeKb (int), searchResultLimit (int), grokEnabled (bool), grokKeyConfigured (bool), openAiEnabled (bool), openAiKeyConfigured (bool), preferredFrontierProvider (String?), judgeEnabled (bool), judgeModelFilename (String?), judgeScoreThreshold (double)
+
+UpdateExternalApiSettingsRequest
+  Fields: anthropicApiKey (String?), anthropicModel (String), anthropicEnabled (bool), braveApiKey (String?), braveEnabled (bool), huggingFaceToken (String?), huggingFaceEnabled (bool), maxWebFetchSizeKb (int), searchResultLimit (int), grokApiKey (String?), grokEnabled (bool?), openAiApiKey (String?), openAiEnabled (bool?), preferredFrontierProvider (String?), judgeEnabled (bool?), judgeModelFilename (String?), judgeScoreThreshold (double?)
+  Methods: toJson()
+
+SearchResultModel
+  Fields: title (String), url (String), description (String), publishedDate (String?)
+
+EnrichmentStatusModel
+  Fields: claudeAvailable (bool), braveAvailable (bool), maxWebFetchSizeKb (int), searchResultLimit (int)
+All: fromJson() factory constructors
+```
+
+### judge_models.dart
+```
+JudgeStatusModel
+  Fields: enabled (bool), processRunning (bool), judgeModelFilename (String?), port (int), scoreThreshold (double)
+
+JudgeTestResultModel
+  Fields: score (double), reason (String?), needsCloud (bool), judgeAvailable (bool), error (String?)
+All: fromJson() factory constructors
+```
+
+### library_models.dart
+```
+ZimFileModel
+  Fields: id (String), filename (String), displayName (String?), description (String?), language (String?), category (String?), fileSizeBytes (int), articleCount (int), mediaCount (int), createdDate (String?), kiwixBookId (String?), uploadedAt (String?), uploadedBy (String?)
+
+EbookModel
+  Fields: id (String), title (String), author (String?), description (String?), isbn (String?), publisher (String?), publishedYear (String?), language (String?), format (String), fileSizeBytes (int), gutenbergId (String?), downloadCount (int), hasCoverImage (bool), uploadedAt (String?), uploadedBy (String?)
+  Getters: isFromGutenberg
+
+KiwixStatusModel
+  Fields: available (bool), url (String?), bookCount (int)
+
+GutenbergBookModel
+  Fields: id (int), title (String), authors (List<String>), subjects (List<String>), languages (List<String>), downloadCount (int), formats (Map<String, String>)
+  Getters: hasEpub
+
+GutenbergSearchResultModel
+  Fields: count (int), next (String?), previous (String?), results (List<GutenbergBookModel>)
+All: fromJson() factory constructors
+```
+
+### model_catalog_models.dart
+```
+HfModelModel
+  Fields: id (String), author (String), modelId (String), downloads (int), likes (int), tags (List<String>), isGated (bool), lastModified (DateTime?), files (List<HfModelFileModel>)
+  Getters: hasGguf, hasMlx, ggufFiles
+
+HfModelFileModel
+  Fields: filename (String), sizeBytes (int?), isRecommended (bool), qualityLabel (String?), qualityRank (int?), estimatedRamBytes (int?), quantizationType (String?)
+  Getters: quantLabel, formattedSize, estimatedRamMb, fitsInRam
+
+DownloadProgressModel
+  Fields: downloadId (String), repoId (String), filename (String), status (String), bytesDownloaded (int), totalBytes (int), percentComplete (double), speedBytesPerSecond (double), estimatedSecondsRemaining (int), errorMessage (String?)
+  Getters: isActive, isComplete, isFailed, isCancelled
+
+LocalModelFileModel
+  Fields: filename (String), repoId (String?), format (String), sizeBytes (int), lastModified (DateTime?), isCurrentlyLoaded (bool)
+All: fromJson() factory constructors
+```
+
+### inference_stream_event.dart
+```
+InferenceEventType (Enum)
+  Values: thinking, content, done, error, judgeEvaluating, judgeResult, enhancedContent, enhancedDone
+
+InferenceMetadata
+  Fields: tokensGenerated (int), tokensPerSecond (double), inferenceTimeSeconds (double), stopReason (String?), thinkingTokenCount (int?)
+
+InferenceStreamEvent
+  Fields: type (InferenceEventType), content (String?), metadata (InferenceMetadata?), messageId (String?)
+All: fromJson() factory constructors
+```
+
+**Total:** 20 model files, ~51 classes/constants holders, 1 enum. All use manual JSON serialization (fromJson/toJson).
 
 ---
 
 ## 7. Enum Inventory
 
-| Enum/Constants Class | Values | Used In |
+### InferenceEventType (lib/core/models/inference_stream_event.dart)
+```
+Values: thinking, content, done, error, judgeEvaluating, judgeResult, enhancedContent, enhancedDone
+Used in: InferenceStreamEvent, ChatConversationScreen SSE handling
+```
+
+### Constants Holders (String constants, not Dart enums)
+
+| Class | File | Values |
 |---|---|---|
-| `InferenceEventType` (Dart enum) | thinking, content, done, error | InferenceStreamEvent, ChatMessagesNotifier |
-| `EventType` (static constants) | SCHEDULED, SENSOR_THRESHOLD, RECURRING | ScheduledEventModel, EventDialog |
-| `ActionType` (static constants) | PUSH_NOTIFICATION, AI_PROMPT, AI_SUMMARY | ScheduledEventModel, EventDialog |
-| `ThresholdOperator` (static constants) | ABOVE, BELOW, EQUALS | ScheduledEventModel, EventDialog |
-| `InsightCategory` (static constants) | SECURITY, EFFICIENCY, HEALTH, MAINTENANCE, SUSTAINABILITY, PLANNING | InsightModel, InsightsScreen |
-| `InventoryCategory` (static constants) | FOOD, WATER, FUEL, TOOLS, MEDICINE, SPARE_PARTS, OTHER | InventoryItemModel, InventoryScreen |
-| `NotificationType` (static constants) | SENSOR_ALERT, SYSTEM_HEALTH, INSIGHT_READY, MODEL_UPDATE, GENERAL | NotificationModel |
-| `NotificationSeverity` (static constants) | INFO, WARNING, CRITICAL | NotificationModel, LocalNotificationService |
-| `SensorType` (static constants) | TEMPERATURE, HUMIDITY, PRESSURE, SOIL_MOISTURE, WIND_SPEED, SOLAR_RADIATION | SensorModel, SensorsScreen |
-| `DataFormat` (static constants) | CSV_LINE, JSON_LINE, RAW_TEXT | SensorModel, AddSensorScreen |
-| `AuditOutcome` (static constants) | SUCCESS, FAILURE, DENIED | AuditLogModel, PrivacyScreen |
-| `MqttConnectionStatus` (Dart enum) | disconnected, connecting, connected, error | MqttServiceNotifier |
-| `LoadingSize` (Dart enum) | small(16), medium(24), large(40) | LoadingIndicator |
+| InventoryCategory | inventory_item_model.dart | food, water, fuel, tools, medicine, spareParts, other |
+| SensorType | sensor_model.dart | temperature, humidity, pressure, soilMoisture, windSpeed, solarRadiation |
+| DataFormat | sensor_model.dart | csvLine, jsonLine, rawText |
+| EventType | event_model.dart | scheduled, sensorThreshold, recurring |
+| ActionType | event_model.dart | pushNotification, aiPrompt, aiSummary |
+| ThresholdOperator | event_model.dart | above, below, equals |
+| InsightCategory | insight_model.dart | security, efficiency, health, maintenance, sustainability, planning |
+| NotificationType | notification_model.dart | sensorAlert, systemHealth, insightReady, modelUpdate, general |
+| NotificationSeverity | notification_model.dart | info, warning, critical |
+| AuditOutcome | privacy_models.dart | success, failure, denied |
 
 ---
 
 ## 8. Repository Layer
 
-N/A — Flutter client. No local database or repository pattern. All data fetched via REST from server.
+Not applicable — this is a Flutter client application. All data persistence is handled server-side. The client communicates exclusively via REST API (Dio HTTP client) and MQTT.
 
 ---
 
 ## 9. Service Layer — Full Method Signatures
 
-### MyOffGridAIApiClient (lib/core/api/myoffgridai_api_client.dart)
-Injects: Dio, SecureStorageService, Ref
+### API Layer
+
+#### MyOffGridAIApiClient (lib/core/api/myoffgridai_api_client.dart)
 ```
-- get<T>(String path, {Map<String,dynamic>? queryParams, T Function(dynamic)? fromJson}): Future<T>
-- post<T>(String path, {dynamic data, T Function(dynamic)? fromJson}): Future<T>
-- put<T>(String path, {dynamic data, T Function(dynamic)? fromJson}): Future<T>
-- patch<T>(String path, {dynamic data, T Function(dynamic)? fromJson}): Future<T>
-- delete(String path): Future<void>
-- getBytes(String path): Future<List<int>>
-- getStream(String path, {Map<String,dynamic>? queryParams, Duration? receiveTimeout}): Future<ResponseBody?>
-- postStream(String path, {dynamic data, Duration? receiveTimeout}): Future<ResponseBody?>
-- postMultipart<T>(String path, FormData formData, {T Function(dynamic)? fromJson}): Future<T>
-- updateBaseUrl(String newBaseUrl): void
-- refreshToken(): Future<bool>
+Injects: String baseUrl, SecureStorageService storage, Ref ref
+Interceptors: _AuthInterceptor (JWT + 401 refresh), _LoggingInterceptor (debug only)
+
+Public Methods:
+  - get<T>(String path, {queryParams?, fromJson?}): Future<T>
+  - post<T>(String path, {data?, fromJson?}): Future<T>
+  - put<T>(String path, {data?, fromJson?}): Future<T>
+  - patch<T>(String path, {data?, fromJson?}): Future<T>
+  - delete(String path): Future<void>
+  - getBytes(String path): Future<List<int>>
+  - getStream(String path, {queryParams?, receiveTimeout?}): Future<ResponseBody?>
+  - postStream(String path, {data?, receiveTimeout?}): Future<ResponseBody?>
+  - postMultipart<T>(String path, FormData formData, {fromJson?}): Future<T>
+  - refreshToken(): Future<bool>
+  - updateBaseUrl(String newBaseUrl): void
+Provider: apiClientProvider
 ```
 
-### AuthService (lib/core/auth/auth_service.dart)
-Injects: MyOffGridAIApiClient, SecureStorageService
+#### ApiException (lib/core/api/api_exception.dart)
 ```
-- login(String username, String password): Future<AuthResponse>
-- register({required String username, required String displayName, required String password, String? email, String role}): Future<AuthResponse>
-- logout(): Future<void>
-- refresh(): Future<AuthResponse>
-- getCurrentUser(String userId): Future<UserModel>
+Fields: statusCode (int), message (String), errors (Map<String, dynamic>?)
+Purpose: Typed HTTP error wrapping status code and validation errors
 ```
 
-### ChatService (lib/core/services/chat_service.dart)
-Injects: MyOffGridAIApiClient
+#### ApiResponse<T> (lib/core/api/api_response.dart)
 ```
-- listConversations({int page, int size, bool archived}): Future<List<ConversationSummaryModel>>
-- createConversation({String? title}): Future<ConversationModel>
-- getConversation(String conversationId): Future<ConversationModel>
-- deleteConversation(String conversationId): Future<void>
-- archiveConversation(String conversationId): Future<void>
-- renameConversation(String conversationId, String title): Future<ConversationModel>
-- searchConversations(String query): Future<List<ConversationSummaryModel>>
-- listMessages(String conversationId, {int page, int size}): Future<List<MessageModel>>
-- sendMessage(String conversationId, String content, {bool stream}): Future<MessageModel>
-- sendMessageStream(String conversationId, String content): Stream<InferenceStreamEvent>
-- editMessage(String conversationId, String messageId, String newContent): Future<MessageModel>
-- deleteMessage(String conversationId, String messageId): Future<void>
-- branchConversation(String conversationId, String messageId, {String? title}): Future<ConversationModel>
-- regenerateMessage(String conversationId, String messageId): Stream<InferenceStreamEvent>
+Fields: success (bool), message (String?), data (T?), timestamp (String?), requestId (String?), totalElements (int?), page (int?), size (int?)
+Methods: fromJson(json, fromJsonT)
+Purpose: Server response envelope — consistent success/failure signaling
 ```
 
-### ChatMessagesNotifier (lib/core/services/chat_messages_notifier.dart)
-Injects: ChatService (via ref), aiThinkingProvider, conversationsProvider
+#### Providers (lib/core/api/providers.dart)
 ```
-- build(String conversationId): Future<List<MessageModel>>
-- sendMessage(String content): Future<void>
-- editMessage(String messageId, String newContent): Future<void>
-- deleteMessage(String messageId): Future<void>
-- regenerateMessage(String messageId): Future<void>
-```
-
-### DeviceRegistrationService (lib/core/services/device_registration_service.dart)
-Injects: MyOffGridAIApiClient, SecureStorageService
-```
-- registerDevice(): Future<void>
-- getRegisteredDevices(): Future<List<DeviceRegistrationModel>>
-- unregisterDevice(String deviceId): Future<void>
+systemStatusProvider — polls device initialization status
+modelHealthProvider — polls Ollama model health every 60s
+unreadCountProvider — fetches unread notification count
+connectionStatusProvider — pings server periodically
+serverUrlProvider — resolves server URL from storage
+DTOs: OllamaHealthDto, SystemStatusDto
 ```
 
-### EnrichmentService (lib/core/services/enrichment_service.dart)
-Injects: MyOffGridAIApiClient
+### Auth Layer
+
+#### AuthService (lib/core/auth/auth_service.dart)
 ```
-- getExternalApiSettings(): Future<ExternalApiSettingsModel>
-- updateExternalApiSettings(UpdateExternalApiSettingsRequest request): Future<ExternalApiSettingsModel>
-- fetchUrl({required String url, bool summarizeWithClaude}): Future<KnowledgeDocumentModel>
-- search({required String query, int storeTopN, bool summarizeWithClaude}): Future<record>
-- getStatus(): Future<EnrichmentStatusModel>
+Injects: MyOffGridAIApiClient client, SecureStorageService storage
+
+Public Methods:
+  - login(String username, String password): Future<AuthResponse>
+  - register({username, displayName, password, email?, role?}): Future<AuthResponse>
+  - logout(): Future<void>
+  - refresh(): Future<AuthResponse>
+  - getCurrentUser(String userId): Future<UserModel>
+Provider: authServiceProvider
 ```
 
-### EventService (lib/core/services/event_service.dart)
-Injects: MyOffGridAIApiClient
+#### AuthNotifier (lib/core/auth/auth_state.dart)
 ```
-- listEvents({int page, int size}): Future<List<ScheduledEventModel>>
-- getEvent(String eventId): Future<ScheduledEventModel>
-- createEvent(Map<String,dynamic> body): Future<ScheduledEventModel>
-- updateEvent(String eventId, Map<String,dynamic> body): Future<ScheduledEventModel>
-- deleteEvent(String eventId): Future<void>
-- toggleEvent(String eventId): Future<ScheduledEventModel>
-```
-
-### ForegroundServiceManager (lib/core/services/foreground_service_manager.dart)
-Injects: none
-```
-- startService(): Future<void>
-- stopService(): Future<void>
-- isRunning: bool (getter)
+Public Methods:
+  - build(): Future<UserModel?> — checks stored tokens on startup
+  - login(String username, String password): Future<void>
+  - register({username, displayName, password, email?}): Future<void>
+  - logout(): Future<void>
+Provider: authStateProvider (AsyncNotifierProvider)
 ```
 
-### InsightService (lib/core/services/insight_service.dart)
-Injects: MyOffGridAIApiClient
+#### SecureStorageService (lib/core/auth/secure_storage_service.dart)
 ```
-- listInsights({int page, int size, String? category}): Future<List<InsightModel>>
-- generateInsights(): Future<List<InsightModel>>
-- markAsRead(String insightId): Future<InsightModel>
-- dismiss(String insightId): Future<InsightModel>
-- getUnreadCount(): Future<int>
+Injects: FlutterSecureStorage? storage (optional, test injection)
+
+Public Methods:
+  - saveTokens({accessToken, refreshToken}): Future<void>
+  - getAccessToken(): Future<String?>
+  - getRefreshToken(): Future<String?>
+  - clearTokens(): Future<void>
+  - saveServerUrl(String url): Future<void>
+  - getServerUrl(): Future<String> — returns stored or default
+  - saveThemePreference(String theme): Future<void>
+  - getThemePreference(): Future<String> — returns stored or 'system'
+  - saveDeviceId(String deviceId): Future<void>
+  - getDeviceId(): Future<String?>
+Provider: secureStorageProvider
 ```
 
-### InventoryService (lib/core/services/inventory_service.dart)
-Injects: MyOffGridAIApiClient
+### Domain Services
+
+#### ChatService (lib/core/services/chat_service.dart)
 ```
-- listItems({String? category}): Future<List<InventoryItemModel>>
-- createItem({required String name, required String category, required double quantity, String? unit, String? notes, double? lowStockThreshold}): Future<InventoryItemModel>
-- updateItem(String itemId, Map<String,dynamic> updates): Future<InventoryItemModel>
-- deleteItem(String itemId): Future<void>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listConversations({page?, size?, archived?}): Future<List<ConversationSummaryModel>>
+  - createConversation({title?}): Future<ConversationModel>
+  - getConversation(String id): Future<ConversationModel>
+  - deleteConversation(String id): Future<void>
+  - archiveConversation(String id): Future<void>
+  - renameConversation(String id, String title): Future<ConversationModel>
+  - searchConversations(String query): Future<List<ConversationSummaryModel>>
+  - listMessages(String convId, {page?, size?}): Future<List<MessageModel>>
+  - sendMessage(String convId, String content, {stream?}): Future<MessageModel>
+  - sendMessageStream(String convId, String content): Stream<InferenceStreamEvent>
+  - editMessage(String convId, String msgId, String content): Future<MessageModel>
+  - deleteMessage(String convId, String msgId): Future<void>
+  - branchConversation(String convId, String msgId, {title?}): Future<ConversationModel>
+  - regenerateMessage(String convId, String msgId): Stream<InferenceStreamEvent>
+Providers: chatServiceProvider, conversationsProvider, messagesProvider, aiThinkingProvider, judgeEvaluatingProvider, sidebarCollapsedProvider
 ```
 
-### KnowledgeService (lib/core/services/knowledge_service.dart)
-Injects: MyOffGridAIApiClient
+#### ChatMessagesNotifier (lib/core/services/chat_messages_notifier.dart)
 ```
-- listDocuments({int page, int size}): Future<List<KnowledgeDocumentModel>>
-- getDocument(String documentId): Future<KnowledgeDocumentModel>
-- uploadDocument(String filename, List<int> bytes): Future<KnowledgeDocumentModel>
-- updateDisplayName(String documentId, String displayName): Future<KnowledgeDocumentModel>
-- deleteDocument(String documentId): Future<void>
-- retryProcessing(String documentId): Future<KnowledgeDocumentModel>
-- search(String query, {int topK}): Future<List<KnowledgeSearchResultModel>>
-- getDocumentContent(String documentId): Future<DocumentContentModel>
-- downloadDocument(String documentId): Future<List<int>>
-- createDocument({required String title, required String content}): Future<KnowledgeDocumentModel>
-- updateDocumentContent(String documentId, String content): Future<KnowledgeDocumentModel>
+Extends: AutoDisposeFamilyAsyncNotifier<List<MessageModel>, String>
+
+Public Methods:
+  - build(String arg): Future<List<MessageModel>> — loads messages for conversation
+  - sendMessage(String content): Future<void> — SSE streaming with typed events
+  - editMessage(String messageId, String newContent): Future<void>
+  - deleteMessage(String messageId): Future<void>
+  - regenerateMessage(String messageId): Future<void> — SSE streaming regeneration
+Provider: chatMessagesNotifierProvider (family, keyed by conversation ID)
 ```
 
-### LibraryService (lib/core/services/library_service.dart)
-Injects: MyOffGridAIApiClient
+#### MemoryService (lib/core/services/memory_service.dart)
 ```
-- listZimFiles(): Future<List<ZimFileModel>>
-- uploadZimFile({required String filename, required List<int> bytes, required String displayName, String? category}): Future<ZimFileModel>
-- deleteZimFile(String id): Future<void>
-- getKiwixStatus(): Future<KiwixStatusModel>
-- getKiwixUrl(): Future<String>
-- listEbooks({String? search, String? format, int page, int size}): Future<List<EbookModel>>
-- getEbook(String id): Future<EbookModel>
-- uploadEbook({required String filename, required List<int> bytes, required String title, String? author}): Future<EbookModel>
-- deleteEbook(String id): Future<void>
-- downloadEbookContent(String id): Future<List<int>>
-- searchGutenberg(String query, {int limit}): Future<GutenbergSearchResultModel>
-- getGutenbergBook(int id): Future<GutenbergBookModel>
-- importGutenbergBook(int gutenbergId): Future<EbookModel>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listMemories({page?, size?, importance?, tag?}): Future<List<MemoryModel>>
+  - getMemory(String id): Future<MemoryModel>
+  - deleteMemory(String id): Future<void>
+  - updateTags(String id, String tags): Future<MemoryModel>
+  - updateImportance(String id, String importance): Future<MemoryModel>
+  - search(String query, {topK?}): Future<List<MemorySearchResultModel>>
+  - exportMemories(): Future<List<MemoryModel>>
+Providers: memoryServiceProvider, memoriesProvider
 ```
 
-### LocalNotificationService (lib/core/services/local_notification_service.dart)
-Injects: FlutterLocalNotificationsPlugin (optional)
+#### KnowledgeService (lib/core/services/knowledge_service.dart)
 ```
-- initialize(): Future<void>
-- requestPermission(): Future<bool>
-- showNotification({required int id, required String title, required String body, String? payload}): Future<void>
-- showAlertNotification(NotificationModel notification): Future<void>
-- isInitialized: bool (getter)
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listDocuments({page?, size?}): Future<List<KnowledgeDocumentModel>>
+  - getDocument(String id): Future<KnowledgeDocumentModel>
+  - uploadDocument(String filename, List<int> bytes): Future<KnowledgeDocumentModel>
+  - updateDisplayName(String id, String name): Future<KnowledgeDocumentModel>
+  - deleteDocument(String id): Future<void>
+  - retryProcessing(String id): Future<KnowledgeDocumentModel>
+  - search(String query, {topK?}): Future<List<KnowledgeSearchResultModel>>
+  - getDocumentContent(String id): Future<DocumentContentModel>
+  - downloadDocument(String id): Future<List<int>>
+  - createDocument({title, content}): Future<KnowledgeDocumentModel>
+  - updateDocumentContent(String id, String content): Future<KnowledgeDocumentModel>
+Providers: knowledgeServiceProvider, knowledgeDocumentsProvider, documentContentProvider
 ```
 
-### MemoryService (lib/core/services/memory_service.dart)
-Injects: MyOffGridAIApiClient
+#### SkillsService (lib/core/services/skills_service.dart)
 ```
-- listMemories({int page, int size, String? importance, String? tag}): Future<List<MemoryModel>>
-- getMemory(String id): Future<MemoryModel>
-- deleteMemory(String id): Future<void>
-- updateTags(String id, String tags): Future<MemoryModel>
-- updateImportance(String id, String importance): Future<MemoryModel>
-- search(String query, {int topK}): Future<List<MemorySearchResultModel>>
-- exportMemories(): Future<List<MemoryModel>>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listSkills(): Future<List<SkillModel>>
+  - getSkill(String id): Future<SkillModel>
+  - toggleSkill(String id, bool enabled): Future<SkillModel>
+  - executeSkill(String id, {params?}): Future<SkillExecutionModel>
+  - listExecutions({page?, size?}): Future<List<SkillExecutionModel>>
+Providers: skillsServiceProvider, skillsProvider
 ```
 
-### ModelCatalogService (lib/core/services/model_catalog_service.dart)
-Injects: MyOffGridAIApiClient
+#### InventoryService (lib/core/services/inventory_service.dart)
 ```
-- searchCatalog({required String query, String format, int limit}): Future<List<HfModelModel>>
-- getModelDetails(String author, String modelId): Future<HfModelModel>
-- getModelFiles(String author, String modelId): Future<List<HfModelFileModel>>
-- startDownload({required String repoId, required String filename}): Future<Map<String,dynamic>>
-- getAllDownloads(): Future<List<DownloadProgressModel>>
-- streamDownloadProgress(String downloadId): Stream<DownloadProgressModel>
-- cancelDownload(String downloadId): Future<void>
-- listLocalModels(): Future<List<LocalModelFileModel>>
-- deleteLocalModel(String filename): Future<void>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listItems({category?}): Future<List<InventoryItemModel>>
+  - createItem({name, category, quantity, unit?, notes?, lowStockThreshold?}): Future<InventoryItemModel>
+  - updateItem(String id, Map<String, dynamic> updates): Future<InventoryItemModel>
+  - deleteItem(String id): Future<void>
+Providers: inventoryServiceProvider, inventoryProvider
 ```
 
-### MqttServiceNotifier (lib/core/services/mqtt_service.dart)
-Injects: Ref (for SecureStorageService, LocalNotificationService, notificationsProvider)
+#### SensorService (lib/core/services/sensor_service.dart)
 ```
-- connect(String userId): Future<void>
-- disconnect(): void
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listSensors(): Future<List<SensorModel>>
+  - getSensor(String id): Future<SensorModel>
+  - createSensor({name, type, portPath, baudRate?, dataFormat?, valueField?, unit?, pollIntervalSeconds, lowThreshold?, highThreshold?}): Future<SensorModel>
+  - deleteSensor(String id): Future<void>
+  - startSensor(String id): Future<SensorModel>
+  - stopSensor(String id): Future<SensorModel>
+  - getLatestReading(String id): Future<SensorReadingModel?>
+  - getHistory(String id, {hours?, page?, size?}): Future<List<SensorReadingModel>>
+  - updateThresholds(String id, {lowThreshold?, highThreshold?}): Future<SensorModel>
+  - testConnection(String portPath, int baudRate): Future<SensorTestResultModel>
+  - listPorts(): Future<List<String>>
+Providers: sensorServiceProvider, sensorsProvider
 ```
 
-### NotificationService (lib/core/services/notification_service.dart)
-Injects: MyOffGridAIApiClient
+#### EventService (lib/core/services/event_service.dart)
 ```
-- listNotifications({bool unreadOnly, int page, int size}): Future<List<NotificationModel>>
-- markAsRead(String notificationId): Future<NotificationModel>
-- markAllAsRead(): Future<void>
-- deleteNotification(String notificationId): Future<void>
-- getUnreadCount(): Future<int>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listEvents({page?, size?}): Future<List<ScheduledEventModel>>
+  - getEvent(String id): Future<ScheduledEventModel>
+  - createEvent(Map<String, dynamic> body): Future<ScheduledEventModel>
+  - updateEvent(String id, Map<String, dynamic> body): Future<ScheduledEventModel>
+  - deleteEvent(String id): Future<void>
+  - toggleEvent(String id): Future<ScheduledEventModel>
+Providers: eventServiceProvider, eventsListProvider
 ```
 
-### PrivacyService (lib/core/services/privacy_service.dart)
-Injects: MyOffGridAIApiClient
+#### InsightService (lib/core/services/insight_service.dart)
 ```
-- getFortressStatus(): Future<FortressStatusModel>
-- enableFortress(): Future<void>
-- disableFortress(): Future<void>
-- getSovereigntyReport(): Future<SovereigntyReportModel>
-- getAuditLogs({String? outcome, int page, int size}): Future<List<AuditLogModel>>
-- wipeSelfData(): Future<WipeResultModel>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listInsights({page?, size?, category?}): Future<List<InsightModel>>
+  - generateInsights(): Future<List<InsightModel>>
+  - markAsRead(String id): Future<InsightModel>
+  - dismiss(String id): Future<InsightModel>
+  - getUnreadCount(): Future<int>
+Providers: insightServiceProvider, insightsProvider
 ```
 
-### SensorService (lib/core/services/sensor_service.dart)
-Injects: MyOffGridAIApiClient
+#### NotificationService (lib/core/services/notification_service.dart)
 ```
-- listSensors(): Future<List<SensorModel>>
-- getSensor(String sensorId): Future<SensorModel>
-- createSensor({required String name, required String type, required String portPath, int? baudRate, String? dataFormat, String? valueField, String? unit, required int pollIntervalSeconds, double? lowThreshold, double? highThreshold}): Future<SensorModel>
-- deleteSensor(String sensorId): Future<void>
-- startSensor(String sensorId): Future<SensorModel>
-- stopSensor(String sensorId): Future<SensorModel>
-- getLatestReading(String sensorId): Future<SensorReadingModel?>
-- getHistory(String sensorId, {int hours, int page, int size}): Future<List<SensorReadingModel>>
-- updateThresholds(String sensorId, {double? lowThreshold, double? highThreshold}): Future<SensorModel>
-- testConnection(String portPath, int baudRate): Future<SensorTestResultModel>
-- listPorts(): Future<List<String>>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listNotifications({unreadOnly?, page?, size?}): Future<List<NotificationModel>>
+  - markAsRead(String id): Future<NotificationModel>
+  - markAllAsRead(): Future<void>
+  - deleteNotification(String id): Future<void>
+  - getUnreadCount(): Future<int>
+Providers: notificationServiceProvider, notificationsProvider, notificationsUnreadCountProvider (StreamProvider, polls 30s)
 ```
 
-### SkillsService (lib/core/services/skills_service.dart)
-Injects: MyOffGridAIApiClient
+#### LocalNotificationService (lib/core/services/local_notification_service.dart)
 ```
-- listSkills(): Future<List<SkillModel>>
-- getSkill(String skillId): Future<SkillModel>
-- toggleSkill(String skillId, bool enabled): Future<SkillModel>
-- executeSkill(String skillId, {Map<String,dynamic>? params}): Future<SkillExecutionModel>
-- listExecutions({int page, int size}): Future<List<SkillExecutionModel>>
+Injects: FlutterLocalNotificationsPlugin? plugin (optional, test injection)
+
+Public Methods:
+  - initialize(): Future<void>
+  - requestPermission(): Future<bool>
+  - showNotification({id, title, body, payload?}): Future<void>
+  - showAlertNotification(NotificationModel notification): Future<void>
+  - isInitialized: bool (getter)
+Provider: localNotificationServiceProvider
 ```
 
-### SystemService (lib/core/services/system_service.dart)
-Injects: MyOffGridAIApiClient
+#### PrivacyService (lib/core/services/privacy_service.dart)
 ```
-- getSystemStatus(): Future<SystemStatusModel>
-- listModels(): Future<List<OllamaModelInfoModel>>
-- getActiveModel(): Future<ActiveModelInfo>
-- getAiSettings(): Future<AiSettingsModel>
-- getStorageSettings(): Future<StorageSettingsModel>
-- updateStorageSettings(StorageSettingsModel settings): Future<StorageSettingsModel>
-- updateAiSettings(AiSettingsModel settings): Future<AiSettingsModel>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - getFortressStatus(): Future<FortressStatusModel>
+  - enableFortress(): Future<void>
+  - disableFortress(): Future<void>
+  - getSovereigntyReport(): Future<SovereigntyReportModel>
+  - getAuditLogs({outcome?, page?, size?}): Future<List<AuditLogModel>>
+  - wipeSelfData(): Future<WipeResultModel>
+Providers: privacyServiceProvider, fortressStatusProvider
 ```
 
-### UserService (lib/core/services/user_service.dart)
-Injects: MyOffGridAIApiClient
+#### SystemService (lib/core/services/system_service.dart)
 ```
-- listUsers({int page, int size}): Future<List<UserModel>>
-- getUser(String userId): Future<UserDetailModel>
-- updateUser(String userId, {String? displayName, String? email, String? role}): Future<UserDetailModel>
-- deactivateUser(String userId): Future<void>
-- deleteUser(String userId): Future<void>
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - getSystemStatus(): Future<SystemStatusModel>
+  - listModels(): Future<List<OllamaModelInfoModel>>
+  - getActiveModel(): Future<ActiveModelInfo>
+  - getAiSettings(): Future<AiSettingsModel>
+  - getStorageSettings(): Future<StorageSettingsModel>
+  - updateStorageSettings(StorageSettingsModel): Future<StorageSettingsModel>
+  - updateAiSettings(AiSettingsModel): Future<AiSettingsModel>
+Providers: systemServiceProvider, systemStatusDetailProvider, ollamaModelsProvider, aiSettingsProvider, storageSettingsProvider
+```
+
+#### EnrichmentService (lib/core/services/enrichment_service.dart)
+```
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - getExternalApiSettings(): Future<ExternalApiSettingsModel>
+  - updateExternalApiSettings(UpdateExternalApiSettingsRequest): Future<ExternalApiSettingsModel>
+  - fetchUrl({url, summarizeWithClaude?}): Future<KnowledgeDocumentModel>
+  - search({query, storeTopN?, summarizeWithClaude?}): Future<({results, storedDocuments})>
+  - getStatus(): Future<EnrichmentStatusModel>
+Providers: enrichmentServiceProvider, enrichmentStatusProvider, externalApiSettingsProvider
+```
+
+#### JudgeService (lib/core/services/judge_service.dart)
+```
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - getStatus(): Future<JudgeStatusModel>
+  - start(): Future<JudgeStatusModel>
+  - stop(): Future<JudgeStatusModel>
+  - test({query, response}): Future<JudgeTestResultModel>
+Providers: judgeServiceProvider, judgeStatusProvider
+```
+
+#### ModelCatalogService (lib/core/services/model_catalog_service.dart)
+```
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - searchCatalog({query, format?, limit?}): Future<List<HfModelModel>>
+  - getModelDetails(String author, String modelId): Future<HfModelModel>
+  - getModelFiles(String author, String modelId): Future<List<HfModelFileModel>>
+  - startDownload({repoId, filename}): Future<Map<String, dynamic>>
+  - getAllDownloads(): Future<List<DownloadProgressModel>>
+  - streamDownloadProgress(String downloadId): Stream<DownloadProgressModel>
+  - cancelDownload(String downloadId): Future<void>
+  - listLocalModels(): Future<List<LocalModelFileModel>>
+  - deleteLocalModel(String filename): Future<void>
+Providers: modelCatalogServiceProvider, localModelsProvider, activeDownloadsProvider
+```
+
+#### DeviceRegistrationService (lib/core/services/device_registration_service.dart)
+```
+Injects: MyOffGridAIApiClient client, SecureStorageService storage
+
+Public Methods:
+  - registerDevice(): Future<void>
+  - getRegisteredDevices(): Future<List<DeviceRegistrationModel>>
+  - unregisterDevice(String id): Future<void>
+Provider: deviceRegistrationServiceProvider
+```
+
+#### LibraryService (lib/core/services/library_service.dart)
+```
+Injects: MyOffGridAIApiClient client
+
+Public Methods:
+  - listZimFiles(): Future<List<ZimFileModel>>
+  - uploadZimFile({filename, bytes, displayName, category?}): Future<ZimFileModel>
+  - deleteZimFile(String id): Future<void>
+  - getKiwixStatus(): Future<KiwixStatusModel>
+  - getKiwixUrl(): Future<String>
+  - listEbooks({search?, format?, page?, size?}): Future<List<EbookModel>>
+  - getEbook(String id): Future<EbookModel>
+  - uploadEbook({filename, bytes, title, author?}): Future<EbookModel>
+  - deleteEbook(String id): Future<void>
+  - downloadEbookContent(String id): Future<List<int>>
+  - searchGutenberg(String query, {limit?}): Future<GutenbergSearchResultModel>
+  - getGutenbergBook(int id): Future<GutenbergBookModel>
+  - importGutenbergBook(int gutenbergId): Future<EbookModel>
+Providers: libraryServiceProvider, zimFilesProvider, ebooksProvider, kiwixStatusProvider, kiwixUrlProvider
+```
+
+#### MqttServiceNotifier (lib/core/services/mqtt_service.dart)
+```
+Extends: StateNotifier<MqttState>
+Injects: Ref _ref
+
+Public Methods:
+  - connect(String userId): Future<void>
+  - disconnect(): void
+  - dispose(): void
+States: MqttConnectionStatus {disconnected, connecting, connected, error}
+Provider: mqttServiceProvider (StateNotifierProvider)
+```
+
+#### ForegroundServiceManager (lib/core/services/foreground_service_manager.dart)
+```
+Public Methods:
+  - startService(): Future<void> — Android only
+  - stopService(): Future<void> — Android only
+  - isRunning: bool (getter)
+Provider: foregroundServiceManagerProvider
+```
+
+#### UserService (lib/core/services/user_service.dart)
+```
+Injects: MyOffGridAIApiClient client
+Additional DTO: UserDetailModel (id, username, email, displayName, role, isActive, createdAt, updatedAt, lastLoginAt)
+
+Public Methods:
+  - listUsers({page?, size?}): Future<List<UserModel>>
+  - getUser(String id): Future<UserDetailModel>
+  - updateUser(String id, {displayName?, email?, role?}): Future<UserDetailModel>
+  - deactivateUser(String id): Future<void>
+  - deleteUser(String id): Future<void>
+Providers: userServiceProvider, usersListProvider
 ```
 
 ---
 
 ## 10. Controller / API Layer — Method Signatures Only
 
-N/A — Flutter client. No controllers. All API calls are in service classes (Section 9). Feature screens consume services via Riverpod providers.
+Not applicable — this is a Flutter client. There are no server-side controllers. The equivalent is the **feature screens** that consume services. See Section 9 for all service→API mappings and the architecture doc for screen→service relationships.
+
+### API Endpoints Consumed (Base Paths from constants.dart)
+
+| Path Prefix | Service |
+|---|---|
+| /api/auth | AuthService |
+| /api/users | UserService |
+| /api/chat | ChatService |
+| /api/models | ModelCatalogService, SystemService |
+| /api/memory | MemoryService |
+| /api/knowledge | KnowledgeService |
+| /api/skills | SkillsService |
+| /api/skills/inventory | InventoryService |
+| /api/sensors | SensorService |
+| /api/events | EventService |
+| /api/insights | InsightService |
+| /api/notifications | NotificationService |
+| /api/notifications/devices | DeviceRegistrationService |
+| /api/privacy | PrivacyService |
+| /api/system | SystemService |
+| /api/enrichment | EnrichmentService |
+| /api/settings/external-apis | EnrichmentService |
+| /api/ai/judge | JudgeService |
+| /api/library | LibraryService |
 
 ---
 
 ## 11. Security Configuration
 
+This is a client-side Flutter application. Security is enforced server-side. The client handles:
+
 ```
-Authentication:    JWT Bearer token (access + refresh)
-Token issuer:      MyOffGridAI-Server (external)
-Token storage:     FlutterSecureStorage (iOS Keychain, Android EncryptedSharedPreferences)
-                   + in-memory cache fallback for web
+Authentication: JWT Bearer tokens (obtained from /api/auth/login, stored in FlutterSecureStorage)
+Token Storage: flutter_secure_storage (OS keychain on iOS, EncryptedSharedPreferences on Android)
+Token Refresh: Automatic via _AuthInterceptor (intercepts 401 → refreshes → retries)
+Password Encoder: N/A (server-side)
 
-Token lifecycle:
-  - Login/Register → server returns accessToken + refreshToken
-  - Stored via SecureStorageService.saveTokens()
-  - Attached to requests by _AuthInterceptor (Dio interceptor)
-  - On 401: single refresh attempt via /api/auth/refresh
-  - On refresh failure: clearTokens() + user returned to login
+Public Routes (no auth required):
+  - /login
+  - /register
+  - /device-not-setup
 
-Route protection:
-  - GoRouter redirect: unauthenticated users → /login
-  - /users route: ROLE_OWNER or ROLE_ADMIN only
-  - Logged-in users redirected from /login and /register to /
+Protected Routes:
+  - All routes under ShellRoute (GoRouter redirect guard)
+  - /users → ROLE_OWNER or ROLE_ADMIN only (client-side guard in router)
 
 CORS: N/A (client-side)
-CSRF: N/A (client-side)
-Rate limiting: N/A (server-side concern)
+CSRF: N/A (client-side — API uses JWT, not cookies)
+Rate limiting: N/A (server-side)
 ```
 
 ---
@@ -619,48 +1123,61 @@ Rate limiting: N/A (server-side concern)
 ## 12. Custom Security Components
 
 ### _AuthInterceptor (lib/core/api/myoffgridai_api_client.dart)
-- Extends: `Interceptor` (Dio)
-- Attaches `Authorization: Bearer <token>` to all requests
-- Skips auth for requests with `_skipAuth: true` header
-- On 401: attempts single token refresh, retries original request
-- Never retries `/auth/refresh` or `/auth/login` paths
-- On refresh failure: clears tokens
+```
+Extends: Interceptor (Dio)
+Purpose: Attaches JWT Bearer token to all requests, handles 401 with automatic token refresh
+Extracts token from: SecureStorageService
+Validates via: Server response (401 triggers refresh)
+Sets SecurityContext: N/A (Flutter — sets Authorization header)
+Refresh flow: 401 → call /api/auth/refresh with stored refresh token → retry original request → if refresh fails → clear tokens → redirect to login
+```
 
-### _LoggingInterceptor (lib/core/api/myoffgridai_api_client.dart)
-- Debug-only (kDebugMode)
-- Logs HTTP method + path (request) and status code (response)
-- Never logs Authorization headers or request bodies
+### SecureStorageService (lib/core/auth/secure_storage_service.dart)
+```
+Purpose: Secure credential storage wrapper
+Storage: FlutterSecureStorage (platform keychain/keystore)
+Stores: access_token, refresh_token, server_url, theme_preference, device_id
+```
 
 ### AuthNotifier (lib/core/auth/auth_state.dart)
-- Decodes JWT payload locally (no network call) on startup
-- Checks token expiry; attempts refresh if expired
-- Extracts userId, username, displayName, role from JWT claims
+```
+Purpose: Manages auth state as Riverpod AsyncNotifier
+On build: Checks for stored access token → fetches user profile → sets state
+Login: Calls AuthService.login → saves tokens → updates state
+Logout: Calls AuthService.logout → clears tokens → resets state to null
+```
 
 ---
 
 ## 13. Exception Handling & Error Responses
 
 ### ApiException (lib/core/api/api_exception.dart)
-```dart
-class ApiException implements Exception {
-  final int statusCode;
-  final String message;
-  final Map<String, dynamic>? errors;
-}
+```
+Implements: Exception
+Fields: statusCode (int), message (String), errors (Map<String, dynamic>?)
+Thrown by: MyOffGridAIApiClient on non-2xx HTTP responses
+Usage: Services catch specific status codes; UI displays message via SnackBar
 ```
 
-**Error handling pattern:**
-- DioException with response → extracts `message` and `errors` from response body
-- Connection/receive timeout → statusCode 408, "Connection timed out"
-- No response → statusCode 0, "Cannot reach MyOffGrid AI server"
+### Error Handling Pattern
+- `MyOffGridAIApiClient` wraps all Dio errors into `ApiException` with status code and server message
+- Services propagate `ApiException` to UI layer
+- Screen widgets catch exceptions in try/catch blocks and display SnackBars
+- `_AuthInterceptor` handles 401 errors by attempting token refresh before propagating
 
-**No global exception handler on client.** Each screen catches ApiException and displays via SnackBar.
+### ApiResponse<T> (lib/core/api/api_response.dart)
+```
+Standard envelope: { success, message, data, timestamp, requestId, totalElements, page, size }
+All API responses wrapped in this structure
+```
 
 ---
 
 ## 14. Mappers / DTOs
 
-No mapper framework (MapStruct, etc.). All mapping is manual via `fromJson` factory constructors and `toJson` methods. See Section 6 for complete field mappings.
+No separate mapper layer. All models have manual `fromJson()` factory constructors and optional `toJson()` methods inline. The `ApiResponse.fromJson()` acts as the top-level deserializer, delegating to model-specific factories.
+
+**Serialization pattern:** Manual JSON (no code generation, no json_serializable, no freezed).
 
 ---
 
@@ -668,209 +1185,184 @@ No mapper framework (MapStruct, etc.). All mapping is manual via `fromJson` fact
 
 ### DateFormatter (lib/shared/utils/date_formatter.dart)
 ```
-- formatRelative(DateTime): String → "just now", "X minutes ago", "Yesterday", "Mar 14"
-- formatFull(DateTime): String → "March 14, 2026 at 3:45 PM"
-- formatDate(DateTime): String → "Mar 14, 2026"
+Methods:
+  - formatRelative(DateTime dt): String — "just now", "X minutes ago", "Yesterday", "Mar 14"
+  - formatFull(DateTime dt): String — "March 14, 2026 at 3:45 PM"
+  - formatDate(DateTime dt): String — "Mar 14, 2026"
+Used by: Chat screens, notification screens, event screens, memory screens
 ```
-Used by: NavigationPanel, MemoryScreen, NotificationsScreen, various detail screens
 
 ### SizeFormatter (lib/shared/utils/size_formatter.dart)
 ```
-- formatBytes(int bytes): String → "1.2 MB", "340 KB"
+Methods:
+  - formatBytes(int bytes): String — "1.2 MB", "340 KB"
+Used by: Knowledge/library screens, model catalog screens
 ```
-Used by: HfModelFileModel, KnowledgeScreen, SystemScreen
-
-### PlatformUtils (lib/shared/utils/platform_utils.dart)
-```
-- isWeb: bool
-- isMobile: bool
-- isTablet(BuildContext): bool (600-1200px)
-- isMobileWidth(BuildContext): bool (<600px)
-- isDesktopWidth(BuildContext): bool (>=1200px)
-```
-Used by: AppShell (adaptive navigation), various responsive layouts
 
 ### DownloadUtils (lib/shared/utils/download_utils.dart)
 ```
-- downloadBytes(List<int> bytes, String filename): void → web-only browser download via data URI
+Methods:
+  - downloadBytes(List<int> bytes, String filename): void — Web only (data URI trigger)
+  - _guessMimeType(String filename): String — MIME type from extension
+Used by: Knowledge document download, ebook download
 ```
-Uses conditional import: download_trigger_stub.dart (native no-op) / download_trigger_web.dart (dart:html anchor)
 
-### Shared Widgets
+### PlatformUtils (lib/shared/utils/platform_utils.dart)
+```
+Methods:
+  - isWeb: bool (getter)
+  - isMobile: bool (getter)
+  - isTablet(BuildContext): bool — width 600-1200
+  - isMobileWidth(BuildContext): bool — width < 600
+  - isDesktopWidth(BuildContext): bool — width >= 1200
+Used by: AppShell, NavigationPanel, responsive layout decisions
+```
 
-| Widget | Type | Purpose |
-|---|---|---|
-| AppShell | ConsumerStatefulWidget | Top-level scaffold with adaptive nav (BottomNavigationBar mobile, NavigationPanel desktop) |
-| NavigationPanel | ConsumerStatefulWidget | Claude-style collapsible sidebar with nav items, conversation list, search, settings |
-| ConnectionLostBanner | ConsumerWidget | Amber banner when server unreachable |
-| SystemStatusBar | ConsumerWidget | Persistent bar with model health, model switcher, notification count |
-| ConfirmationDialog | StatelessWidget | Reusable confirm/cancel dialog with destructive mode |
-| EmptyStateView | StatelessWidget | Empty list placeholder with icon, title, subtitle |
-| ErrorView | StatelessWidget | Error display with retry button |
-| LoadingIndicator | StatelessWidget | Configurable spinner (small/medium/large) with label |
-| NotificationBadge | StatelessWidget | Red circle badge overlay with count |
+### Shared Widgets (lib/shared/widgets/)
+
+| Widget | Purpose |
+|---|---|
+| AppShell | Root layout with NavigationPanel + content area |
+| NavigationPanel | Collapsible side navigation with route links |
+| ConfirmationDialog | Reusable confirm/cancel dialog |
+| ConnectionLostBanner | Banner shown when server connection lost |
+| EmptyStateView | Placeholder for empty lists |
+| ErrorView | Error display with retry button |
+| LoadingIndicator | Centered loading spinner |
+| NotificationBadge | Badge count overlay |
+| SystemStatusBar | Bottom bar showing connection/model status |
 
 ---
 
 ## 16. Database Schema (Live)
 
-N/A — Flutter client. No local database. Server manages all persistence.
+Not applicable — this is a Flutter client application. No local database. All data persistence is server-side, accessed via REST API.
+
+**Local storage:** `FlutterSecureStorage` for tokens and preferences only (5 key-value pairs, not a database).
 
 ---
 
 ## 17. Message Broker Configuration
 
 ```
-Broker:    MQTT (Mosquitto on server)
-Library:   mqtt_client ^10.2.1
-Port:      1883 (configurable via server URL host)
-Client ID: myoffgridai-flutter-<deviceId>
-Keep Alive: 60 seconds
-Reconnect: Auto with 5-second delay
+Broker: MQTT (Mosquitto on server)
+Client Library: mqtt_client ^10.2.1
+Connection: offgrid.local:1883 (configurable via constants)
+Client ID: myoffgridai-flutter-{userId}
 
 Topics:
-  - /myoffgridai/<userId>/notifications → User-specific notifications
-  - /myoffgridai/broadcast → System-wide broadcasts
+  - /myoffgridai/broadcast — System-wide broadcast messages
+  - /myoffgridai/user/{userId}/notifications — Per-user notifications
 
-Consumer: MqttServiceNotifier (lib/core/services/mqtt_service.dart)
-  - Deserializes JSON messages to NotificationModel
-  - Dispatches to LocalNotificationService.showAlertNotification()
-  - Invalidates notificationsProvider for UI refresh
+Consumer: MqttServiceNotifier
+  - Subscribes on connect
+  - Parses JSON payloads into NotificationModel
+  - Dispatches to LocalNotificationService for display
+  - Updates unread count
+
+Reconnect: Automatic with 5-second delay (mqttReconnectDelay)
+Keep Alive: 60 seconds (mqttKeepAliveSeconds)
 ```
 
 ---
 
 ## 18. Cache Layer
 
-No Redis or dedicated caching layer. In-memory cache in `SecureStorageService` for tokens and preferences. Riverpod `autoDispose` providers serve as the de facto data cache, refetching when watched screens mount.
+No Redis or caching layer detected. The app uses:
+- `cached_network_image` for image caching (disk cache, not application-level)
+- Riverpod `.autoDispose` providers for automatic state cleanup
+- No explicit TTL-based caching strategy
 
 ---
 
 ## 19. Environment Variable Inventory
 
-N/A — Flutter client. No environment variables. Configuration is compile-time constants in `lib/config/constants.dart`. Server URL is user-configurable at runtime via the login screen.
+No environment variables used directly. All configuration is via:
+
+| Setting | Storage | Default | Configurable |
+|---|---|---|---|
+| Server URL | FlutterSecureStorage | localhost:8080 (web) / offgrid.local:8080 (native) | Yes, via settings screen |
+| Access Token | FlutterSecureStorage | (none) | Set on login |
+| Refresh Token | FlutterSecureStorage | (none) | Set on login |
+| Theme Preference | FlutterSecureStorage | system | Yes, via settings screen |
+| Device ID | FlutterSecureStorage | (auto-generated) | No |
 
 ---
 
 ## 20. Service Dependency Map
 
 ```
-MyOffGridAI-Client → MyOffGridAI-Server
-  REST API: http(s)://<server>:8080/api/**
-  SSE Streaming: POST /api/chat/conversations/{id}/messages/stream
-  SSE Streaming: GET /api/models/downloads/{id}/progress
-  MQTT: tcp://<server>:1883
+MyOffGridAI-Client → Depends On
+------------------------------------
+MyOffGridAI Server (Spring Boot): http://localhost:8080 or http://offgrid.local:8080
+  - All /api/* REST endpoints
+  - JWT authentication (/api/auth/*)
+  
+Mosquitto MQTT Broker: offgrid.local:1883
+  - Real-time notifications and broadcasts
+  
+Kiwix Serve: localhost:8888
+  - Offline library content serving (ZIM files)
+  - Accessed via WebView
 
-MyOffGridAI-Client → Kiwix Serve (via server)
-  WebView: http://<server>:8888
+External APIs (via server proxy):
+  - Anthropic Claude API (enrichment)
+  - Brave Search API (web search)
+  - HuggingFace API (model catalog)
+  - Grok API (enrichment)
+  - OpenAI API (enrichment)
+  - Project Gutenberg API (ebook search)
 
-Downstream Consumers: None (end-user client)
+Downstream Consumers:
+  - None (this is a client-only application)
 ```
 
 ---
 
 ## 21. Known Technical Debt & Issues
 
-### TODO/PLACEHOLDER/STUB Scan
+### TODO/Placeholder/Stub Scan Results
 
-**PASS — 0 actual TODOs, FIXMEs, or stubs found.** Grep hits were false positives (string constants containing "TEMPERATURE", "stub" in conditional import filename).
+The scan found 0 genuine TODO/FIXME/placeholder patterns.
 
-### Issues
+**False positives analyzed and cleared:**
+- `apiClientProvider` throws `UnimplementedError` — this is **intentional**: the provider is overridden in `main()` after resolving the server URL. It is never invoked without override.
+- `download_trigger_stub.dart` — this is **intentional**: conditional import stub for non-web platforms where file download is a no-op.
+- `TEMPERATURE` references in sensor_model.dart — these are string constants, not the word "TEMP" as a code quality issue.
+
+### Issues Discovered During Audit
 
 | Issue | Location | Severity | Notes |
 |---|---|---|---|
-| Deprecated dart:html import | lib/shared/utils/download_trigger_web.dart:2 | Medium | Should migrate to package:web + dart:js_interop |
-| Deprecated Flutter Quill `.value` property | lib/features/settings/settings_screen.dart:2001 | Low | Use `initialValue` instead (deprecated after v3.33.0) |
-| use_build_context_synchronously | lib/features/knowledge/knowledge_screen.dart:226 | Low | BuildContext used across async gap with unrelated mounted check |
-| 13 use_null_aware_elements hints | Various service files | Low | Could use null-aware `?` marker in collection literals |
-| 1 unnecessary_import in test | test/core/api/myoffgridai_api_client_test.dart:7 | Low | Unused mocktail import |
-| Test coverage at 85.1% | Project-wide | Medium | Below 100% mandatory threshold — BLOCKING |
-| No CI/CD pipeline | Project root | Medium | No GitHub Actions, Jenkins, or GitLab CI detected |
+| No test coverage measurement | project-wide | Medium | `flutter test --coverage` not run in CI; no lcov enforcement |
+| No CI/CD pipeline | project-wide | Medium | No .github/workflows or equivalent detected |
+| Manual JSON serialization | lib/core/models/*.dart | Low | All 20 model files use hand-written fromJson/toJson; json_serializable/freezed would reduce boilerplate and prevent field mismatches |
+| No error boundary widget | lib/ | Low | No global error handler for uncaught widget exceptions (e.g., ErrorWidget.builder override) |
+| Timestamp fields as String not DateTime | lib/core/models/*.dart | Low | Most `createdAt`/`updatedAt` fields stored as `String?` rather than parsed `DateTime?` — requires parsing at display time |
 
 ---
 
 ## 22. Security Vulnerability Scan (Snyk)
 
-```
-Scan Date: 2026-03-17
+Scan Date: 2026-03-18T00:31:03Z
 Snyk CLI Version: 1.1303.0
 
 ### Dependency Vulnerabilities (Open Source)
-SKIPPED — Snyk does not support Flutter/Dart dependency scanning.
-Snyk returned: "No supported files found (SNYK-CLI-0008)"
+Critical: 0
+High: 0
+Medium: 0
+Low: 0
+
+**Result: PASS — No known vulnerabilities in dependencies.**
 
 ### Code Vulnerabilities (SAST)
-SKIPPED — Snyk Code not enabled for the organization.
-Snyk returned: "Snyk Code is not enabled (SNYK-CODE-0005)"
-
-### Flutter Static Analysis (flutter analyze)
 Errors: 0
-Warnings: 1 (unused import in test file)
-Info: 20 (deprecated APIs, null-aware element suggestions, async context usage)
-```
+Warnings: 0
+Notes: 0
+
+**Result: PASS — No code vulnerabilities detected.**
+
+### IaC Findings
+Not applicable — no Dockerfile or infrastructure-as-code files in this Flutter client project.
 
 ---
-
-## Riverpod Provider Registry
-
-| Provider | Type | Source File |
-|---|---|---|
-| `secureStorageProvider` | Provider<SecureStorageService> | secure_storage_service.dart |
-| `apiClientProvider` | Provider<MyOffGridAIApiClient> | myoffgridai_api_client.dart |
-| `localNotificationServiceProvider` | Provider<LocalNotificationService> | local_notification_service.dart |
-| `routerProvider` | Provider<GoRouter> | router.dart |
-| `themeProvider` | StateNotifierProvider<ThemeNotifier, ThemeMode> | theme.dart |
-| `authServiceProvider` | Provider<AuthService> | auth_service.dart |
-| `authStateProvider` | AsyncNotifierProvider<AuthNotifier, UserModel?> | auth_state.dart |
-| `systemStatusProvider` | FutureProvider.autoDispose<SystemStatusDto> | providers.dart |
-| `modelHealthProvider` | FutureProvider.autoDispose<OllamaHealthDto> | providers.dart |
-| `unreadCountProvider` | FutureProvider.autoDispose<int> | providers.dart |
-| `connectionStatusProvider` | StreamProvider.autoDispose<bool> | providers.dart |
-| `serverUrlProvider` | FutureProvider<String> | providers.dart |
-| `chatServiceProvider` | Provider<ChatService> | chat_service.dart |
-| `conversationsProvider` | FutureProvider.autoDispose<List<ConversationSummaryModel>> | chat_service.dart |
-| `messagesProvider` | FutureProvider.autoDispose.family<List<MessageModel>, String> | chat_service.dart |
-| `aiThinkingProvider` | StateProvider.autoDispose.family<bool, String> | chat_service.dart |
-| `sidebarCollapsedProvider` | StateProvider<bool> | chat_service.dart |
-| `chatMessagesNotifierProvider` | AsyncNotifierProvider.family<..., List<MessageModel>, String> | chat_messages_notifier.dart |
-| `deviceRegistrationServiceProvider` | Provider<DeviceRegistrationService> | device_registration_service.dart |
-| `enrichmentServiceProvider` | Provider<EnrichmentService> | enrichment_service.dart |
-| `enrichmentStatusProvider` | FutureProvider.autoDispose<EnrichmentStatusModel> | enrichment_service.dart |
-| `externalApiSettingsProvider` | FutureProvider.autoDispose<ExternalApiSettingsModel> | enrichment_service.dart |
-| `eventServiceProvider` | Provider<EventService> | event_service.dart |
-| `eventsListProvider` | FutureProvider.autoDispose<List<ScheduledEventModel>> | event_service.dart |
-| `foregroundServiceManagerProvider` | Provider<ForegroundServiceManager> | foreground_service_manager.dart |
-| `insightServiceProvider` | Provider<InsightService> | insight_service.dart |
-| `insightsProvider` | FutureProvider.autoDispose<List<InsightModel>> | insight_service.dart |
-| `inventoryServiceProvider` | Provider<InventoryService> | inventory_service.dart |
-| `inventoryProvider` | FutureProvider.autoDispose<List<InventoryItemModel>> | inventory_service.dart |
-| `knowledgeServiceProvider` | Provider<KnowledgeService> | knowledge_service.dart |
-| `knowledgeDocumentsProvider` | FutureProvider.autoDispose<List<KnowledgeDocumentModel>> | knowledge_service.dart |
-| `documentContentProvider` | FutureProvider.autoDispose.family<DocumentContentModel, String> | knowledge_service.dart |
-| `libraryServiceProvider` | Provider<LibraryService> | library_service.dart |
-| `zimFilesProvider` | FutureProvider.autoDispose<List<ZimFileModel>> | library_service.dart |
-| `ebooksProvider` | FutureProvider.autoDispose.family<List<EbookModel>, record> | library_service.dart |
-| `kiwixStatusProvider` | FutureProvider.autoDispose<KiwixStatusModel> | library_service.dart |
-| `kiwixUrlProvider` | FutureProvider.autoDispose<String> | library_service.dart |
-| `memoryServiceProvider` | Provider<MemoryService> | memory_service.dart |
-| `memoriesProvider` | FutureProvider.autoDispose<List<MemoryModel>> | memory_service.dart |
-| `modelCatalogServiceProvider` | Provider<ModelCatalogService> | model_catalog_service.dart |
-| `localModelsProvider` | FutureProvider.autoDispose<List<LocalModelFileModel>> | model_catalog_service.dart |
-| `activeDownloadsProvider` | FutureProvider.autoDispose<List<DownloadProgressModel>> | model_catalog_service.dart |
-| `mqttServiceProvider` | StateNotifierProvider<MqttServiceNotifier, MqttState> | mqtt_service.dart |
-| `notificationServiceProvider` | Provider<NotificationService> | notification_service.dart |
-| `notificationsProvider` | FutureProvider.autoDispose<List<NotificationModel>> | notification_service.dart |
-| `notificationsUnreadCountProvider` | StreamProvider.autoDispose<int> | notification_service.dart |
-| `privacyServiceProvider` | Provider<PrivacyService> | privacy_service.dart |
-| `fortressStatusProvider` | FutureProvider.autoDispose<FortressStatusModel> | privacy_service.dart |
-| `sensorServiceProvider` | Provider<SensorService> | sensor_service.dart |
-| `sensorsProvider` | FutureProvider.autoDispose<List<SensorModel>> | sensor_service.dart |
-| `skillsServiceProvider` | Provider<SkillsService> | skills_service.dart |
-| `skillsProvider` | FutureProvider.autoDispose<List<SkillModel>> | skills_service.dart |
-| `systemServiceProvider` | Provider<SystemService> | system_service.dart |
-| `systemStatusDetailProvider` | FutureProvider.autoDispose<SystemStatusModel> | system_service.dart |
-| `ollamaModelsProvider` | FutureProvider.autoDispose<List<OllamaModelInfoModel>> | system_service.dart |
-| `aiSettingsProvider` | FutureProvider.autoDispose<AiSettingsModel> | system_service.dart |
-| `storageSettingsProvider` | FutureProvider.autoDispose<StorageSettingsModel> | system_service.dart |
-| `userServiceProvider` | Provider<UserService> | user_service.dart |
-| `usersListProvider` | FutureProvider.autoDispose<List<UserModel>> | user_service.dart |
