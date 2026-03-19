@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 /// Collapsible block showing the AI's thinking/reasoning process.
 ///
@@ -145,13 +146,10 @@ class _ThinkingBlockState extends State<ThinkingBlock>
                     constraints: const BoxConstraints(maxHeight: 200),
                     child: SingleChildScrollView(
                       controller: _scrollController,
-                      child: Text(
-                        widget.content,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurface.withValues(alpha: 0.7),
-                          fontStyle: FontStyle.italic,
-                        ),
+                      child: MarkdownBody(
+                        data: widget.content,
+                        shrinkWrap: true,
+                        styleSheet: _thinkingStyleSheet(colorScheme),
                       ),
                     ),
                   ),
@@ -230,16 +228,44 @@ class _ThinkingBlockState extends State<ThinkingBlock>
             ),
           ),
           const SizedBox(height: 6),
-          SelectableText(
-            widget.content,
-            style: TextStyle(
-              fontSize: 12,
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
-              fontStyle: FontStyle.italic,
-            ),
+          MarkdownBody(
+            data: widget.content,
+            selectable: true,
+            shrinkWrap: true,
+            styleSheet: _thinkingStyleSheet(colorScheme),
           ),
         ],
       ),
+    );
+  }
+
+  /// Builds a [MarkdownStyleSheet] for thinking block content.
+  ///
+  /// Uses subdued, italic styling (fontSize 12, alpha 0.7) consistent with
+  /// the thinking block's visual design, plus basic heading/list/code support.
+  MarkdownStyleSheet _thinkingStyleSheet(ColorScheme colorScheme) {
+    final baseColor = colorScheme.onSurface.withValues(alpha: 0.7);
+    final baseStyle = TextStyle(
+      fontSize: 12,
+      color: baseColor,
+      fontStyle: FontStyle.italic,
+    );
+    return MarkdownStyleSheet(
+      p: baseStyle,
+      h1: baseStyle.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+      h2: baseStyle.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+      h3: baseStyle.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+      listBullet: baseStyle,
+      code: baseStyle.copyWith(
+        fontFamily: 'monospace',
+        fontStyle: FontStyle.normal,
+        backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      blockSpacing: 8,
     );
   }
 }

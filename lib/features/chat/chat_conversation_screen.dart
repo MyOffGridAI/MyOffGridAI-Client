@@ -73,8 +73,29 @@ class _ChatConversationScreenState
     super.dispose();
   }
 
+  /// Scrolls the chat list to the bottom after the current frame.
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Auto-scroll when messages change (new message or streaming content update)
+    ref.listen(
+      chatMessagesNotifierProvider(widget.conversationId),
+      (previous, next) {
+        next.whenData((_) => _scrollToBottom());
+      },
+    );
+
     final messagesAsync =
         ref.watch(chatMessagesNotifierProvider(widget.conversationId));
     final isThinking =
@@ -121,16 +142,14 @@ class _ChatConversationScreenState
                 }
                 return ListView.builder(
                   controller: _scrollController,
-                  reverse: true,
                   padding: const EdgeInsets.all(16),
                   itemCount: itemCount,
                   itemBuilder: (context, index) {
-                    // Index 0 = bottom of list (most recent)
-                    if (isJudgeEvaluating && index == 0) {
+                    // Judge indicator at the bottom (after all messages)
+                    if (isJudgeEvaluating && index == messages.length) {
                       return const _JudgeEvaluatingIndicator();
                     }
-                    final msgIndex = index - indicatorCount;
-                    final msg = messages[messages.length - 1 - msgIndex];
+                    final msg = messages[index];
                     final isStreaming = msg.id.startsWith('temp-assistant') ||
                         msg.id.startsWith('temp-regen');
 
