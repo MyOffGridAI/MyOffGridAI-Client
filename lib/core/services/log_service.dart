@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -54,7 +55,14 @@ class LogService {
   /// Initializes the log service by opening the log file in append mode.
   ///
   /// Must be called once before any logging. Sets the singleton [_instance].
+  /// On web, file-based logging is unavailable (`dart:io` and `path_provider`
+  /// have no web support), so the service registers as a no-op: all [log]
+  /// calls return immediately because [_raf] remains null.
   Future<void> initialize() async {
+    if (kIsWeb) {
+      _instance = this;
+      return;
+    }
     final dir = await getApplicationDocumentsDirectory();
     _openLogFile('${dir.path}/$_logFileName');
     _instance = this;

@@ -45,6 +45,22 @@ class MyOffGridAIApiClient {
     _dio.options.baseUrl = newBaseUrl;
   }
 
+  /// The current base URL for building full request URLs.
+  ///
+  /// Used by web-specific SSE streaming which bypasses Dio.
+  String get baseUrl => _dio.options.baseUrl;
+
+  /// Returns authorization headers for the current session.
+  ///
+  /// Used by web-specific SSE streaming which bypasses Dio.
+  Future<Map<String, String>> getAuthHeaders() async {
+    final token = await _storage.getAccessToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
   /// The Riverpod [Ref], used for invalidating auth state on token failure.
   Ref get ref => _ref;
 

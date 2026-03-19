@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
@@ -8,6 +9,8 @@ import 'package:myoffgridai_client/core/models/conversation_model.dart';
 import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/log_service.dart';
+import 'package:myoffgridai_client/core/services/sse_io.dart'
+    if (dart.library.html) 'package:myoffgridai_client/core/services/sse_web.dart';
 
 /// Service for chat conversation and message operations.
 ///
@@ -199,22 +202,39 @@ class ChatService {
   }
 
   /// Opens an SSE stream via POST and yields parsed [InferenceStreamEvent]s.
+  ///
+  /// On web, bypasses Dio and uses XHR text mode for incremental chunk
+  /// delivery. Dio's web adapter buffers the entire response (arraybuffer
+  /// mode) which prevents live streaming updates.
   Stream<InferenceStreamEvent> _sseStream(
     String path, {
     Map<String, dynamic>? data,
   }) async* {
-    final responseBody = await _client.postStream(
-      path,
-      data: data,
-      receiveTimeout: AppConstants.sseTimeout,
-    );
+    Stream<String> textStream;
 
-    final stream = responseBody?.stream;
-    if (stream == null) return;
+    if (kIsWeb) {
+      // Web: XHR text mode delivers chunks incrementally via onProgress.
+      // Dio's web adapter uses arraybuffer which buffers everything.
+      final url = '${_client.baseUrl}$path';
+      final headers = await _client.getAuthHeaders();
+      final body = data != null ? jsonEncode(data) : '';
+      textStream = platformSsePost(url: url, body: body, headers: headers);
+    } else {
+      // Native: Dio stream delivers byte chunks incrementally.
+      final responseBody = await _client.postStream(
+        path,
+        data: data,
+        receiveTimeout: AppConstants.sseTimeout,
+      );
+      final stream = responseBody?.stream;
+      if (stream == null) return;
+      textStream = stream.map(
+        (chunk) => utf8.decode(chunk, allowMalformed: true),
+      );
+    }
 
     final lineBuffer = StringBuffer();
-    await for (final chunk in stream) {
-      final text = utf8.decode(chunk, allowMalformed: true);
+    await for (final text in textStream) {
       lineBuffer.write(text);
 
       // Process complete lines from the buffer
