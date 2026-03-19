@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 
 /// MyOffGridAI brand color palette.
 ///
@@ -112,51 +111,45 @@ final ThemeData darkTheme = ThemeData(
   ),
 );
 
-/// Manages the current [ThemeMode] and persists preference to secure storage.
+/// Manages the current [ThemeMode] as a simple state holder.
+///
+/// Theme is persisted server-side in user_settings. The server is the
+/// source of truth; this notifier just holds the in-memory state.
 class ThemeNotifier extends StateNotifier<ThemeMode> {
-  final SecureStorageService _storage;
+  /// Creates a [ThemeNotifier] with the default system theme.
+  ThemeNotifier() : super(ThemeMode.system);
 
-  /// Creates a [ThemeNotifier] with the given [SecureStorageService].
-  ThemeNotifier(this._storage) : super(ThemeMode.system) {
-    _loadPreference();
-  }
-
-  Future<void> _loadPreference() async {
-    final pref = await _storage.getThemePreference();
-    state = _fromString(pref);
-  }
-
-  /// Sets the theme mode and persists the preference.
-  Future<void> setThemeMode(ThemeMode mode) async {
+  /// Sets the current theme mode.
+  void setThemeMode(ThemeMode mode) {
     state = mode;
-    await _storage.saveThemePreference(_toString(mode));
   }
+}
 
-  ThemeMode _fromString(String value) {
-    switch (value) {
-      case 'light':
-        return ThemeMode.light;
-      case 'dark':
-        return ThemeMode.dark;
-      default:
-        return ThemeMode.system;
-    }
+/// Converts a theme preference string to a [ThemeMode].
+ThemeMode themeModeFromString(String value) {
+  switch (value) {
+    case 'light':
+      return ThemeMode.light;
+    case 'dark':
+      return ThemeMode.dark;
+    default:
+      return ThemeMode.system;
   }
+}
 
-  String _toString(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'light';
-      case ThemeMode.dark:
-        return 'dark';
-      case ThemeMode.system:
-        return 'system';
-    }
+/// Converts a [ThemeMode] to a theme preference string.
+String themeModeToString(ThemeMode mode) {
+  switch (mode) {
+    case ThemeMode.light:
+      return 'light';
+    case ThemeMode.dark:
+      return 'dark';
+    case ThemeMode.system:
+      return 'system';
   }
 }
 
 /// Riverpod provider for the [ThemeNotifier].
 final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeMode>((ref) {
-  final storage = ref.watch(secureStorageProvider);
-  return ThemeNotifier(storage);
+  return ThemeNotifier();
 });

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:myoffgridai_client/config/theme.dart';
 import 'package:myoffgridai_client/core/auth/auth_service.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
@@ -8,6 +9,7 @@ import 'package:myoffgridai_client/core/services/device_registration_service.dar
 import 'package:myoffgridai_client/core/services/foreground_service_manager.dart';
 import 'package:myoffgridai_client/core/services/log_service.dart';
 import 'package:myoffgridai_client/core/services/mqtt_service.dart';
+import 'package:myoffgridai_client/core/services/user_settings_service.dart';
 
 /// Manages the authentication state for the application.
 ///
@@ -51,13 +53,15 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
 
       if (userId == null) return null;
 
-      return UserModel(
+      final user = UserModel(
         id: userId,
         username: username,
         displayName: displayName,
         role: role,
         isActive: true,
       );
+      _applyUserSettings();
+      return user;
     } catch (_) {
       await storage.clearTokens();
       return null;
@@ -74,6 +78,7 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
       final authService = ref.read(authServiceProvider);
       final response = await authService.login(username, password);
       state = AsyncData(response.user);
+      _applyUserSettings();
       _startNotificationServices(response.user.id);
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -100,6 +105,7 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
         email: email,
       );
       state = AsyncData(response.user);
+      _applyUserSettings();
       _startNotificationServices(response.user.id);
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -112,6 +118,22 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
     final authService = ref.read(authServiceProvider);
     await authService.logout();
     state = const AsyncData(null);
+  }
+
+  /// Fetches user settings from the server and applies the theme preference.
+  void _applyUserSettings() {
+    // Non-blocking — failures must not prevent login or startup
+    Future<void>.microtask(() async {
+      try {
+        final settingsService = ref.read(userSettingsServiceProvider);
+        final settings = await settingsService.getSettings();
+        ref.read(themeProvider.notifier).setThemeMode(
+          themeModeFromString(settings.themePreference),
+        );
+      } catch (e) {
+        LogService.instance.error('AUTH', 'Failed to load user settings', e);
+      }
+    });
   }
 
   /// Starts device registration, foreground service, and MQTT after login.

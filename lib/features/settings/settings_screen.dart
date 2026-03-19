@@ -18,6 +18,8 @@ import 'package:myoffgridai_client/core/services/judge_service.dart';
 import 'package:myoffgridai_client/core/services/model_catalog_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
 import 'package:myoffgridai_client/core/services/user_service.dart';
+import 'package:myoffgridai_client/core/services/user_settings_service.dart';
+import 'package:myoffgridai_client/core/models/user_settings_model.dart';
 import 'package:myoffgridai_client/features/settings/widgets/discover_model_list.dart';
 import 'package:myoffgridai_client/features/settings/widgets/model_detail_panel.dart';
 import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
@@ -421,9 +423,32 @@ class _UsersTab extends ConsumerWidget {
 }
 
 /// The General tab with Account, Appearance, Server, and About sections.
-class _GeneralTab extends ConsumerWidget {
+class _GeneralTab extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_GeneralTab> createState() => _GeneralTabState();
+}
+
+class _GeneralTabState extends ConsumerState<_GeneralTab> {
+  bool _savingTheme = false;
+
+  Future<void> _setTheme(ThemeMode mode) async {
+    ref.read(themeProvider.notifier).setThemeMode(mode);
+    setState(() => _savingTheme = true);
+    try {
+      final service = ref.read(userSettingsServiceProvider);
+      await service.updateSettings(
+        UpdateUserSettingsRequest(themePreference: themeModeToString(mode)),
+      );
+      ref.invalidate(userSettingsProvider);
+    } catch (_) {
+      // Theme already applied locally — server save is best-effort
+    } finally {
+      if (mounted) setState(() => _savingTheme = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authAsync = ref.watch(authStateProvider);
     final themeMode = ref.watch(themeProvider);
     final serverUrlAsync = ref.watch(serverUrlProvider);
@@ -486,9 +511,8 @@ class _GeneralTab extends ConsumerWidget {
                 trailing: themeMode == ThemeMode.system
                     ? const Icon(Icons.check)
                     : null,
-                onTap: () => ref
-                    .read(themeProvider.notifier)
-                    .setThemeMode(ThemeMode.system),
+                enabled: !_savingTheme,
+                onTap: () => _setTheme(ThemeMode.system),
               ),
               ListTile(
                 leading: const Icon(Icons.light_mode),
@@ -496,9 +520,8 @@ class _GeneralTab extends ConsumerWidget {
                 trailing: themeMode == ThemeMode.light
                     ? const Icon(Icons.check)
                     : null,
-                onTap: () => ref
-                    .read(themeProvider.notifier)
-                    .setThemeMode(ThemeMode.light),
+                enabled: !_savingTheme,
+                onTap: () => _setTheme(ThemeMode.light),
               ),
               ListTile(
                 leading: const Icon(Icons.dark_mode),
@@ -506,9 +529,8 @@ class _GeneralTab extends ConsumerWidget {
                 trailing: themeMode == ThemeMode.dark
                     ? const Icon(Icons.check)
                     : null,
-                onTap: () => ref
-                    .read(themeProvider.notifier)
-                    .setThemeMode(ThemeMode.dark),
+                enabled: !_savingTheme,
+                onTap: () => _setTheme(ThemeMode.dark),
               ),
             ],
           ),

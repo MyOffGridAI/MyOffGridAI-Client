@@ -41,6 +41,7 @@ class AppConstants {
   static const String systemBasePath = '/api/system';
   static const String enrichmentBasePath = '/api/enrichment';
   static const String externalApiSettingsPath = '/api/settings/external-apis';
+  static const String userSettingsPath = '/api/users/me/settings';
   static const String judgeBasePath = '/api/ai/judge';
   static const String libraryBasePath = '/api/library';
 
