@@ -221,10 +221,30 @@ class _AssistantMarkdownContent extends StatelessWidget {
       data: content,
       selectable: true,
       styleSheet: MarkdownStyleSheet(
-        p: TextStyle(color: colorScheme.onSurface, fontSize: 14),
-        h1: TextStyle(color: colorScheme.onSurface, fontSize: 20),
-        h2: TextStyle(color: colorScheme.onSurface, fontSize: 18),
-        h3: TextStyle(color: colorScheme.onSurface, fontSize: 16),
+        p: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 15,
+          height: 1.5,
+        ),
+        h1: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+        ),
+        h1Padding: const EdgeInsets.only(top: 8, bottom: 4),
+        h2: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+        ),
+        h2Padding: const EdgeInsets.only(top: 6, bottom: 2),
+        h3: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+        blockSpacing: 12,
+        listIndent: 20,
         code: TextStyle(
           color: colorScheme.onSurface,
           backgroundColor: colorScheme.surfaceContainerHigh,
@@ -239,6 +259,8 @@ class _AssistantMarkdownContent extends StatelessWidget {
           color: colorScheme.onSurface.withValues(alpha: 0.7),
           fontStyle: FontStyle.italic,
         ),
+        blockquotePadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         listBullet: TextStyle(color: colorScheme.onSurface),
       ),
       builders: {
