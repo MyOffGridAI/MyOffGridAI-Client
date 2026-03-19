@@ -2668,11 +2668,74 @@ class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
   bool _testing = false;
   JudgeTestResultModel? _testResult;
 
+  // ── Judge configuration state ──
+  bool _judgeEnabled = false;
+  String? _judgeModelFilename;
+  double _judgeScoreThreshold = 7.0;
+  bool _configLoaded = false;
+  bool _saving = false;
+
   @override
   void dispose() {
     _queryController.dispose();
     _responseController.dispose();
     super.dispose();
+  }
+
+  /// Saves only the judge-related fields via the external API settings endpoint.
+  Future<void> _saveJudgeConfig() async {
+    setState(() => _saving = true);
+    try {
+      final service = ref.read(enrichmentServiceProvider);
+      await service.updateExternalApiSettings(
+        UpdateExternalApiSettingsRequest(
+          // Required fields — preserve existing values from current settings
+          anthropicModel:
+              ref.read(externalApiSettingsProvider).value?.anthropicModel ??
+                  'claude-sonnet-4-20250514',
+          anthropicEnabled:
+              ref.read(externalApiSettingsProvider).value?.anthropicEnabled ??
+                  false,
+          braveEnabled:
+              ref.read(externalApiSettingsProvider).value?.braveEnabled ?? false,
+          huggingFaceEnabled:
+              ref.read(externalApiSettingsProvider).value?.huggingFaceEnabled ??
+                  false,
+          maxWebFetchSizeKb:
+              ref.read(externalApiSettingsProvider).value?.maxWebFetchSizeKb ??
+                  512,
+          searchResultLimit:
+              ref.read(externalApiSettingsProvider).value?.searchResultLimit ??
+                  5,
+          // Judge fields
+          judgeEnabled: _judgeEnabled,
+          judgeModelFilename: _judgeModelFilename,
+          judgeScoreThreshold: _judgeScoreThreshold,
+        ),
+      );
+      ref.invalidate(externalApiSettingsProvider);
+      ref.invalidate(judgeStatusProvider);
+      _configLoaded = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Judge configuration saved')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to save judge configuration')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _startJudge() async {
@@ -2731,11 +2794,145 @@ class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(judgeStatusProvider);
+    final settingsAsync = ref.watch(externalApiSettingsProvider);
+    final modelsAsync = ref.watch(localModelsProvider);
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Load config from DB once
+    settingsAsync.whenData((settings) {
+      if (!_configLoaded) {
+        _judgeEnabled = settings.judgeEnabled;
+        _judgeModelFilename = settings.judgeModelFilename;
+        _judgeScoreThreshold = settings.judgeScoreThreshold;
+        _configLoaded = true;
+      }
+    });
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // ── Judge Configuration ──
+        Text('Judge Configuration',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        settingsAsync.when(
+          loading: () => const LoadingIndicator(),
+          error: (error, _) => Text(
+            'Failed to load settings',
+            style: TextStyle(color: colorScheme.error),
+          ),
+          data: (settings) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Model dropdown
+                  Text('Judge Model',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  modelsAsync.when(
+                    data: (models) {
+                      final ggufModels = models
+                          .where((m) =>
+                              m.filename.endsWith('.gguf'))
+                          .toList();
+                      final items = ggufModels
+                          .map((m) => DropdownMenuItem<String>(
+                                value: m.filename,
+                                child: Text(m.filename,
+                                    overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList();
+                      final hasValue = ggufModels
+                          .any((m) => m.filename == _judgeModelFilename);
+                      return DropdownButtonFormField<String>(
+                        value: hasValue ? _judgeModelFilename : null,
+                        hint: const Text('Select a judge model'),
+                        isExpanded: true,
+                        items: items,
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() => _judgeModelFilename = v);
+                          }
+                        },
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                        ),
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (_, __) => const Text('Failed to load models'),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Enable/disable toggle
+                  SwitchListTile(
+                    title: const Text('Enable AI Judge'),
+                    subtitle: const Text(
+                        'Evaluate local responses before sending to cloud'),
+                    value: _judgeEnabled,
+                    onChanged: (v) => setState(() => _judgeEnabled = v),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Score threshold slider
+                  Text(
+                    'Score Threshold: ${_judgeScoreThreshold.toStringAsFixed(1)}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Responses below this score are sent to cloud for refinement',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  Slider(
+                    value: _judgeScoreThreshold,
+                    min: 0.0,
+                    max: 10.0,
+                    divisions: 20,
+                    label: _judgeScoreThreshold.toStringAsFixed(1),
+                    onChanged: (v) =>
+                        setState(() => _judgeScoreThreshold = v),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _saving ? null : _saveJudgeConfig,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save),
+                      label: const Text('Save Configuration'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // Status section
         Text('Judge Status', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
