@@ -256,8 +256,18 @@ class _AssistantMarkdownContent extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         blockquote: TextStyle(
-          color: colorScheme.onSurface.withValues(alpha: 0.7),
+          color: colorScheme.onSurface.withValues(alpha: 0.85),
           fontStyle: FontStyle.italic,
+        ),
+        blockquoteDecoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
+          border: Border(
+            left: BorderSide(
+              color: colorScheme.primary,
+              width: 4,
+            ),
+          ),
+          borderRadius: BorderRadius.circular(4),
         ),
         blockquotePadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
