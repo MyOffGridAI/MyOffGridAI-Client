@@ -6,13 +6,14 @@ import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/model_catalog_models.dart';
 import 'package:myoffgridai_client/core/services/model_catalog_service.dart';
 import 'package:myoffgridai_client/features/settings/widgets/smart_quant_selector.dart';
+import 'package:myoffgridai_client/shared/utils/date_formatter.dart';
 import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
 
 /// Detail panel for a selected HuggingFace model file.
 ///
-/// Shows the model name, selected quantization variant with a [SmartQuantSelector],
-/// estimated RAM usage, and a download button with inline progress. Used as the
-/// right panel in the two-panel Discover layout.
+/// Shows the model name, stats, tag chips, selected quantization variant with
+/// a [SmartQuantSelector], estimated RAM usage, and a download button with
+/// inline progress. Used as the right panel in the two-panel Discover layout.
 class ModelDetailPanel extends ConsumerStatefulWidget {
   /// The parent model repository.
   final HfModelModel model;
@@ -49,7 +50,8 @@ class _ModelDetailPanelState extends ConsumerState<ModelDetailPanel> {
   @override
   void didUpdateWidget(ModelDetailPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialFile.filename != widget.initialFile.filename) {
+    if (oldWidget.model.id != widget.model.id ||
+        oldWidget.initialFile.filename != widget.initialFile.filename) {
       _selectedFile = widget.initialFile;
       _cancelDownloadSubscription();
     }
@@ -140,6 +142,7 @@ class _ModelDetailPanelState extends ConsumerState<ModelDetailPanel> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final dimText = colorScheme.onSurface.withValues(alpha: 0.6);
     final ggufFiles = widget.model.ggufFiles;
 
     return Card(
@@ -154,7 +157,7 @@ class _ModelDetailPanelState extends ConsumerState<ModelDetailPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    widget.model.modelId,
+                    widget.model.id,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -171,68 +174,153 @@ class _ModelDetailPanelState extends ConsumerState<ModelDetailPanel> {
             ),
             Text(
               widget.model.author,
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+              style: TextStyle(fontSize: 12, color: dimText),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Quantization selector
-            Text(
-              'Select Quantization',
-              style: Theme.of(context).textTheme.labelLarge,
+            // Stats row
+            Row(
+              children: [
+                Icon(Icons.download_outlined, size: 14, color: dimText),
+                const SizedBox(width: 4),
+                Text(
+                  '${SizeFormatter.formatCount(widget.model.downloads)} downloads',
+                  style: TextStyle(fontSize: 12, color: dimText),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.favorite_border, size: 14, color: dimText),
+                const SizedBox(width: 4),
+                Text(
+                  '${SizeFormatter.formatCount(widget.model.likes)} likes',
+                  style: TextStyle(fontSize: 12, color: dimText),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            SmartQuantSelector(
-              files: ggufFiles,
-              selected: _selectedFile,
-              onSelected: (file) => setState(() => _selectedFile = file),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 4),
 
-            // Selected file details
-            _DetailRow(
-              label: 'File',
-              value: _selectedFile.filename,
-            ),
-            _DetailRow(
-              label: 'Size',
-              value: _selectedFile.formattedSize,
-            ),
-            if (_selectedFile.qualityLabel != null)
-              _DetailRow(
-                label: 'Quality',
-                value: _selectedFile.qualityLabel!,
-              ),
-            if (_selectedFile.estimatedRamMb != null)
-              _DetailRow(
-                label: 'Est. RAM',
-                value:
-                    '${_selectedFile.estimatedRamMb!.toStringAsFixed(0)} MB',
-              ),
-            if (_selectedFile.isRecommended)
+            // Updated timestamp
+            if (widget.model.lastModified != null)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.star, size: 16, color: Colors.amber),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Recommended for your system',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.amber.shade700,
-                      ),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Updated ${DateFormatter.formatRelative(widget.model.lastModified!)}',
+                  style: TextStyle(fontSize: 11, color: dimText),
+                ),
+              ),
+            const SizedBox(height: 4),
+
+            // Tag chips
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (widget.model.pipelineTag != null)
+                  _DetailTagChip(
+                    label: widget.model.pipelineTag!,
+                    color: colorScheme.primaryContainer,
+                    textColor: colorScheme.onPrimaryContainer,
+                  ),
+                _DetailTagChip(
+                  label: 'GGUF',
+                  color: colorScheme.tertiaryContainer,
+                  textColor: colorScheme.onTertiaryContainer,
+                ),
+                if (widget.model.isGated)
+                  _DetailTagChip(
+                    label: 'Gated',
+                    color: colorScheme.errorContainer,
+                    textColor: colorScheme.onErrorContainer,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Section divider
+            Row(
+              children: [
+                Expanded(child: Divider(color: dimText.withValues(alpha: 0.3))),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'Download Options',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: dimText,
                     ),
+                  ),
+                ),
+                Expanded(child: Divider(color: dimText.withValues(alpha: 0.3))),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Scrollable content area
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Quantization selector
+                    Text(
+                      'Select Quantization',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    SmartQuantSelector(
+                      files: ggufFiles,
+                      selected: _selectedFile,
+                      onSelected: (file) =>
+                          setState(() => _selectedFile = file),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Selected file details
+                    _DetailRow(
+                      label: 'File',
+                      value: _selectedFile.filename,
+                    ),
+                    _DetailRow(
+                      label: 'Size',
+                      value: _selectedFile.formattedSize,
+                    ),
+                    if (_selectedFile.qualityLabel != null)
+                      _DetailRow(
+                        label: 'Quality',
+                        value: _selectedFile.qualityLabel!,
+                      ),
+                    if (_selectedFile.estimatedRamMb != null)
+                      _DetailRow(
+                        label: 'Est. RAM',
+                        value:
+                            '${_selectedFile.estimatedRamMb!.toStringAsFixed(0)} MB',
+                      ),
+                    if (_selectedFile.isRecommended)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.star, size: 16, color: Colors.amber),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Recommended for your system',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.amber.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
+            ),
 
-            const Spacer(),
+            const SizedBox(height: 12),
 
-            // Download button or progress
+            // Download button or progress (pinned at bottom)
             if (_downloadProgress != null)
               _DownloadProgressSection(
                 progress: _downloadProgress!,
@@ -249,6 +337,38 @@ class _ModelDetailPanelState extends ConsumerState<ModelDetailPanel> {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small styled chip for the detail panel tags.
+class _DetailTagChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color textColor;
+
+  const _DetailTagChip({
+    required this.label,
+    required this.color,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: textColor,
         ),
       ),
     );

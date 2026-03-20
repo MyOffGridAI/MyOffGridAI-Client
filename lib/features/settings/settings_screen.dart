@@ -1694,7 +1694,7 @@ class _CatalogModelCardState extends State<_CatalogModelCard> {
             ),
             subtitle: Text(
               [
-                '${_formatCount(model.downloads)} downloads',
+                '${SizeFormatter.formatCount(model.downloads)} downloads',
                 '${model.likes} likes',
                 '${ggufFiles.length} GGUF files',
                 if (model.isGated) 'Gated',
@@ -1897,15 +1897,6 @@ class _CatalogModelCardState extends State<_CatalogModelCard> {
     );
   }
 
-  String _formatCount(int count) {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    }
-    if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
-    return count.toString();
-  }
 }
 
 /// The External APIs tab for managing Anthropic and Brave Search keys (OWNER only).

@@ -30,6 +30,9 @@ class HfModelModel {
   /// Model tags (e.g. "text-generation", "gguf").
   final List<String> tags;
 
+  /// The pipeline tag describing the model's task (e.g. "text-generation").
+  final String? pipelineTag;
+
   /// Whether the model requires authorization to access.
   final bool isGated;
 
@@ -47,6 +50,7 @@ class HfModelModel {
     required this.downloads,
     required this.likes,
     required this.tags,
+    this.pipelineTag,
     required this.isGated,
     this.lastModified,
     required this.files,
@@ -78,6 +82,7 @@ class HfModelModel {
               ?.map((t) => t.toString())
               .toList() ??
           [],
+      pipelineTag: json['pipelineTag'] as String?,
       isGated: json['gated'] as bool? ?? false,
       lastModified: json['lastModified'] != null
           ? DateTime.tryParse(json['lastModified'] as String)

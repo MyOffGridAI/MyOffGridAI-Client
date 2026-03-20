@@ -18,4 +18,17 @@ class SizeFormatter {
 
     return '${value.toStringAsFixed(value < 10 ? 1 : 0)} ${units[unitIndex]}';
   }
+
+  /// Formats [count] into a compact string like "1.7M" or "23.5K".
+  ///
+  /// Returns the raw number as a string for values under 1,000.
+  static String formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    }
+    if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return count.toString();
+  }
 }

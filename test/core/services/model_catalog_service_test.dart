@@ -30,6 +30,7 @@ void main() {
                   'downloads': 100000,
                   'likes': 50,
                   'tags': ['gguf'],
+                  'pipelineTag': 'text-generation',
                   'siblings': [
                     {'rfilename': 'model.Q4_K_M.gguf', 'size': 4000000000},
                   ],
@@ -43,6 +44,7 @@ void main() {
 
       expect(results.length, 1);
       expect(results[0].id, 'TheBloke/Llama-2-7B-GGUF');
+      expect(results[0].pipelineTag, 'text-generation');
       expect(results[0].files.length, 1);
     });
 
@@ -143,6 +145,7 @@ void main() {
               'downloads': 100000,
               'likes': 50,
               'tags': ['gguf'],
+              'pipelineTag': 'text-generation',
               'siblings': <dynamic>[],
             },
           });
@@ -152,6 +155,7 @@ void main() {
 
       expect(model.id, 'TheBloke/Llama-2-7B-GGUF');
       expect(model.author, 'TheBloke');
+      expect(model.pipelineTag, 'text-generation');
     });
 
     test('throws ApiException on error', () async {
