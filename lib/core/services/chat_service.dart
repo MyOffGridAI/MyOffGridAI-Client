@@ -285,6 +285,13 @@ final conversationsProvider =
   return service.listConversations();
 });
 
+/// Provider for archived conversations.
+final archivedConversationsProvider =
+    FutureProvider.autoDispose<List<ConversationSummaryModel>>((ref) async {
+  final service = ref.watch(chatServiceProvider);
+  return service.listConversations(archived: true);
+});
+
 /// Provider for messages in a specific conversation.
 final messagesProvider = FutureProvider.autoDispose
     .family<List<MessageModel>, String>((ref, conversationId) async {

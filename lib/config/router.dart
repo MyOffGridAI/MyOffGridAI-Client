@@ -12,6 +12,7 @@ import 'package:myoffgridai_client/features/books/books_screen.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
+import 'package:myoffgridai_client/features/conversations/conversations_screen.dart';
 import 'package:myoffgridai_client/features/insights/insights_screen.dart';
 import 'package:myoffgridai_client/features/notifications/notifications_screen.dart';
 import 'package:myoffgridai_client/features/inventory/inventory_screen.dart';
@@ -102,6 +103,10 @@ GoRouter createRouter(Ref ref) {
                 initialMessage: state.extra as String?,
               ),
             ),
+          ),
+          GoRoute(
+            path: AppConstants.routeConversations,
+            builder: (context, state) => const ConversationsScreen(),
           ),
           GoRoute(
             path: AppConstants.routeSettings,

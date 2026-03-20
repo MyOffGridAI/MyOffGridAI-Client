@@ -89,6 +89,16 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
           ),
           _buildNavItem(
             context,
+            icon: Icons.chat_bubble_outline,
+            selectedIcon: Icons.chat_bubble,
+            label: 'Conversations',
+            isCollapsed: isCollapsed,
+            isSelected:
+                currentLocation == AppConstants.routeConversations,
+            onTap: () => context.go(AppConstants.routeConversations),
+          ),
+          _buildNavItem(
+            context,
             icon: Icons.library_books_outlined,
             selectedIcon: Icons.library_books,
             label: 'Knowledge',
@@ -188,14 +198,14 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
           ),
           const Divider(height: 1),
 
-          // ── Conversations section (Expanded) ──
+          // ── Recent Conversations section (Expanded) ──
           if (!isCollapsed)
             Padding(
               padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Conversations',
+                  'Recent Conversations',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -224,22 +234,45 @@ class _NavigationPanelState extends ConsumerState<NavigationPanel> {
                 // ListView.builder context can become invalid after a
                 // PopupMenuButton route pops.
                 final stableContext = this.context;
-                return ListView.builder(
-                  itemCount: conversations.length,
-                  itemBuilder: (context, index) {
-                    final conv = conversations[index];
-                    final isSelected = currentLocation == '/chat/${conv.id}';
-                    return _ConversationTile(
-                      conversation: conv,
-                      isSelected: isSelected,
-                      isCollapsed: isCollapsed,
-                      onTap: () => context.go('/chat/${conv.id}'),
-                      onRename: () =>
-                          _showRenameDialog(stableContext, ref, conv),
-                      onDelete: () =>
-                          _confirmDelete(stableContext, ref, conv.id),
-                    );
-                  },
+                final limited = conversations.take(20).toList();
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: limited.length,
+                        itemBuilder: (context, index) {
+                          final conv = limited[index];
+                          final isSelected =
+                              currentLocation == '/chat/${conv.id}';
+                          return _ConversationTile(
+                            conversation: conv,
+                            isSelected: isSelected,
+                            isCollapsed: isCollapsed,
+                            onTap: () => context.go('/chat/${conv.id}'),
+                            onRename: () =>
+                                _showRenameDialog(stableContext, ref, conv),
+                            onDelete: () =>
+                                _confirmDelete(stableContext, ref, conv.id),
+                          );
+                        },
+                      ),
+                    ),
+                    if (!isCollapsed)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: TextButton(
+                          onPressed: () =>
+                              context.go(AppConstants.routeConversations),
+                          child: Text(
+                            'View All',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),

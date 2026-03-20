@@ -99,6 +99,11 @@ void main() {
               path: '/books',
               builder: (context, state) => const Text('Books'),
             ),
+            GoRoute(
+              path: '/conversations',
+              builder: (context, state) =>
+                  const Text('Conversations Screen'),
+            ),
           ],
         ),
       ],
@@ -150,6 +155,7 @@ void main() {
 
       expect(find.text('Search'), findsOneWidget);
       expect(find.text('Memory'), findsOneWidget);
+      expect(find.text('Conversations'), findsOneWidget);
       expect(find.text('Knowledge'), findsOneWidget);
       expect(find.text('Books'), findsOneWidget);
       expect(find.text('Events'), findsOneWidget);
@@ -175,7 +181,7 @@ void main() {
       expect(find.text('Navigation'), findsOneWidget);
     });
 
-    testWidgets('shows Conversations section header', (tester) async {
+    testWidgets('shows Recent Conversations section header', (tester) async {
       tester.view.physicalSize = const Size(1200, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -184,7 +190,7 @@ void main() {
       await tester.pumpWidget(buildPanel());
       await tester.pumpAndSettle();
 
-      expect(find.text('Conversations'), findsOneWidget);
+      expect(find.text('Recent Conversations'), findsOneWidget);
     });
 
     testWidgets('shows conversations in list', (tester) async {
@@ -317,7 +323,7 @@ void main() {
       expect(find.text('Navigation'), findsNothing);
     });
 
-    testWidgets('hides Conversations section header when collapsed',
+    testWidgets('hides Recent Conversations section header when collapsed',
         (tester) async {
       tester.view.physicalSize = const Size(1200, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -327,7 +333,7 @@ void main() {
       await tester.pumpWidget(buildPanel(collapsed: true));
       await tester.pumpAndSettle();
 
-      expect(find.text('Conversations'), findsNothing);
+      expect(find.text('Recent Conversations'), findsNothing);
     });
 
     testWidgets('shows add icon instead of New Chat button', (tester) async {
@@ -583,6 +589,70 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Search'), findsWidgets);
+    });
+
+    testWidgets('tapping Conversations navigates to /conversations',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildPanel());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Conversations'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Conversations Screen'), findsOneWidget);
+    });
+  });
+
+  group('NavigationPanel - View All Link', () {
+    testWidgets('shows View All link when expanded', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildPanel(
+        conversations: [
+          const ConversationSummaryModel(
+            id: 'c1',
+            title: 'Test Chat',
+            isArchived: false,
+            messageCount: 1,
+          ),
+        ],
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('View All'), findsOneWidget);
+    });
+
+    testWidgets('tapping View All navigates to /conversations',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildPanel(
+        conversations: [
+          const ConversationSummaryModel(
+            id: 'c1',
+            title: 'Test Chat',
+            isArchived: false,
+            messageCount: 1,
+          ),
+        ],
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('View All'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Conversations Screen'), findsOneWidget);
     });
   });
 

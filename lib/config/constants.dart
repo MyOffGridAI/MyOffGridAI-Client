@@ -57,6 +57,7 @@ class AppConstants {
   static const String routeHome = '/';
   static const String routeChat = '/chat';
   static const String routeChatConversation = '/chat/:conversationId';
+  static const String routeConversations = '/conversations';
   static const String routeMemory = '/memory';
   static const String routeKnowledge = '/knowledge';
   static const String routeSkills = '/skills';
