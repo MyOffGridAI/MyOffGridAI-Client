@@ -286,6 +286,126 @@ void main() {
     });
   });
 
+  group('Create Skill dialog', () {
+    testWidgets('shows add button in AppBar', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.add), findsOneWidget);
+    });
+
+    testWidgets('tapping add button opens Create Skill dialog', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Create Skill'), findsOneWidget);
+      expect(find.text('Display Name'), findsOneWidget);
+      expect(find.text('Identifier'), findsOneWidget);
+      expect(find.text('Description'), findsOneWidget);
+      expect(find.text('Category'), findsOneWidget);
+      expect(find.text('Create'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+    });
+
+    testWidgets('cancel closes dialog without creating', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Create Skill'), findsNothing);
+      verifyNever(() => mockService.createSkill(
+            name: any(named: 'name'),
+            displayName: any(named: 'displayName'),
+            description: any(named: 'description'),
+            category: any(named: 'category'),
+          ));
+    });
+
+    testWidgets('shows validation errors on empty submit', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      // Tap Create without filling any fields
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Required'), findsWidgets);
+    });
+
+    testWidgets('auto-generates identifier from display name',
+        (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      // Enter a display name
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Display Name'),
+          'My Cool Skill');
+      await tester.pumpAndSettle();
+
+      // The identifier field should have auto-generated value
+      final identifierField = tester.widget<TextFormField>(
+          find.widgetWithText(TextFormField, 'Identifier'));
+      expect(identifierField.controller?.text, 'my_cool_skill');
+    });
+
+    testWidgets('calls createSkill on valid submit', (tester) async {
+      when(() => mockService.createSkill(
+            name: any(named: 'name'),
+            displayName: any(named: 'displayName'),
+            description: any(named: 'description'),
+            category: any(named: 'category'),
+            version: any(named: 'version'),
+            parametersSchema: any(named: 'parametersSchema'),
+          )).thenAnswer((_) async => SkillModel.fromJson({
+            'id': '99',
+            'name': 'test_skill',
+            'displayName': 'Test Skill',
+            'description': 'A test',
+            'isEnabled': true,
+            'isBuiltIn': false,
+            'category': 'CUSTOM',
+          }));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Display Name'), 'Test Skill');
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Description'), 'A test');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.createSkill(
+            name: 'test_skill',
+            displayName: 'Test Skill',
+            description: 'A test',
+            category: 'CUSTOM',
+          )).called(1);
+    });
+  });
+
   group('Loading state', () {
     testWidgets('shows loading indicator while skills load', (tester) async {
       final completer = Completer<List<SkillModel>>();

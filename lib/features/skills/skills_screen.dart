@@ -20,7 +20,16 @@ class SkillsScreen extends ConsumerWidget {
     final skillsAsync = ref.watch(skillsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Skills')),
+      appBar: AppBar(
+        title: const Text('Skills'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Create skill',
+            onPressed: () => _showCreateSkillDialog(context, ref),
+          ),
+        ],
+      ),
       body: skillsAsync.when(
         loading: () => const LoadingIndicator(),
         error: (error, _) => ErrorView(
@@ -54,6 +63,13 @@ class SkillsScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+
+  void _showCreateSkillDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _CreateSkillDialog(ref: ref),
     );
   }
 
@@ -290,5 +306,169 @@ class _SkillDetailSheetState extends State<_SkillDetailSheet> {
         );
       }
     }
+  }
+}
+
+/// Skill category values matching the server enum.
+const _skillCategories = [
+  'HOMESTEAD',
+  'RESOURCE',
+  'PLANNING',
+  'KNOWLEDGE',
+  'WEATHER',
+  'CUSTOM',
+];
+
+/// Dialog for creating a new custom skill.
+class _CreateSkillDialog extends StatefulWidget {
+  final WidgetRef ref;
+
+  const _CreateSkillDialog({required this.ref});
+
+  @override
+  State<_CreateSkillDialog> createState() => _CreateSkillDialogState();
+}
+
+/// State for [_CreateSkillDialog] managing form fields and submission.
+class _CreateSkillDialogState extends State<_CreateSkillDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _displayNameController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _selectedCategory = 'CUSTOM';
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayNameController.addListener(_autoGenerateName);
+  }
+
+  @override
+  void dispose() {
+    _displayNameController.dispose();
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  /// Auto-generates a snake_case name from the display name.
+  void _autoGenerateName() {
+    final display = _displayNameController.text;
+    final generated = display
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    _nameController.text = generated;
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final service = widget.ref.read(skillsServiceProvider);
+      await service.createSkill(
+        name: _nameController.text.trim(),
+        displayName: _displayNameController.text.trim(),
+        description: _descriptionController.text.trim(),
+        category: _selectedCategory,
+      );
+      widget.ref.invalidate(skillsProvider);
+      if (mounted) Navigator.pop(context);
+    } on ApiException catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Create Skill'),
+      content: SizedBox(
+        width: 400,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _displayNameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Display Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Identifier',
+                    helperText: 'Auto-generated from display name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _skillCategories
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedCategory = v);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isSaving ? null : _submit,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Create'),
+        ),
+      ],
+    );
   }
 }

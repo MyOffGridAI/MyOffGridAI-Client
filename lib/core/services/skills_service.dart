@@ -24,6 +24,30 @@ class SkillsService {
         .toList();
   }
 
+  /// Creates a new custom skill.
+  Future<SkillModel> createSkill({
+    required String name,
+    required String displayName,
+    required String description,
+    required String category,
+    String? version,
+    String? parametersSchema,
+  }) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      AppConstants.skillsBasePath,
+      data: {
+        'name': name,
+        'displayName': displayName,
+        'description': description,
+        'category': category,
+        'version': version,
+        'parametersSchema': parametersSchema,
+      },
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return SkillModel.fromJson(data);
+  }
+
   /// Gets a single skill by [skillId].
   Future<SkillModel> getSkill(String skillId) async {
     final response = await _client.get<Map<String, dynamic>>(
