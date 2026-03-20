@@ -84,6 +84,12 @@ void main() {
             body: Text('Editor'),
           ),
         ),
+        GoRoute(
+          path: '/knowledge/:documentId/view',
+          builder: (context, state) => const Scaffold(
+            body: Text('Viewer'),
+          ),
+        ),
       ],
     );
 
@@ -565,5 +571,85 @@ void main() {
     // disposal race: controller.dispose() on line 342 fires before the updateDisplayName
     // call completes, causing "A TextEditingController was used after being disposed".
     // These lines cannot be covered without modifying lib/ code.
+
+    testWidgets('shows View button for doc with hasContent', (tester) async {
+      when(() => mockService.getDocument('d2'))
+          .thenAnswer((_) async => editableDoc);
+      when(() => mockService.getDocumentContent('d2'))
+          .thenAnswer((_) async => testContent);
+
+      await tester.pumpWidget(buildScreen(documentId: 'd2'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ElevatedButton, 'View'), findsOneWidget);
+    });
+
+    testWidgets('shows View button for PDF doc without hasContent',
+        (tester) async {
+      when(() => mockService.getDocument('d1'))
+          .thenAnswer((_) async => testDoc);
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ElevatedButton, 'View'), findsOneWidget);
+    });
+
+    testWidgets('hides View button for non-viewable doc', (tester) async {
+      const nonViewableDoc = KnowledgeDocumentModel(
+        id: 'd10',
+        filename: 'mystery.bin',
+        mimeType: 'application/octet-stream',
+        fileSizeBytes: 100,
+        status: 'INDEXED',
+        chunkCount: 0,
+        hasContent: false,
+        editable: false,
+      );
+
+      when(() => mockService.getDocument('d10'))
+          .thenAnswer((_) async => nonViewableDoc);
+
+      await tester.pumpWidget(buildScreen(documentId: 'd10'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ElevatedButton, 'View'), findsNothing);
+    });
+
+    testWidgets('tapping View button navigates to viewer', (tester) async {
+      when(() => mockService.getDocument('d2'))
+          .thenAnswer((_) async => editableDoc);
+      when(() => mockService.getDocumentContent('d2'))
+          .thenAnswer((_) async => testContent);
+
+      await tester.pumpWidget(buildScreen(documentId: 'd2'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'View'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Viewer'), findsOneWidget);
+    });
+
+    testWidgets('shows View button for image doc', (tester) async {
+      const imgDoc = KnowledgeDocumentModel(
+        id: 'd11',
+        filename: 'photo.jpg',
+        mimeType: 'image/jpeg',
+        fileSizeBytes: 5000,
+        status: 'INDEXED',
+        chunkCount: 0,
+        hasContent: false,
+        editable: false,
+      );
+
+      when(() => mockService.getDocument('d11'))
+          .thenAnswer((_) async => imgDoc);
+
+      await tester.pumpWidget(buildScreen(documentId: 'd11'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ElevatedButton, 'View'), findsOneWidget);
+    });
   });
 }

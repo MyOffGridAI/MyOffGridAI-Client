@@ -142,6 +142,13 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      if (_isViewable(doc))
+                        ElevatedButton.icon(
+                          onPressed: () =>
+                              context.go('/knowledge/${doc.id}/view'),
+                          icon: const Icon(Icons.visibility, size: 18),
+                          label: const Text('View'),
+                        ),
                       if (doc.editable)
                         ElevatedButton.icon(
                           onPressed: () =>
@@ -266,6 +273,16 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
         ],
       ),
     );
+  }
+
+  /// Whether the document can be viewed inline.
+  ///
+  /// True if the document has text content or is a binary format
+  /// with native viewer support (PDF, images).
+  bool _isViewable(KnowledgeDocumentModel doc) {
+    if (doc.hasContent) return true;
+    final mime = doc.mimeType ?? '';
+    return mime == 'application/pdf' || mime.startsWith('image/');
   }
 
   Future<void> _deleteDocument() async {
