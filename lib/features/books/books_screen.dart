@@ -1585,55 +1585,58 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
         // Navigation bar
         Material(
           elevation: 1,
-          child: Row(
-            children: [
-              if (!kIsWeb) ...[
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  tooltip: 'Back',
-                  onPressed:
-                      _canGoBack ? () => _controller!.goBack() : null,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.arrow_forward),
-                  tooltip: 'Forward',
-                  onPressed:
-                      _canGoForward ? () => _controller!.goForward() : null,
-                ),
-              ],
-              IconButton(
-                icon: const Icon(Icons.home),
-                tooltip: 'Home',
-                onPressed: kIsWeb
-                    ? null
-                    : () => _controller!
-                        .loadRequest(Uri.parse(_gutenbergHome)),
-              ),
-              if (kIsWeb && widget.isOwnerOrAdmin) ...[
-                const Spacer(),
-                SizedBox(
-                  width: 120,
-                  child: TextField(
-                    controller: _idController,
-                    decoration: const InputDecoration(
-                      hintText: 'Book ID',
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    onSubmitted: (_) => _onManualImport(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              children: [
+                if (!kIsWeb) ...[
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: 'Back',
+                    onPressed:
+                        _canGoBack ? () => _controller!.goBack() : null,
                   ),
-                ),
-                const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward),
+                    tooltip: 'Forward',
+                    onPressed:
+                        _canGoForward ? () => _controller!.goForward() : null,
+                  ),
+                ],
                 IconButton(
-                  icon: const Icon(Icons.download),
-                  tooltip: 'Import by Gutenberg ID',
-                  onPressed: _isImporting ? null : _onManualImport,
+                  icon: const Icon(Icons.home),
+                  tooltip: 'Home',
+                  onPressed: kIsWeb
+                      ? () => resetGutenbergIframe()
+                      : () => _controller!
+                          .loadRequest(Uri.parse(_gutenbergHome)),
                 ),
+                if (widget.isOwnerOrAdmin) ...[
+                  const Spacer(),
+                  SizedBox(
+                    width: 140,
+                    child: TextField(
+                      controller: _idController,
+                      decoration: const InputDecoration(
+                        hintText: 'Gutenberg ID',
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      onSubmitted: (_) => _onManualImport(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Import to library by Gutenberg ID',
+                    onPressed: _isImporting ? null : _onManualImport,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         if (_isImporting) const LinearProgressIndicator(),
