@@ -368,6 +368,101 @@ void main() {
     });
   });
 
+  // ── writeValue / readValue / deleteValue ─────────────────────────────
+  group('writeValue / readValue', () {
+    test('writes value and retrieves from cache', () async {
+      when(() => mockStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          )).thenAnswer((_) async {});
+
+      await service.writeValue('custom_key', 'custom_value');
+
+      final result = await service.readValue('custom_key');
+      expect(result, 'custom_value');
+    });
+
+    test('reads from storage when no cache and caches result', () async {
+      when(() => mockStorage.read(key: 'no_cache_key'))
+          .thenAnswer((_) async => 'stored_value');
+
+      final result = await service.readValue('no_cache_key');
+      expect(result, 'stored_value');
+
+      verify(() => mockStorage.read(key: 'no_cache_key')).called(1);
+
+      // Second call should use cache
+      final result2 = await service.readValue('no_cache_key');
+      expect(result2, 'stored_value');
+    });
+
+    test('returns null when storage read returns null', () async {
+      when(() => mockStorage.read(key: 'missing_key'))
+          .thenAnswer((_) async => null);
+
+      final result = await service.readValue('missing_key');
+      expect(result, isNull);
+    });
+
+    test('returns null when storage read throws', () async {
+      when(() => mockStorage.read(key: 'error_key'))
+          .thenThrow(Exception('Read failed'));
+
+      final result = await service.readValue('error_key');
+      expect(result, isNull);
+    });
+
+    test('caches value even when storage write throws', () async {
+      when(() => mockStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          )).thenThrow(Exception('Write failed'));
+
+      await service.writeValue('fail_write_key', 'cached_value');
+
+      final result = await service.readValue('fail_write_key');
+      expect(result, 'cached_value');
+    });
+  });
+
+  group('deleteValue', () {
+    test('removes value from cache and storage', () async {
+      when(() => mockStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          )).thenAnswer((_) async {});
+      when(() => mockStorage.delete(key: any(named: 'key')))
+          .thenAnswer((_) async {});
+      when(() => mockStorage.read(key: any(named: 'key')))
+          .thenAnswer((_) async => null);
+
+      await service.writeValue('del_key', 'del_value');
+      await service.deleteValue('del_key');
+
+      verify(() => mockStorage.delete(key: 'del_key')).called(1);
+
+      final result = await service.readValue('del_key');
+      expect(result, isNull);
+    });
+
+    test('clears cache even when storage delete throws', () async {
+      when(() => mockStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          )).thenAnswer((_) async {});
+      when(() => mockStorage.delete(key: any(named: 'key')))
+          .thenThrow(Exception('Delete failed'));
+      when(() => mockStorage.read(key: any(named: 'key')))
+          .thenAnswer((_) async => null);
+
+      await service.writeValue('del_fail_key', 'value');
+      await service.deleteValue('del_fail_key');
+
+      final result = await service.readValue('del_fail_key');
+      expect(result, isNull);
+    });
+  });
+
   // ── Provider body tests ───────────────────────────────────────────────
   group('secureStorageProvider', () {
     test('creates SecureStorageService with default constructor', () {

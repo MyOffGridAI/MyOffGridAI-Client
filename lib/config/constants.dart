@@ -123,6 +123,9 @@ class AppConstants {
   // Secure storage keys (device)
   static const String deviceIdKey = 'device_id';
 
+  // EPUB reading state
+  static const String epubStateKeyPrefix = 'epub_state_';
+
   // Library
   static const int kiwixPort = 8888;
   static const int ebooksPageSize = 20;

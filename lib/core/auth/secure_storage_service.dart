@@ -152,6 +152,46 @@ class SecureStorageService {
       return 'system';
     }
   }
+
+  /// Writes an arbitrary [value] to secure storage under [key].
+  ///
+  /// The value is cached in memory and persisted on a best-effort basis.
+  Future<void> writeValue(String key, String value) async {
+    _cache[key] = value;
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {
+      // Cached in memory — persistent write is best-effort
+    }
+  }
+
+  /// Reads an arbitrary value from secure storage by [key].
+  ///
+  /// Returns the cached value if available, otherwise reads from persistent
+  /// storage. Returns `null` if the key has never been written.
+  Future<String?> readValue(String key) async {
+    final cached = _cache[key];
+    if (cached != null) return cached;
+    try {
+      final value = await _storage.read(key: key);
+      if (value != null) _cache[key] = value;
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Deletes an arbitrary value from secure storage by [key].
+  ///
+  /// Clears both the in-memory cache and persistent storage on a best-effort basis.
+  Future<void> deleteValue(String key) async {
+    _cache.remove(key);
+    try {
+      await _storage.delete(key: key);
+    } catch (_) {
+      // Cache is already cleared — persistent delete is best-effort
+    }
+  }
 }
 
 /// Riverpod provider for [SecureStorageService].
