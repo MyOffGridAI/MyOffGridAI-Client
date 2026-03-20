@@ -229,12 +229,12 @@ final kiwixUrlProvider = FutureProvider.autoDispose<String>((ref) async {
 final gutenbergPopularProvider =
     FutureProvider.autoDispose<GutenbergSearchResultModel>((ref) async {
   final service = ref.watch(libraryServiceProvider);
-  return service.browseGutenberg(sort: 'popular', limit: 25);
+  return service.browseGutenberg(sort: 'popular', limit: 15);
 });
 
 /// Provider for newest Gutenberg books (browse, sorted descending by ID).
 final gutenbergRecentProvider =
     FutureProvider.autoDispose<GutenbergSearchResultModel>((ref) async {
   final service = ref.watch(libraryServiceProvider);
-  return service.browseGutenberg(sort: 'descending', limit: 25);
+  return service.browseGutenberg(sort: 'descending', limit: 15);
 });
