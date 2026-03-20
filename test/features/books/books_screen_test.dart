@@ -1524,6 +1524,98 @@ void main() {
     });
   });
 
+  // ── Kiwix tab - installation states ──────────────────────────────────
+
+  group('Kiwix tab - installation states', () {
+    testWidgets('shows installing spinner when installationStatus is INSTALLING',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                installationStatus: 'INSTALLING',
+              ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      // Pump multiple frames to resolve FutureProvider; cannot use pumpAndSettle
+      // because CircularProgressIndicator never settles.
+      for (int i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(find.text('Installing Kiwix...'), findsOneWidget);
+    });
+
+    testWidgets('shows error and retry button when INSTALL_FAILED',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                installationStatus: 'INSTALL_FAILED',
+                installationError: 'brew not found',
+              ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kiwix Install Failed'), findsOneWidget);
+      expect(find.text('brew not found'), findsOneWidget);
+      expect(find.text('Retry Install'), findsOneWidget);
+    });
+
+    testWidgets('shows install button when NOT_INSTALLED', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                installationStatus: 'NOT_INSTALLED',
+              ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kiwix not installed'), findsOneWidget);
+      expect(find.text('Install'), findsOneWidget);
+    });
+
+    testWidgets('retry button calls installKiwix and refreshes status',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                installationStatus: 'INSTALL_FAILED',
+                installationError: 'failed',
+              ));
+      when(() => mockService.installKiwix()).thenAnswer((_) async {});
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Retry Install'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.installKiwix()).called(1);
+    });
+  });
+
   // ── Kiwix tab - ZIM files ─────────────────────────────────────────────
 
   group('Kiwix tab - ZIM files', () {

@@ -133,12 +133,16 @@ class KiwixStatusModel {
   final String? url;
   final int bookCount;
   final bool processManaged;
+  final String? installationStatus;
+  final String? installationError;
 
   const KiwixStatusModel({
     required this.available,
     this.url,
     required this.bookCount,
     this.processManaged = false,
+    this.installationStatus,
+    this.installationError,
   });
 
   /// Creates a [KiwixStatusModel] from a JSON map.
@@ -148,8 +152,24 @@ class KiwixStatusModel {
       url: json['url'] as String?,
       bookCount: json['bookCount'] as int? ?? 0,
       processManaged: json['processManaged'] as bool? ?? false,
+      installationStatus: json['installationStatus'] as String?,
+      installationError: json['installationError'] as String?,
     );
   }
+
+  /// Whether kiwix-tools is fully installed.
+  bool get isInstalled =>
+      installationStatus == null || installationStatus == 'INSTALLED';
+
+  /// Whether installation is in progress.
+  bool get isInstalling =>
+      installationStatus == 'CHECKING' || installationStatus == 'INSTALLING';
+
+  /// Whether installation has failed.
+  bool get isInstallFailed => installationStatus == 'INSTALL_FAILED';
+
+  /// Whether kiwix-tools is not installed and auto-install is disabled.
+  bool get isNotInstalled => installationStatus == 'NOT_INSTALLED';
 }
 
 /// Represents a book from the Project Gutenberg catalog.

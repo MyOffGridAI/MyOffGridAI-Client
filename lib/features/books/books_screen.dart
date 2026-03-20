@@ -384,10 +384,11 @@ class _KiwixTab extends ConsumerStatefulWidget {
   ConsumerState<_KiwixTab> createState() => _KiwixTabState();
 }
 
-/// State for [_KiwixTab] managing catalog search and download polling.
+/// State for [_KiwixTab] managing catalog search, language filter, and download polling.
 class _KiwixTabState extends ConsumerState<_KiwixTab> {
   final _searchController = TextEditingController();
   String _catalogQuery = '';
+  String? _selectedLanguage;
   Timer? _downloadPollTimer;
 
   @override
@@ -424,9 +425,13 @@ class _KiwixTabState extends ConsumerState<_KiwixTab> {
         _KiwixCatalogBrowseSection(
           searchController: _searchController,
           query: _catalogQuery,
+          selectedLanguage: _selectedLanguage,
           isOwnerOrAdmin: isOwnerOrAdmin,
           onSearchChanged: (value) {
             setState(() => _catalogQuery = value.trim());
+          },
+          onLanguageChanged: (lang) {
+            setState(() => _selectedLanguage = lang);
           },
         ),
       ],
@@ -434,7 +439,8 @@ class _KiwixTabState extends ConsumerState<_KiwixTab> {
   }
 }
 
-/// Status bar showing kiwix-serve state with start/stop toggle and "Open Kiwix" button.
+/// Status bar showing kiwix-serve state with installation status,
+/// start/stop toggle, and "Open Kiwix" button.
 class _KiwixStatusBar extends ConsumerStatefulWidget {
   final bool isOwnerOrAdmin;
 
@@ -444,9 +450,10 @@ class _KiwixStatusBar extends ConsumerStatefulWidget {
   ConsumerState<_KiwixStatusBar> createState() => _KiwixStatusBarState();
 }
 
-/// State for [_KiwixStatusBar] managing the start/stop loading indicator.
+/// State for [_KiwixStatusBar] managing the start/stop and install loading indicators.
 class _KiwixStatusBarState extends ConsumerState<_KiwixStatusBar> {
   bool _toggling = false;
+  bool _installing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -467,6 +474,104 @@ class _KiwixStatusBarState extends ConsumerState<_KiwixStatusBar> {
         ),
       ),
       data: (status) {
+        // Installation in progress
+        if (status.isInstalling || _installing) {
+          return Card(
+            margin: const EdgeInsets.all(8),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Installing Kiwix...',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Installation failed
+        if (status.isInstallFailed) {
+          return Card(
+            margin: const EdgeInsets.all(8),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Kiwix Install Failed',
+                            style: theme.textTheme.titleSmall),
+                        if (status.installationError != null)
+                          Text(
+                            status.installationError!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (widget.isOwnerOrAdmin)
+                    FilledButton.tonal(
+                      onPressed: _retryInstall,
+                      child: const Text('Retry Install'),
+                    ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Not installed (auto-install disabled)
+        if (status.isNotInstalled) {
+          return Card(
+            margin: const EdgeInsets.all(8),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      color: theme.colorScheme.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Kiwix not installed',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  if (widget.isOwnerOrAdmin)
+                    FilledButton.tonal(
+                      onPressed: _retryInstall,
+                      child: const Text('Install'),
+                    ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Installed — show running/stopped state
         final isRunning = status.available;
 
         return Card(
@@ -477,7 +582,7 @@ class _KiwixStatusBarState extends ConsumerState<_KiwixStatusBar> {
               children: [
                 Icon(
                   isRunning ? Icons.check_circle : Icons.cancel,
-                  color: isRunning ? Colors.green : Colors.red,
+                  color: isRunning ? Colors.green : Colors.orange,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -536,6 +641,23 @@ class _KiwixStatusBarState extends ConsumerState<_KiwixStatusBar> {
       }
     } finally {
       if (mounted) setState(() => _toggling = false);
+    }
+  }
+
+  Future<void> _retryInstall() async {
+    setState(() => _installing = true);
+    try {
+      final service = ref.read(libraryServiceProvider);
+      await service.installKiwix();
+      ref.invalidate(kiwixStatusProvider);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _installing = false);
     }
   }
 }
@@ -619,6 +741,9 @@ class _ZimFileTileState extends ConsumerState<_ZimFileTile> {
   @override
   Widget build(BuildContext context) {
     final zf = widget.zimFile;
+    final kiwixStatus = ref.watch(kiwixStatusProvider).valueOrNull;
+    final isKiwixRunning = kiwixStatus?.available == true && kiwixStatus?.url != null;
+
     return ListTile(
       leading: const Icon(Icons.language),
       title: Text(
@@ -635,8 +760,14 @@ class _ZimFileTileState extends ConsumerState<_ZimFileTile> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: widget.isOwnerOrAdmin
-          ? IconButton(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isKiwixRunning)
+            Icon(Icons.chevron_right,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+          if (widget.isOwnerOrAdmin)
+            IconButton(
               icon: _deleting
                   ? const SizedBox(
                       width: 20,
@@ -645,7 +776,15 @@ class _ZimFileTileState extends ConsumerState<_ZimFileTile> {
                     )
                   : const Icon(Icons.delete, color: Colors.red),
               onPressed: _deleting ? null : _confirmDelete,
-            )
+            ),
+        ],
+      ),
+      onTap: isKiwixRunning
+          ? () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => _KiwixWebViewPage(url: kiwixStatus!.url!),
+                ),
+              )
           : null,
     );
   }
@@ -735,18 +874,45 @@ class _ActiveDownloadsSection extends ConsumerWidget {
   }
 }
 
-/// Catalog browse section with search bar and horizontal cards.
+/// Common language options for the Kiwix catalog filter dropdown.
+const _kiwixLanguageOptions = <(String?, String)>[
+  (null, 'All Languages'),
+  ('eng', 'English'),
+  ('fra', 'French'),
+  ('deu', 'German'),
+  ('spa', 'Spanish'),
+  ('por', 'Portuguese'),
+  ('rus', 'Russian'),
+  ('zho', 'Chinese'),
+  ('jpn', 'Japanese'),
+  ('ara', 'Arabic'),
+  ('hin', 'Hindi'),
+  ('ita', 'Italian'),
+  ('kor', 'Korean'),
+  ('nld', 'Dutch'),
+  ('pol', 'Polish'),
+  ('tur', 'Turkish'),
+  ('vie', 'Vietnamese'),
+  ('ukr', 'Ukrainian'),
+  ('swa', 'Swahili'),
+];
+
+/// Catalog browse section with language filter, search bar, and horizontal cards.
 class _KiwixCatalogBrowseSection extends ConsumerStatefulWidget {
   final TextEditingController searchController;
   final String query;
+  final String? selectedLanguage;
   final bool isOwnerOrAdmin;
   final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String?> onLanguageChanged;
 
   const _KiwixCatalogBrowseSection({
     required this.searchController,
     required this.query,
+    required this.selectedLanguage,
     required this.isOwnerOrAdmin,
     required this.onSearchChanged,
+    required this.onLanguageChanged,
   });
 
   @override
@@ -784,11 +950,30 @@ class _KiwixCatalogBrowseSectionState
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            'Browse Catalog',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Browse Catalog',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              DropdownButton<String?>(
+                value: widget.selectedLanguage,
+                underline: const SizedBox.shrink(),
+                icon: const Icon(Icons.translate, size: 20),
+                style: theme.textTheme.bodySmall,
+                items: _kiwixLanguageOptions
+                    .map((entry) => DropdownMenuItem<String?>(
+                          value: entry.$1,
+                          child: Text(entry.$2),
+                        ))
+                    .toList(),
+                onChanged: widget.onLanguageChanged,
+              ),
+            ],
           ),
         ),
         Padding(
@@ -817,11 +1002,13 @@ class _KiwixCatalogBrowseSectionState
         if (widget.query.isEmpty)
           _KiwixBrowseCards(
             isOwnerOrAdmin: widget.isOwnerOrAdmin,
+            selectedLanguage: widget.selectedLanguage,
             scrollController: _scrollController,
           )
         else
           _KiwixSearchResults(
             query: widget.query,
+            selectedLanguage: widget.selectedLanguage,
             isOwnerOrAdmin: widget.isOwnerOrAdmin,
           ),
       ],
@@ -832,16 +1019,18 @@ class _KiwixCatalogBrowseSectionState
 /// Horizontal scroll cards for Kiwix catalog browse.
 class _KiwixBrowseCards extends ConsumerWidget {
   final bool isOwnerOrAdmin;
+  final String? selectedLanguage;
   final ScrollController scrollController;
 
   const _KiwixBrowseCards({
     required this.isOwnerOrAdmin,
+    required this.selectedLanguage,
     required this.scrollController,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncValue = ref.watch(kiwixCatalogBrowseProvider);
+    final asyncValue = ref.watch(kiwixCatalogBrowseProvider(selectedLanguage));
 
     return SizedBox(
       height: 190,
@@ -1008,16 +1197,19 @@ class _KiwixCatalogCardState extends ConsumerState<_KiwixCatalogCard> {
 /// Search results list for the Kiwix catalog.
 class _KiwixSearchResults extends ConsumerWidget {
   final String query;
+  final String? selectedLanguage;
   final bool isOwnerOrAdmin;
 
   const _KiwixSearchResults({
     required this.query,
+    required this.selectedLanguage,
     required this.isOwnerOrAdmin,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final resultsAsync = ref.watch(kiwixCatalogSearchProvider(query));
+    final resultsAsync = ref.watch(
+        kiwixCatalogSearchProvider((query: query, lang: selectedLanguage)));
 
     return resultsAsync.when(
       loading: () => const Padding(

@@ -142,6 +142,13 @@ class LibraryService {
 
   // ── Kiwix Process Management ────────────────────────────────────────────
 
+  /// Manually triggers kiwix-tools installation (retry after failure).
+  Future<void> installKiwix() async {
+    await _client.post<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/install',
+    );
+  }
+
   /// Starts the kiwix-serve process.
   Future<void> startKiwix() async {
     await _client.post<Map<String, dynamic>>(
@@ -346,18 +353,19 @@ final gutenbergRecentProvider =
   return service.browseGutenberg(sort: 'descending', limit: 15);
 });
 
-/// Provider for Kiwix catalog browse results.
-final kiwixCatalogBrowseProvider =
-    FutureProvider.autoDispose<KiwixCatalogSearchResultModel>((ref) async {
+/// Provider for Kiwix catalog browse results, optionally filtered by language.
+final kiwixCatalogBrowseProvider = FutureProvider.autoDispose
+    .family<KiwixCatalogSearchResultModel, String?>((ref, lang) async {
   final service = ref.watch(libraryServiceProvider);
-  return service.browseKiwixCatalog(count: 20);
+  return service.browseKiwixCatalog(lang: lang, count: 20);
 });
 
-/// Provider for Kiwix catalog search results keyed by query string.
+/// Provider for Kiwix catalog search results keyed by query and language.
 final kiwixCatalogSearchProvider = FutureProvider.autoDispose
-    .family<KiwixCatalogSearchResultModel, String>((ref, query) async {
+    .family<KiwixCatalogSearchResultModel, ({String query, String? lang})>(
+        (ref, params) async {
   final service = ref.watch(libraryServiceProvider);
-  return service.searchKiwixCatalog(query);
+  return service.searchKiwixCatalog(params.query, lang: params.lang);
 });
 
 /// Provider for active Kiwix downloads.
