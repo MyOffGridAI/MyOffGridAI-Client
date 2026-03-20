@@ -47,6 +47,7 @@ void main() {
   group('JudgeTestResultModel', () {
     test('parses from JSON with all fields', () {
       final json = {
+        'assistantResponse': 'Java is a programming language.',
         'score': 8.5,
         'reason': 'Good response with relevant detail',
         'needsCloud': false,
@@ -56,6 +57,7 @@ void main() {
 
       final model = JudgeTestResultModel.fromJson(json);
 
+      expect(model.assistantResponse, 'Java is a programming language.');
       expect(model.score, 8.5);
       expect(model.reason, 'Good response with relevant detail');
       expect(model.needsCloud, isFalse);
@@ -83,6 +85,7 @@ void main() {
 
       final model = JudgeTestResultModel.fromJson(json);
 
+      expect(model.assistantResponse, isNull);
       expect(model.score, 0.0);
       expect(model.reason, isNull);
       expect(model.needsCloud, isFalse);

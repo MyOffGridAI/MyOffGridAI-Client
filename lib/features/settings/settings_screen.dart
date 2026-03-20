@@ -2686,7 +2686,6 @@ class _AiJudgeTab extends ConsumerStatefulWidget {
 
 class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
   final _queryController = TextEditingController();
-  final _responseController = TextEditingController();
   bool _testing = false;
   JudgeTestResultModel? _testResult;
 
@@ -2700,7 +2699,6 @@ class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
   @override
   void dispose() {
     _queryController.dispose();
-    _responseController.dispose();
     super.dispose();
   }
 
@@ -2790,8 +2788,14 @@ class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
 
   Future<void> _runTest() async {
     final query = _queryController.text.trim();
-    final response = _responseController.text.trim();
-    if (query.isEmpty || response.isEmpty) return;
+    if (query.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a query to test')),
+        );
+      }
+      return;
+    }
 
     setState(() {
       _testing = true;
@@ -2800,12 +2804,18 @@ class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
 
     try {
       final service = ref.read(judgeServiceProvider);
-      final result = await service.test(query: query, response: response);
+      final result = await service.test(query: query);
       if (mounted) setState(() => _testResult = result);
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Judge test failed: $e')),
         );
       }
     } finally {
@@ -3070,16 +3080,6 @@ class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
                   maxLines: 2,
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _responseController,
-                  decoration: const InputDecoration(
-                    labelText: 'Response',
-                    hintText: 'Enter the response to evaluate...',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 4,
-                ),
-                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -3104,6 +3104,35 @@ class _AiJudgeTabState extends ConsumerState<_AiJudgeTab> {
                       style: TextStyle(color: colorScheme.error),
                     )
                   else ...[
+                    if (_testResult!.assistantResponse != null) ...[
+                      Text('Local LLM Response',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _testResult!.assistantResponse!,
+                          style: TextStyle(
+                            color: colorScheme.onSurface.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Judge Evaluation',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                    ],
                     Row(
                       children: [
                         Text(

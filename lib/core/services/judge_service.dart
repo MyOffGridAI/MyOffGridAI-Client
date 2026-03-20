@@ -45,16 +45,14 @@ class JudgeService {
     return JudgeStatusModel.fromJson(data);
   }
 
-  /// Tests the judge evaluation against a query/response pair.
+  /// Tests the judge evaluation pipeline for a given query.
   ///
-  /// Returns the test result with score, reason, and availability info.
-  Future<JudgeTestResultModel> test({
-    required String query,
-    required String response,
-  }) async {
+  /// The server generates a response from the local LLM, then evaluates
+  /// it with the judge. Returns the generated response, score, and reason.
+  Future<JudgeTestResultModel> test({required String query}) async {
     final apiResponse = await _client.post<Map<String, dynamic>>(
       '${AppConstants.judgeBasePath}/test',
-      data: {'query': query, 'response': response},
+      data: {'query': query},
     );
     final data = apiResponse['data'] as Map<String, dynamic>;
     return JudgeTestResultModel.fromJson(data);

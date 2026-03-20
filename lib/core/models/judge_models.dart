@@ -51,6 +51,9 @@ class JudgeStatusModel {
 /// Mirrors the server's JudgeTestResultDto. Returned from the
 /// `POST /api/ai/judge/test` endpoint.
 class JudgeTestResultModel {
+  /// The assistant response that was evaluated (generated or user-provided).
+  final String? assistantResponse;
+
   /// Quality score from 1 to 10 (0.0 if unavailable).
   final double score;
 
@@ -68,6 +71,7 @@ class JudgeTestResultModel {
 
   /// Creates a [JudgeTestResultModel].
   const JudgeTestResultModel({
+    this.assistantResponse,
     required this.score,
     this.reason,
     required this.needsCloud,
@@ -78,6 +82,7 @@ class JudgeTestResultModel {
   /// Creates a [JudgeTestResultModel] from a JSON map.
   factory JudgeTestResultModel.fromJson(Map<String, dynamic> json) {
     return JudgeTestResultModel(
+      assistantResponse: json['assistantResponse'] as String?,
       score: (json['score'] as num?)?.toDouble() ?? 0.0,
       reason: json['reason'] as String?,
       needsCloud: json['needsCloud'] as bool? ?? false,
