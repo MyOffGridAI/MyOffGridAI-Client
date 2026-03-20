@@ -22,10 +22,12 @@ class ModelCatalogService {
   /// Searches the HuggingFace model catalog.
   ///
   /// Returns a list of [HfModelModel] matching the [query].
+  /// When [query] is empty (the default), returns top models sorted by
+  /// downloads descending (browse mode).
   /// [format] filters by model format ("gguf", "mlx", or "all").
   /// [limit] caps the number of results (default 20).
   Future<List<HfModelModel>> searchCatalog({
-    required String query,
+    String query = '',
     String format = 'gguf',
     int limit = 20,
   }) async {

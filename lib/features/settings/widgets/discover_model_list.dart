@@ -10,6 +10,9 @@ class DiscoverModelList extends StatelessWidget {
   /// The search results to display.
   final List<HfModelModel> results;
 
+  /// Whether a search or initial load is in progress.
+  final bool isLoading;
+
   /// Called when a user taps a GGUF file row in a model card.
   final void Function(HfModelModel model, HfModelFileModel file)? onFileSelected;
 
@@ -17,6 +20,7 @@ class DiscoverModelList extends StatelessWidget {
   const DiscoverModelList({
     super.key,
     required this.results,
+    this.isLoading = false,
     this.onFileSelected,
   });
 
@@ -27,19 +31,28 @@ class DiscoverModelList extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.hub_outlined,
-              size: 64,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Search for GGUF models on HuggingFace',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            if (isLoading) ...[
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Loading models...',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ] else ...[
+              Icon(
+                Icons.hub_outlined,
+                size: 64,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.3),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No models found',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
           ],
         ),
       );

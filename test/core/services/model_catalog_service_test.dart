@@ -78,6 +78,43 @@ void main() {
       expect(results, isEmpty);
     });
 
+    test('supports empty query for browse mode', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            any(),
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'models': [
+                {
+                  'id': 'trending/model',
+                  'downloads': 999999,
+                  'likes': 500,
+                  'tags': ['gguf'],
+                  'siblings': [
+                    {'rfilename': 'model.Q4_K_M.gguf', 'size': 4000000000},
+                  ],
+                },
+              ],
+              'totalCount': 1,
+            },
+          });
+
+      final results = await service.searchCatalog();
+
+      expect(results.length, 1);
+      expect(results[0].id, 'trending/model');
+
+      final captured = verify(() => mockClient.get<Map<String, dynamic>>(
+            any(),
+            queryParams: captureAny(named: 'queryParams'),
+          )).captured;
+
+      final params = captured.first as Map<String, dynamic>;
+      expect(params['q'], '');
+      expect(params['format'], 'gguf');
+      expect(params['limit'], 20);
+    });
+
     test('throws ApiException on error', () async {
       when(() => mockClient.get<Map<String, dynamic>>(
             any(),

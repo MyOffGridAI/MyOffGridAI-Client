@@ -1435,15 +1435,19 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
   HfModelFileModel? _selectedFile;
 
   @override
+  void initState() {
+    super.initState();
+    _loadTrending();
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _search() async {
-    final query = _searchController.text.trim();
-    if (query.isEmpty) return;
-
+  /// Loads trending/popular models on tab open (empty query = browse mode).
+  Future<void> _loadTrending() async {
     setState(() {
       _searching = true;
       _error = null;
@@ -1451,8 +1455,43 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
 
     try {
       final service = ref.read(modelCatalogServiceProvider);
+      final results = await service.searchCatalog();
+      if (mounted) {
+        setState(() {
+          _results = results;
+          _autoSelectFirst();
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Failed to load models. Check your connection.');
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+
+    setState(() {
+      _searching = true;
+      _error = null;
+      _selectedModel = null;
+      _selectedFile = null;
+    });
+
+    try {
+      final service = ref.read(modelCatalogServiceProvider);
       final results = await service.searchCatalog(query: query);
-      if (mounted) setState(() => _results = results);
+      if (mounted) {
+        setState(() {
+          _results = results;
+          _autoSelectFirst();
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
@@ -1461,6 +1500,20 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
       }
     } finally {
       if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  /// Selects the first model's first GGUF file for the detail panel.
+  void _autoSelectFirst() {
+    if (_results.isNotEmpty) {
+      final firstModel = _results.first;
+      final firstFile = firstModel.ggufFiles.isNotEmpty
+          ? firstModel.ggufFiles.first
+          : null;
+      if (firstFile != null) {
+        _selectedModel = firstModel;
+        _selectedFile = firstFile;
+      }
     }
   }
 
@@ -1516,15 +1569,17 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 360,
+                    Expanded(
+                      flex: 2,
                       child: DiscoverModelList(
                         results: _results,
+                        isLoading: _searching,
                         onFileSelected: _onFileSelected,
                       ),
                     ),
                     const VerticalDivider(width: 1),
                     Expanded(
+                      flex: 3,
                       child: _selectedModel != null && _selectedFile != null
                           ? ModelDetailPanel(
                               model: _selectedModel!,
@@ -1540,6 +1595,7 @@ class _DiscoverSubTabState extends ConsumerState<_DiscoverSubTab> {
                 )
               : DiscoverModelList(
                   results: _results,
+                  isLoading: _searching,
                   onFileSelected: (model, file) {
                     _onFileSelected(model, file);
                     _showDetailBottomSheet(context, model, file);
