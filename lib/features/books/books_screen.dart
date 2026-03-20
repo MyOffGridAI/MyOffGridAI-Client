@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,9 @@ import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+
+import 'gutenberg_iframe_stub.dart'
+    if (dart.library.html) 'gutenberg_iframe_web.dart';
 
 /// Displays the offline library with three tabs: Library (eBooks),
 /// Kiwix (ZIM content via WebView), and Gutenberg (search & import).
@@ -1443,8 +1447,11 @@ int? extractGutenbergIdFromUrl(String url) {
 
 /// Renders the Gutenberg tab as a WebView loading gutenberg.org directly.
 ///
-/// When a user clicks a download link, the URL is intercepted, the book ID
-/// extracted, and the book imported via [LibraryService.importGutenbergBook].
+/// On native platforms, a [WebViewController] intercepts download links,
+/// extracts the book ID, and imports via [LibraryService.importGutenbergBook].
+///
+/// On Flutter web, an iframe embeds gutenberg.org for browsing and a manual
+/// import field allows importing by Gutenberg book ID.
 class _GutenbergTab extends ConsumerStatefulWidget {
   final bool isOwnerOrAdmin;
 
@@ -1454,25 +1461,39 @@ class _GutenbergTab extends ConsumerStatefulWidget {
   ConsumerState<_GutenbergTab> createState() => _GutenbergTabState();
 }
 
-/// State for [_GutenbergTab] managing the WebView controller and navigation.
+/// State for [_GutenbergTab] managing the WebView/iframe and navigation.
 class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
-  late final WebViewController _controller;
+  /// WebView controller — only created on native platforms.
+  WebViewController? _controller;
   bool _canGoBack = false;
   bool _canGoForward = false;
   bool _isImporting = false;
+
+  /// Text controller for manual Gutenberg ID input on web.
+  final _idController = TextEditingController();
 
   static const _gutenbergHome = 'https://www.gutenberg.org';
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-        onNavigationRequest: _onNavigationRequest,
-        onPageFinished: _onPageFinished,
-      ))
-      ..loadRequest(Uri.parse(_gutenbergHome));
+    if (kIsWeb) {
+      registerGutenbergIframe();
+    } else {
+      _controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setNavigationDelegate(NavigationDelegate(
+          onNavigationRequest: _onNavigationRequest,
+          onPageFinished: _onPageFinished,
+        ))
+        ..loadRequest(Uri.parse(_gutenbergHome));
+    }
+  }
+
+  @override
+  void dispose() {
+    _idController.dispose();
+    super.dispose();
   }
 
   Future<NavigationDecision> _onNavigationRequest(
@@ -1499,8 +1520,8 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
 
   void _onPageFinished(String url) async {
     if (!mounted) return;
-    final back = await _controller.canGoBack();
-    final forward = await _controller.canGoForward();
+    final back = await _controller!.canGoBack();
+    final forward = await _controller!.canGoForward();
     if (mounted) {
       setState(() {
         _canGoBack = back;
@@ -1544,6 +1565,19 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
     }
   }
 
+  void _onManualImport() {
+    final text = _idController.text.trim();
+    final id = int.tryParse(text);
+    if (id == null || id <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid Gutenberg book ID')),
+      );
+      return;
+    }
+    _idController.clear();
+    _importBook(id);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1553,29 +1587,60 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
           elevation: 1,
           child: Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: 'Back',
-                onPressed: _canGoBack ? () => _controller.goBack() : null,
-              ),
-              IconButton(
-                icon: const Icon(Icons.arrow_forward),
-                tooltip: 'Forward',
-                onPressed:
-                    _canGoForward ? () => _controller.goForward() : null,
-              ),
+              if (!kIsWeb) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Back',
+                  onPressed:
+                      _canGoBack ? () => _controller!.goBack() : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward),
+                  tooltip: 'Forward',
+                  onPressed:
+                      _canGoForward ? () => _controller!.goForward() : null,
+                ),
+              ],
               IconButton(
                 icon: const Icon(Icons.home),
                 tooltip: 'Home',
-                onPressed: () =>
-                    _controller.loadRequest(Uri.parse(_gutenbergHome)),
+                onPressed: kIsWeb
+                    ? null
+                    : () => _controller!
+                        .loadRequest(Uri.parse(_gutenbergHome)),
               ),
+              if (kIsWeb && widget.isOwnerOrAdmin) ...[
+                const Spacer(),
+                SizedBox(
+                  width: 120,
+                  child: TextField(
+                    controller: _idController,
+                    decoration: const InputDecoration(
+                      hintText: 'Book ID',
+                      isDense: true,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onSubmitted: (_) => _onManualImport(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  tooltip: 'Import by Gutenberg ID',
+                  onPressed: _isImporting ? null : _onManualImport,
+                ),
+              ],
             ],
           ),
         ),
         if (_isImporting) const LinearProgressIndicator(),
         Expanded(
-          child: WebViewWidget(controller: _controller),
+          child: kIsWeb
+              ? const HtmlElementView(viewType: 'gutenberg-iframe')
+              : WebViewWidget(controller: _controller!),
         ),
       ],
     );
