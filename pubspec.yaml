@@ -49,6 +49,8 @@ dev_dependencies:
   riverpod_generator: ^2.6.3
   mockito: ^5.4.6
   mocktail: ^1.0.4
+  plugin_platform_interface: ^2.1.8
+  webview_flutter_platform_interface: ^2.14.0
 
 flutter:
   uses-material-design: true

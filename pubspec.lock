@@ -1054,7 +1054,7 @@ packages:
     source: hosted
     version: "3.1.6"
   plugin_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: plugin_platform_interface
       sha256: "4820fbfdb9478b1ebae27888254d445073732dae3d6ea81f0b7e06d5dedc3f02"
@@ -1571,7 +1571,7 @@ packages:
     source: hosted
     version: "4.10.13"
   webview_flutter_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: webview_flutter_platform_interface
       sha256: "63d26ee3aca7256a83ccb576a50272edd7cfc80573a4305caa98985feb493ee0"

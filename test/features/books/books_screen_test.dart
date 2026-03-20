@@ -9,8 +9,120 @@ import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
 import 'package:myoffgridai_client/features/books/books_screen.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 class MockLibraryService extends Mock implements LibraryService {}
+
+/// Fake [WebViewPlatform] for unit tests.
+class _FakeWebViewPlatform extends Fake
+    with MockPlatformInterfaceMixin
+    implements WebViewPlatform {
+  @override
+  PlatformWebViewController createPlatformWebViewController(
+    PlatformWebViewControllerCreationParams params,
+  ) =>
+      _FakePlatformWebViewController(params);
+
+  @override
+  PlatformWebViewWidget createPlatformWebViewWidget(
+    PlatformWebViewWidgetCreationParams params,
+  ) =>
+      _FakePlatformWebViewWidget(params);
+
+  @override
+  PlatformNavigationDelegate createPlatformNavigationDelegate(
+    PlatformNavigationDelegateCreationParams params,
+  ) =>
+      _FakePlatformNavigationDelegate(params);
+}
+
+class _FakePlatformWebViewController extends Fake
+    with MockPlatformInterfaceMixin
+    implements PlatformWebViewController {
+  _FakePlatformWebViewController(this.params);
+
+  @override
+  final PlatformWebViewControllerCreationParams params;
+
+  @override
+  Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {}
+
+  @override
+  Future<void> setPlatformNavigationDelegate(
+    PlatformNavigationDelegate handler,
+  ) async {}
+
+  @override
+  Future<void> loadRequest(LoadRequestParams params) async {}
+
+  @override
+  Future<bool> canGoBack() async => false;
+
+  @override
+  Future<bool> canGoForward() async => false;
+
+  @override
+  Future<void> goBack() async {}
+
+  @override
+  Future<void> goForward() async {}
+}
+
+class _FakePlatformWebViewWidget extends Fake
+    with MockPlatformInterfaceMixin
+    implements PlatformWebViewWidget {
+  _FakePlatformWebViewWidget(this.params);
+
+  @override
+  final PlatformWebViewWidgetCreationParams params;
+
+  @override
+  Widget build(BuildContext context) =>
+      const SizedBox(key: Key('fake_webview'));
+}
+
+class _FakePlatformNavigationDelegate extends Fake
+    with MockPlatformInterfaceMixin
+    implements PlatformNavigationDelegate {
+  _FakePlatformNavigationDelegate(this.params);
+
+  @override
+  final PlatformNavigationDelegateCreationParams params;
+
+  @override
+  Future<void> setOnNavigationRequest(
+    NavigationRequestCallback onNavigationRequest,
+  ) async {}
+
+  @override
+  Future<void> setOnPageFinished(PageEventCallback onPageFinished) async {}
+
+  @override
+  Future<void> setOnPageStarted(PageEventCallback onPageStarted) async {}
+
+  @override
+  Future<void> setOnProgress(ProgressCallback onProgress) async {}
+
+  @override
+  Future<void> setOnWebResourceError(
+    WebResourceErrorCallback onWebResourceError,
+  ) async {}
+
+  @override
+  Future<void> setOnUrlChange(UrlChangeCallback onUrlChange) async {}
+
+  @override
+  Future<void> setOnHttpAuthRequest(
+    HttpAuthRequestCallback onHttpAuthRequest,
+  ) async {}
+
+  @override
+  Future<void> setOnHttpError(
+    HttpResponseErrorCallback onHttpError,
+  ) async {}
+}
 
 void main() {
   late MockLibraryService mockService;
@@ -31,6 +143,10 @@ void main() {
     isActive: true,
   );
 
+  setUpAll(() {
+    WebViewPlatform.instance = _FakeWebViewPlatform();
+  });
+
   setUp(() {
     mockService = MockLibraryService();
     registerFallbackValue('');
@@ -49,24 +165,6 @@ void main() {
         const KiwixCatalogSearchResultModel(totalCount: 0, entries: []));
   });
 
-  void stubBrowse({
-    GutenbergSearchResultModel? popular,
-    GutenbergSearchResultModel? recent,
-  }) {
-    when(() => mockService.browseGutenberg(
-          sort: 'popular',
-          limit: any(named: 'limit'),
-        )).thenAnswer((_) async =>
-        popular ??
-        const GutenbergSearchResultModel(count: 0, results: []));
-    when(() => mockService.browseGutenberg(
-          sort: 'descending',
-          limit: any(named: 'limit'),
-        )).thenAnswer((_) async =>
-        recent ??
-        const GutenbergSearchResultModel(count: 0, results: []));
-  }
-
   void stubDefaultMocks() {
     when(() => mockService.listEbooks(
           search: any(named: 'search'),
@@ -79,7 +177,6 @@ void main() {
               available: false,
               bookCount: 0,
             ));
-    stubBrowse();
   }
 
   void stubEbooks(List<EbookModel> ebooks) {
@@ -94,11 +191,6 @@ void main() {
               available: false,
               bookCount: 0,
             ));
-  }
-
-  void stubGutenberg(GutenbergSearchResultModel result) {
-    when(() => mockService.searchGutenberg(any(), limit: any(named: 'limit')))
-        .thenAnswer((_) async => result);
   }
 
   Widget buildScreen({UserModel? user}) {
@@ -277,20 +369,20 @@ void main() {
     });
   });
 
-  group('Gutenberg tab', () {
-    testWidgets('shows search field', (tester) async {
+  group('Gutenberg tab - WebView', () {
+    testWidgets('renders WebViewWidget on Gutenberg tab', (tester) async {
       stubDefaultMocks();
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
 
-      // Tap on Gutenberg tab
       await tester.tap(find.text('Gutenberg'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Search Project Gutenberg...'), findsOneWidget);
+      expect(find.byType(WebViewWidget), findsOneWidget);
     });
 
-    testWidgets('shows search icon', (tester) async {
+    testWidgets('shows navigation bar with back, forward, home icons',
+        (tester) async {
       stubDefaultMocks();
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
@@ -298,7 +390,69 @@ void main() {
       await tester.tap(find.text('Gutenberg'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.search), findsWidgets);
+      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
+      expect(find.byIcon(Icons.home), findsOneWidget);
+    });
+  });
+
+  group('extractGutenbergIdFromUrl', () {
+    test('extracts ID from /ebooks/{id}.epub3.images', () {
+      expect(
+        extractGutenbergIdFromUrl(
+            'https://www.gutenberg.org/ebooks/1342.epub3.images'),
+        1342,
+      );
+    });
+
+    test('extracts ID from /ebooks/{id}.kindle.images', () {
+      expect(
+        extractGutenbergIdFromUrl(
+            'https://www.gutenberg.org/ebooks/84.kindle.images'),
+        84,
+      );
+    });
+
+    test('extracts ID from /files/{id}/...', () {
+      expect(
+        extractGutenbergIdFromUrl(
+            'https://www.gutenberg.org/files/1342/1342-0.txt'),
+        1342,
+      );
+    });
+
+    test('extracts ID from /cache/epub/{id}/...', () {
+      expect(
+        extractGutenbergIdFromUrl(
+            'https://www.gutenberg.org/cache/epub/1342/pg1342.epub'),
+        1342,
+      );
+    });
+
+    test('returns null for book page URL', () {
+      expect(
+        extractGutenbergIdFromUrl('https://www.gutenberg.org/ebooks/1342'),
+        isNull,
+      );
+    });
+
+    test('returns null for browse URL', () {
+      expect(
+        extractGutenbergIdFromUrl(
+            'https://www.gutenberg.org/ebooks/search/?query=pride'),
+        isNull,
+      );
+    });
+
+    test('returns null for home page', () {
+      expect(
+        extractGutenbergIdFromUrl('https://www.gutenberg.org/'),
+        isNull,
+      );
+    });
+
+    test('returns null for invalid URL', () {
+      expect(extractGutenbergIdFromUrl('not a url'), isNull);
     });
   });
 
@@ -537,272 +691,6 @@ void main() {
     });
   });
 
-  group('Gutenberg tab - search', () {
-    testWidgets('shows browse sections when no search query', (tester) async {
-      stubDefaultMocks();
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Popular Books'), findsOneWidget);
-      expect(find.text('Newest Releases'), findsOneWidget);
-    });
-
-    testWidgets('submitting search triggers results', (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 100,
-            title: 'Moby Dick',
-            authors: ['Herman Melville'],
-            languages: ['en'],
-            downloadCount: 50000,
-          ),
-        ],
-      ));
-
-      await tester.pumpWidget(buildScreen(user: ownerUser));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      // Enter search and submit
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'moby dick');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Moby Dick'), findsOneWidget);
-      expect(find.textContaining('Herman Melville'), findsOneWidget);
-      expect(find.textContaining('EN'), findsOneWidget);
-      expect(find.textContaining('50000 downloads'), findsOneWidget);
-    });
-
-    testWidgets('shows no results state', (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 0,
-        results: [],
-      ));
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'xyznonexistent');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('No results'), findsOneWidget);
-    });
-
-    testWidgets('shows error view on search failure', (tester) async {
-      stubDefaultMocks();
-      when(() =>
-              mockService.searchGutenberg(any(), limit: any(named: 'limit')))
-          .thenThrow(const ApiException(
-              statusCode: 500, message: 'Search error'));
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'test');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Search Failed'), findsOneWidget);
-    });
-
-    testWidgets('shows download icon for owner on Gutenberg results',
-        (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 100,
-            title: 'Test Book',
-            authors: [],
-            languages: [],
-            downloadCount: 100,
-          ),
-        ],
-      ));
-
-      await tester.pumpWidget(buildScreen(user: ownerUser));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'test');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.download), findsOneWidget);
-    });
-
-    testWidgets('hides download icon for member', (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 100,
-            title: 'Test Book',
-            authors: [],
-            languages: [],
-            downloadCount: 100,
-          ),
-        ],
-      ));
-
-      await tester.pumpWidget(buildScreen(user: memberUser));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'test');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.download), findsNothing);
-    });
-
-    testWidgets('import calls importGutenbergBook on success',
-        (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 42,
-            title: 'Imported Book',
-            authors: ['Author A'],
-            languages: ['en'],
-            downloadCount: 999,
-          ),
-        ],
-      ));
-
-      when(() => mockService.importGutenbergBook(42))
-          .thenAnswer((_) async => const EbookModel(
-                id: 'e99',
-                title: 'Imported Book',
-                format: 'EPUB',
-                fileSizeBytes: 1024,
-              ));
-
-      await tester.pumpWidget(buildScreen(user: ownerUser));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'imported');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      // Tap import button
-      await tester.tap(find.byIcon(Icons.download));
-      await tester.pumpAndSettle();
-
-      verify(() => mockService.importGutenbergBook(42)).called(1);
-      expect(
-          find.text('"Imported Book" imported successfully'), findsOneWidget);
-    });
-
-    testWidgets('import shows error on failure', (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 42,
-            title: 'Fail Book',
-            authors: [],
-            languages: [],
-            downloadCount: 0,
-          ),
-        ],
-      ));
-
-      when(() => mockService.importGutenbergBook(42)).thenThrow(
-          const ApiException(statusCode: 500, message: 'Import failed'));
-
-      await tester.pumpWidget(buildScreen(user: ownerUser));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'fail');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.download));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Import failed'), findsOneWidget);
-    });
-
-    testWidgets('shows auto_stories icon for each Gutenberg result',
-        (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 2,
-        results: [
-          GutenbergBookModel(
-            id: 1,
-            title: 'Book A',
-            authors: [],
-            languages: [],
-            downloadCount: 10,
-          ),
-          GutenbergBookModel(
-            id: 2,
-            title: 'Book B',
-            authors: [],
-            languages: [],
-            downloadCount: 20,
-          ),
-        ],
-      ));
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'books');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      // auto_stories from the tab icon + 2 from list items
-      expect(find.byIcon(Icons.auto_stories), findsWidgets);
-      expect(find.text('Book A'), findsOneWidget);
-      expect(find.text('Book B'), findsOneWidget);
-    });
-  });
 
   // ── Library tab - delete ebook ──────────────────────────────────────────
 
@@ -817,7 +705,7 @@ void main() {
 
     testWidgets('owner sees delete option on eBook tile', (tester) async {
       stubEbooks([testEbook]);
-      stubBrowse();
+
       await tester.pumpWidget(buildScreen(user: ownerUser));
       await tester.pumpAndSettle();
 
@@ -841,7 +729,7 @@ void main() {
       );
 
       stubEbooks([testEbook]);
-      stubBrowse();
+
       await tester.pumpWidget(buildScreen(user: adminUser));
       await tester.pumpAndSettle();
 
@@ -850,7 +738,7 @@ void main() {
 
     testWidgets('member does not see delete option', (tester) async {
       stubEbooks([testEbook]);
-      stubBrowse();
+
       await tester.pumpWidget(buildScreen(user: memberUser));
       await tester.pumpAndSettle();
 
@@ -859,7 +747,7 @@ void main() {
 
     testWidgets('tapping delete shows confirmation dialog', (tester) async {
       stubEbooks([testEbook]);
-      stubBrowse();
+
       await tester.pumpWidget(buildScreen(user: ownerUser));
       await tester.pumpAndSettle();
 
@@ -879,7 +767,7 @@ void main() {
     testWidgets('confirming delete calls deleteEbook and refreshes list',
         (tester) async {
       stubEbooks([testEbook]);
-      stubBrowse();
+
       when(() => mockService.deleteEbook('e1'))
           .thenAnswer((_) async {});
 
@@ -905,7 +793,7 @@ void main() {
     testWidgets('cancelling delete does not call deleteEbook',
         (tester) async {
       stubEbooks([testEbook]);
-      stubBrowse();
+
       await tester.pumpWidget(buildScreen(user: ownerUser));
       await tester.pumpAndSettle();
 
@@ -926,7 +814,7 @@ void main() {
 
     testWidgets('delete error shows error snackbar', (tester) async {
       stubEbooks([testEbook]);
-      stubBrowse();
+
       when(() => mockService.deleteEbook('e1'))
           .thenThrow(const ApiException(
               statusCode: 500, message: 'Delete failed'));
@@ -1036,275 +924,9 @@ void main() {
     });
   });
 
-  group('Gutenberg tab - clear button', () {
-    testWidgets('clear button resets search and shows initial state',
-        (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 100,
-            title: 'Some Book',
-            authors: [],
-            languages: [],
-            downloadCount: 50,
-          ),
-        ],
-      ));
 
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
 
-      // Go to Gutenberg tab
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
 
-      // Enter search text and submit
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'some book');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      // Verify results are shown
-      expect(find.text('Some Book'), findsOneWidget);
-
-      // Tap the clear button (Icons.clear)
-      await tester.tap(find.byIcon(Icons.clear));
-      await tester.pumpAndSettle();
-
-      // Should revert to browse view (no search results shown)
-      expect(find.text('Popular Books'), findsOneWidget);
-      expect(find.text('Some Book'), findsNothing);
-    });
-  });
-
-  group('Gutenberg tab - search error retry', () {
-    testWidgets('tapping Retry on search error re-fetches results',
-        (tester) async {
-      stubDefaultMocks();
-      var searchCallCount = 0;
-      when(() =>
-              mockService.searchGutenberg(any(), limit: any(named: 'limit')))
-          .thenAnswer((_) async {
-        searchCallCount++;
-        if (searchCallCount == 1) {
-          throw const ApiException(
-              statusCode: 500, message: 'Search error');
-        }
-        return const GutenbergSearchResultModel(
-          count: 1,
-          results: [
-            GutenbergBookModel(
-              id: 200,
-              title: 'Recovered Search Result',
-              authors: ['Author'],
-              languages: ['en'],
-              downloadCount: 100,
-            ),
-          ],
-        );
-      });
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      // Go to Gutenberg tab
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      // Enter search and submit
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'search term');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      // Verify error state
-      expect(find.text('Search Failed'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
-
-      // Tap retry
-      await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-
-      // Should show recovered results
-      expect(find.text('Recovered Search Result'), findsOneWidget);
-      expect(find.text('Search Failed'), findsNothing);
-    });
-  });
-
-  // ── Gutenberg tab - browse sections ────────────────────────────────────
-
-  group('Gutenberg tab - browse sections', () {
-    testWidgets('shows popular books in browse section', (tester) async {
-      stubDefaultMocks();
-      stubBrowse(
-        popular: const GutenbergSearchResultModel(
-          count: 1,
-          results: [
-            GutenbergBookModel(
-              id: 1342,
-              title: 'Pride and Prejudice',
-              authors: ['Austen, Jane'],
-              downloadCount: 80000,
-            ),
-          ],
-        ),
-      );
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Popular Books'), findsOneWidget);
-      expect(find.text('Pride and Prejudice'), findsOneWidget);
-      expect(find.text('Austen, Jane'), findsOneWidget);
-    });
-
-    testWidgets('shows newest releases in browse section', (tester) async {
-      stubDefaultMocks();
-      stubBrowse(
-        recent: const GutenbergSearchResultModel(
-          count: 1,
-          results: [
-            GutenbergBookModel(
-              id: 99999,
-              title: 'Brand New Book',
-              authors: ['Modern Author'],
-              downloadCount: 10,
-            ),
-          ],
-        ),
-      );
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Newest Releases'), findsOneWidget);
-      expect(find.text('Brand New Book'), findsOneWidget);
-    });
-
-    testWidgets('browse section shows error independently', (tester) async {
-      when(() => mockService.listEbooks(
-            search: any(named: 'search'),
-            format: any(named: 'format'),
-            page: any(named: 'page'),
-            size: any(named: 'size'),
-          )).thenAnswer((_) async => <EbookModel>[]);
-      when(() => mockService.getKiwixStatus())
-          .thenAnswer((_) async => const KiwixStatusModel(
-                available: false,
-                bookCount: 0,
-              ));
-      when(() => mockService.browseGutenberg(
-            sort: 'popular',
-            limit: any(named: 'limit'),
-          )).thenThrow(
-          const ApiException(statusCode: 500, message: 'Popular error'));
-      when(() => mockService.browseGutenberg(
-            sort: 'descending',
-            limit: any(named: 'limit'),
-          )).thenAnswer((_) async => const GutenbergSearchResultModel(
-            count: 1,
-            results: [
-              GutenbergBookModel(
-                id: 100,
-                title: 'Recent Book',
-                authors: [],
-                downloadCount: 5,
-              ),
-            ],
-          ));
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      // Popular section failed, newest loaded
-      expect(find.text('Popular Books'), findsOneWidget);
-      expect(find.text('Load Failed'), findsOneWidget);
-      expect(find.text('Newest Releases'), findsOneWidget);
-      expect(find.text('Recent Book'), findsOneWidget);
-    });
-  });
-
-  // ── Gutenberg tab - debounced search ─────────────────────────────────
-
-  group('Gutenberg tab - debounced search', () {
-    testWidgets('typing triggers debounced search after 500ms',
-        (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 200,
-            title: 'Debounce Result',
-            authors: ['Test Author'],
-            languages: ['en'],
-            downloadCount: 100,
-          ),
-        ],
-      ));
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      // Type in search field (onChanged, not onSubmitted)
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'debounce');
-
-      // Before debounce fires, browse view is still showing
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(find.text('Popular Books'), findsOneWidget);
-
-      // After debounce fires (500ms total)
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Debounce Result'), findsOneWidget);
-    });
-
-    testWidgets('Enter submits immediately without debounce wait',
-        (tester) async {
-      stubDefaultMocks();
-      stubGutenberg(const GutenbergSearchResultModel(
-        count: 1,
-        results: [
-          GutenbergBookModel(
-            id: 300,
-            title: 'Instant Result',
-            authors: [],
-            languages: [],
-            downloadCount: 50,
-          ),
-        ],
-      ));
-
-      await tester.pumpWidget(buildScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Gutenberg'));
-      await tester.pumpAndSettle();
-
-      final searchField = find.byType(TextField);
-      await tester.enterText(searchField, 'instant');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Instant Result'), findsOneWidget);
-    });
-  });
 
   // ── EbookTile onTap navigation ────────────────────────────────────────
 

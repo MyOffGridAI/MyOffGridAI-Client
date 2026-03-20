@@ -30,14 +30,11 @@ class BooksScreen extends ConsumerStatefulWidget {
   ConsumerState<BooksScreen> createState() => _BooksScreenState();
 }
 
-/// State for [BooksScreen] managing the three-tab layout, Gutenberg search, and eBook uploads.
+/// State for [BooksScreen] managing the three-tab layout and eBook uploads.
 class _BooksScreenState extends ConsumerState<BooksScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _searchController = TextEditingController();
-  String _gutenbergQuery = '';
   bool _isUploading = false;
-  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -47,24 +44,8 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
     _tabController.dispose();
-    _searchController.dispose();
     super.dispose();
-  }
-
-  void _onSearchChanged(String value) {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _gutenbergQuery = value.trim());
-    });
-    // Update suffix icon reactively
-    setState(() {});
-  }
-
-  void _onSearchSubmitted(String value) {
-    _searchDebounce?.cancel();
-    setState(() => _gutenbergQuery = value.trim());
   }
 
   @override
@@ -94,13 +75,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
             onUpload: _uploadEbook,
           ),
           const _KiwixTab(),
-          _GutenbergTab(
-            searchController: _searchController,
-            query: _gutenbergQuery,
-            isOwnerOrAdmin: isOwnerOrAdmin,
-            onSearch: _onSearchSubmitted,
-            onSearchChanged: _onSearchChanged,
-          ),
+          _GutenbergTab(isOwnerOrAdmin: isOwnerOrAdmin),
         ],
       ),
     );
@@ -1436,415 +1411,173 @@ class _KiwixWebViewPageState extends State<_KiwixWebViewPage> {
   }
 }
 
-// ── Gutenberg Tab (Search & Import) ──────────────────────────────────────
+// ── Gutenberg Tab (WebView Browser) ──────────────────────────────────────
 
-/// Renders the Gutenberg tab with search input, curated browse sections,
-/// and import-capable result list.
-class _GutenbergTab extends ConsumerWidget {
-  final TextEditingController searchController;
-  final String query;
+/// Extracts a Gutenberg book ID from a download URL.
+///
+/// Matches patterns like:
+/// - `/ebooks/{id}.epub3.images`, `/ebooks/{id}.kindle.images`
+/// - `/files/{id}/...`
+/// - `/cache/epub/{id}/...`
+///
+/// Returns `null` for non-download URLs (book pages, browse, etc.).
+@visibleForTesting
+int? extractGutenbergIdFromUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return null;
+
+  // /ebooks/{id}.{ext} — e.g. /ebooks/1342.epub3.images
+  final ebooksMatch = RegExp(r'/ebooks/(\d+)\.').firstMatch(uri.path);
+  if (ebooksMatch != null) return int.tryParse(ebooksMatch.group(1)!);
+
+  // /files/{id}/... — e.g. /files/1342/1342-0.txt
+  final filesMatch = RegExp(r'/files/(\d+)/').firstMatch(uri.path);
+  if (filesMatch != null) return int.tryParse(filesMatch.group(1)!);
+
+  // /cache/epub/{id}/... — e.g. /cache/epub/1342/pg1342.epub
+  final cacheMatch = RegExp(r'/cache/epub/(\d+)/').firstMatch(uri.path);
+  if (cacheMatch != null) return int.tryParse(cacheMatch.group(1)!);
+
+  return null;
+}
+
+/// Renders the Gutenberg tab as a WebView loading gutenberg.org directly.
+///
+/// When a user clicks a download link, the URL is intercepted, the book ID
+/// extracted, and the book imported via [LibraryService.importGutenbergBook].
+class _GutenbergTab extends ConsumerStatefulWidget {
   final bool isOwnerOrAdmin;
-  final ValueChanged<String> onSearch;
-  final ValueChanged<String> onSearchChanged;
 
-  const _GutenbergTab({
-    required this.searchController,
-    required this.query,
-    required this.isOwnerOrAdmin,
-    required this.onSearch,
-    required this.onSearchChanged,
-  });
+  const _GutenbergTab({required this.isOwnerOrAdmin});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: 'Search Project Gutenberg...',
-              prefixIcon: const Icon(Icons.search),
-              border: const OutlineInputBorder(),
-              suffixIcon: searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        searchController.clear();
-                        onSearch('');
-                      },
-                    )
-                  : null,
-            ),
-            onChanged: onSearchChanged,
-            onSubmitted: onSearch,
+  ConsumerState<_GutenbergTab> createState() => _GutenbergTabState();
+}
+
+/// State for [_GutenbergTab] managing the WebView controller and navigation.
+class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
+  late final WebViewController _controller;
+  bool _canGoBack = false;
+  bool _canGoForward = false;
+  bool _isImporting = false;
+
+  static const _gutenbergHome = 'https://www.gutenberg.org';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(NavigationDelegate(
+        onNavigationRequest: _onNavigationRequest,
+        onPageFinished: _onPageFinished,
+      ))
+      ..loadRequest(Uri.parse(_gutenbergHome));
+  }
+
+  Future<NavigationDecision> _onNavigationRequest(
+    NavigationRequest request,
+  ) async {
+    final uri = Uri.tryParse(request.url);
+    if (uri == null) return NavigationDecision.prevent;
+
+    // Allow gutenberg.org navigation
+    final host = uri.host;
+    if (host == 'www.gutenberg.org' || host == 'gutenberg.org') {
+      // Check if this is a download URL
+      final bookId = extractGutenbergIdFromUrl(request.url);
+      if (bookId != null) {
+        _importBook(bookId);
+        return NavigationDecision.prevent;
+      }
+      return NavigationDecision.navigate;
+    }
+
+    // Block external domains
+    return NavigationDecision.prevent;
+  }
+
+  void _onPageFinished(String url) async {
+    if (!mounted) return;
+    final back = await _controller.canGoBack();
+    final forward = await _controller.canGoForward();
+    if (mounted) {
+      setState(() {
+        _canGoBack = back;
+        _canGoForward = forward;
+      });
+    }
+  }
+
+  Future<void> _importBook(int gutenbergId) async {
+    if (!widget.isOwnerOrAdmin) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only owners and admins can import books'),
           ),
-        ),
-        Expanded(
-          child: query.isEmpty
-              ? _GutenbergBrowseView(isOwnerOrAdmin: isOwnerOrAdmin)
-              : _GutenbergResults(
-                  query: query,
-                  isOwnerOrAdmin: isOwnerOrAdmin,
-                ),
-        ),
-      ],
-    );
-  }
-}
+        );
+      }
+      return;
+    }
 
-/// Curated browse view showing Popular Books and Newest Releases sections.
-class _GutenbergBrowseView extends ConsumerWidget {
-  final bool isOwnerOrAdmin;
-
-  const _GutenbergBrowseView({required this.isOwnerOrAdmin});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(
-      children: [
-        _GutenbergBrowseSection(
-          title: 'Popular Books',
-          provider: gutenbergPopularProvider,
-          isOwnerOrAdmin: isOwnerOrAdmin,
-        ),
-        const SizedBox(height: 8),
-        _GutenbergBrowseSection(
-          title: 'Newest Releases',
-          provider: gutenbergRecentProvider,
-          isOwnerOrAdmin: isOwnerOrAdmin,
-        ),
-      ],
-    );
-  }
-}
-
-/// A single browse section with a title and horizontal scrolling book cards.
-class _GutenbergBrowseSection extends ConsumerStatefulWidget {
-  final String title;
-  final AutoDisposeFutureProvider<GutenbergSearchResultModel> provider;
-  final bool isOwnerOrAdmin;
-
-  const _GutenbergBrowseSection({
-    required this.title,
-    required this.provider,
-    required this.isOwnerOrAdmin,
-  });
-
-  @override
-  ConsumerState<_GutenbergBrowseSection> createState() =>
-      _GutenbergBrowseSectionState();
-}
-
-/// State for [_GutenbergBrowseSection] managing the scroll controller
-/// for the visible scrollbar on horizontal book lists.
-class _GutenbergBrowseSectionState
-    extends ConsumerState<_GutenbergBrowseSection> {
-  final _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+    setState(() => _isImporting = true);
+    try {
+      final service = ref.read(libraryServiceProvider);
+      final ebook = await service.importGutenbergBook(gutenbergId);
+      ref.invalidate(ebooksProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${ebook.title}" imported successfully'),
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final asyncValue = ref.watch(widget.provider);
-
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            widget.title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ),
-        SizedBox(
-          height: 180,
-          child: asyncValue.when(
-            loading: () => const Center(child: LoadingIndicator()),
-            error: (e, _) => Padding(
-              padding: const EdgeInsets.all(8),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Load Failed',
-                        style: Theme.of(context).textTheme.bodySmall),
-                    const SizedBox(height: 4),
-                    TextButton(
-                      onPressed: () => ref.invalidate(widget.provider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
+        // Navigation bar
+        Material(
+          elevation: 1,
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Back',
+                onPressed: _canGoBack ? () => _controller.goBack() : null,
               ),
-            ),
-            data: (result) {
-              if (result.results.isEmpty) {
-                return const Center(
-                  child: Text('No books available'),
-                );
-              }
-              return Scrollbar(
-                controller: _scrollController,
-                thumbVisibility: true,
-                child: ListView.builder(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: result.results.length,
-                  itemBuilder: (context, index) => _GutenbergBookCard(
-                    book: result.results[index],
-                    isOwnerOrAdmin: widget.isOwnerOrAdmin,
-                  ),
-                ),
-              );
-            },
+              IconButton(
+                icon: const Icon(Icons.arrow_forward),
+                tooltip: 'Forward',
+                onPressed:
+                    _canGoForward ? () => _controller.goForward() : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.home),
+                tooltip: 'Home',
+                onPressed: () =>
+                    _controller.loadRequest(Uri.parse(_gutenbergHome)),
+              ),
+            ],
           ),
+        ),
+        if (_isImporting) const LinearProgressIndicator(),
+        Expanded(
+          child: WebViewWidget(controller: _controller),
         ),
       ],
     );
-  }
-}
-
-/// Compact book card for horizontal scroll lists in browse sections.
-class _GutenbergBookCard extends ConsumerStatefulWidget {
-  final GutenbergBookModel book;
-  final bool isOwnerOrAdmin;
-
-  const _GutenbergBookCard({
-    required this.book,
-    required this.isOwnerOrAdmin,
-  });
-
-  @override
-  ConsumerState<_GutenbergBookCard> createState() =>
-      _GutenbergBookCardState();
-}
-
-/// State for [_GutenbergBookCard] managing the import-in-progress indicator.
-class _GutenbergBookCardState extends ConsumerState<_GutenbergBookCard> {
-  bool _importing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final book = widget.book;
-    final theme = Theme.of(context);
-
-    return SizedBox(
-      width: 160,
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: InkWell(
-          onTap: widget.isOwnerOrAdmin && !_importing ? _importBook : null,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.auto_stories,
-                    size: 28, color: theme.colorScheme.primary),
-                const SizedBox(height: 8),
-                Text(
-                  book.title,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                if (book.authors.isNotEmpty)
-                  Text(
-                    book.authors.first,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                const Spacer(),
-                Row(
-                  children: [
-                    Icon(Icons.download,
-                        size: 14, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '${book.downloadCount}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    if (_importing)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _importBook() async {
-    setState(() => _importing = true);
-    try {
-      final service = ref.read(libraryServiceProvider);
-      await service.importGutenbergBook(widget.book.id);
-      ref.invalidate(ebooksProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('"${widget.book.title}" imported successfully'),
-          ),
-        );
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _importing = false);
-    }
-  }
-}
-
-/// Provider for Gutenberg search results keyed by query string.
-final gutenbergSearchProvider = FutureProvider.autoDispose
-    .family<GutenbergSearchResultModel, String>((ref, query) async {
-  final service = ref.watch(libraryServiceProvider);
-  return service.searchGutenberg(query);
-});
-
-/// Renders the Gutenberg search results list with import buttons for authorized users.
-class _GutenbergResults extends ConsumerWidget {
-  final String query;
-  final bool isOwnerOrAdmin;
-
-  const _GutenbergResults({
-    required this.query,
-    required this.isOwnerOrAdmin,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final resultsAsync = ref.watch(gutenbergSearchProvider(query));
-
-    return resultsAsync.when(
-      loading: () => const LoadingIndicator(),
-      error: (e, _) => ErrorView(
-        title: 'Search Failed',
-        message: e.toString(),
-        onRetry: () => ref.invalidate(gutenbergSearchProvider(query)),
-      ),
-      data: (result) {
-        if (result.results.isEmpty) {
-          return const EmptyStateView(
-            icon: Icons.search_off,
-            title: 'No results',
-            subtitle: 'Try a different search term',
-          );
-        }
-        return ListView.builder(
-          itemCount: result.results.length,
-          itemBuilder: (context, index) => _GutenbergBookTile(
-            book: result.results[index],
-            isOwnerOrAdmin: isOwnerOrAdmin,
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Renders a single Gutenberg book with metadata and an import button for authorized users.
-class _GutenbergBookTile extends ConsumerStatefulWidget {
-  final GutenbergBookModel book;
-  final bool isOwnerOrAdmin;
-
-  const _GutenbergBookTile({
-    required this.book,
-    required this.isOwnerOrAdmin,
-  });
-
-  @override
-  ConsumerState<_GutenbergBookTile> createState() =>
-      _GutenbergBookTileState();
-}
-
-/// State for [_GutenbergBookTile] managing the import-in-progress indicator.
-class _GutenbergBookTileState extends ConsumerState<_GutenbergBookTile> {
-  bool _importing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final book = widget.book;
-    return ListTile(
-      leading: const Icon(Icons.auto_stories),
-      title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        [
-          if (book.authors.isNotEmpty) book.authors.first,
-          if (book.languages.isNotEmpty) book.languages.first.toUpperCase(),
-          '${book.downloadCount} downloads',
-        ].join(' \u2022 '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: widget.isOwnerOrAdmin
-          ? IconButton(
-              icon: _importing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.download),
-              tooltip: 'Import to library',
-              onPressed: _importing ? null : _importBook,
-            )
-          : null,
-    );
-  }
-
-  Future<void> _importBook() async {
-    setState(() => _importing = true);
-    try {
-      final service = ref.read(libraryServiceProvider);
-      await service.importGutenbergBook(widget.book.id);
-      ref.invalidate(ebooksProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('"${widget.book.title}" imported successfully'),
-          ),
-        );
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _importing = false);
-    }
   }
 }

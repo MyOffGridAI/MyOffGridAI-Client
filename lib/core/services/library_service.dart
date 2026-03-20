@@ -346,20 +346,6 @@ final kiwixUrlProvider = FutureProvider.autoDispose<String>((ref) async {
   return service.getKiwixUrl();
 });
 
-/// Provider for popular Gutenberg books (browse, sorted by popularity).
-final gutenbergPopularProvider =
-    FutureProvider.autoDispose<GutenbergSearchResultModel>((ref) async {
-  final service = ref.watch(libraryServiceProvider);
-  return service.browseGutenberg(sort: 'popular', limit: 15);
-});
-
-/// Provider for newest Gutenberg books (browse, sorted descending by ID).
-final gutenbergRecentProvider =
-    FutureProvider.autoDispose<GutenbergSearchResultModel>((ref) async {
-  final service = ref.watch(libraryServiceProvider);
-  return service.browseGutenberg(sort: 'descending', limit: 15);
-});
-
 /// Provider for Kiwix catalog browse results, optionally filtered by language.
 final kiwixCatalogBrowseProvider = FutureProvider.autoDispose
     .family<KiwixCatalogSearchResultModel, String?>((ref, lang) async {
