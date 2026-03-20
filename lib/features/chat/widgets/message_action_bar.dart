@@ -5,8 +5,8 @@ import 'package:myoffgridai_client/core/models/message_model.dart';
 ///
 /// Assistant messages show: Copy, Regenerate, Branch, Delete.
 /// User messages show: Edit, Delete.
-/// Buttons are compact icon-only with tooltips and appear on hover/tap.
-class MessageActionBar extends StatefulWidget {
+/// Buttons are compact icon-only with tooltips and always visible.
+class MessageActionBar extends StatelessWidget {
   /// The message these actions apply to.
   final MessageModel message;
 
@@ -37,82 +37,64 @@ class MessageActionBar extends StatefulWidget {
   });
 
   @override
-  State<MessageActionBar> createState() => _MessageActionBarState();
-}
-
-class _MessageActionBarState extends State<MessageActionBar> {
-  bool _isHovering = false;
-
-  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final iconColor = colorScheme.onSurface.withValues(alpha: 0.4);
     const iconSize = 16.0;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: () => setState(() => _isHovering = !_isHovering),
-        child: AnimatedOpacity(
-          opacity: _isHovering ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 150),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Copy (both roles)
-              if (widget.onCopy != null)
-                _ActionButton(
-                  icon: Icons.copy,
-                  tooltip: 'Copy',
-                  onTap: widget.onCopy!,
-                  iconColor: iconColor,
-                  iconSize: iconSize,
-                ),
-
-              // Edit (user only)
-              if (widget.message.isUser && widget.onEdit != null)
-                _ActionButton(
-                  icon: Icons.edit,
-                  tooltip: 'Edit',
-                  onTap: widget.onEdit!,
-                  iconColor: iconColor,
-                  iconSize: iconSize,
-                ),
-
-              // Regenerate (assistant only)
-              if (widget.message.isAssistant && widget.onRegenerate != null)
-                _ActionButton(
-                  icon: Icons.refresh,
-                  tooltip: 'Regenerate',
-                  onTap: widget.onRegenerate!,
-                  iconColor: iconColor,
-                  iconSize: iconSize,
-                ),
-
-              // Branch (both roles)
-              if (widget.onBranch != null)
-                _ActionButton(
-                  icon: Icons.call_split,
-                  tooltip: 'Branch',
-                  onTap: widget.onBranch!,
-                  iconColor: iconColor,
-                  iconSize: iconSize,
-                ),
-
-              // Delete (both roles)
-              if (widget.onDelete != null)
-                _ActionButton(
-                  icon: Icons.delete_outline,
-                  tooltip: 'Delete',
-                  onTap: widget.onDelete!,
-                  iconColor: colorScheme.error.withValues(alpha: 0.6),
-                  iconSize: iconSize,
-                ),
-            ],
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Copy (both roles)
+        if (onCopy != null)
+          _ActionButton(
+            icon: Icons.copy,
+            tooltip: 'Copy',
+            onTap: onCopy!,
+            iconColor: iconColor,
+            iconSize: iconSize,
           ),
-        ),
-      ),
+
+        // Edit (user only)
+        if (message.isUser && onEdit != null)
+          _ActionButton(
+            icon: Icons.edit,
+            tooltip: 'Edit',
+            onTap: onEdit!,
+            iconColor: iconColor,
+            iconSize: iconSize,
+          ),
+
+        // Regenerate (assistant only)
+        if (message.isAssistant && onRegenerate != null)
+          _ActionButton(
+            icon: Icons.refresh,
+            tooltip: 'Regenerate',
+            onTap: onRegenerate!,
+            iconColor: iconColor,
+            iconSize: iconSize,
+          ),
+
+        // Branch (both roles)
+        if (onBranch != null)
+          _ActionButton(
+            icon: Icons.call_split,
+            tooltip: 'Branch',
+            onTap: onBranch!,
+            iconColor: iconColor,
+            iconSize: iconSize,
+          ),
+
+        // Delete (both roles)
+        if (onDelete != null)
+          _ActionButton(
+            icon: Icons.delete_outline,
+            tooltip: 'Delete',
+            onTap: onDelete!,
+            iconColor: colorScheme.error.withValues(alpha: 0.6),
+            iconSize: iconSize,
+          ),
+      ],
     );
   }
 }

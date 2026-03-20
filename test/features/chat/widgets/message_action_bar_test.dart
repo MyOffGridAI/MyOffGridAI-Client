@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
@@ -40,7 +39,6 @@ void main() {
           ),
         );
 
-        // Buttons are rendered (even if invisible at opacity 0)
         expect(find.byIcon(Icons.copy), findsOneWidget);
         expect(find.byIcon(Icons.edit), findsOneWidget);
         expect(find.byIcon(Icons.delete_outline), findsOneWidget);
@@ -77,61 +75,9 @@ void main() {
       });
     });
 
-    // ── Opacity / hover behavior ──────────────────────────────────────────
-    group('visibility on hover', () {
-      testWidgets('buttons start at opacity 0', (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: MessageActionBar(
-                message: userMessage(),
-                onCopy: () {},
-                onDelete: () {},
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-
-        final opacityWidget = tester.widget<AnimatedOpacity>(
-          find.byType(AnimatedOpacity),
-        );
-        expect(opacityWidget.opacity, 0.0);
-      });
-
-      testWidgets('buttons become visible on mouse hover', (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: MessageActionBar(
-                message: userMessage(),
-                onCopy: () {},
-                onDelete: () {},
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-
-        // Simulate mouse enter on the MouseRegion
-        final gesture = await tester.createGesture(
-          kind: PointerDeviceKind.mouse,
-        );
-        await gesture.addPointer(location: Offset.zero);
-        addTearDown(gesture.removePointer);
-
-        // Move into the widget bounds
-        final center = tester.getCenter(find.byType(MessageActionBar));
-        await gesture.moveTo(center);
-        await tester.pump();
-
-        final opacityWidget = tester.widget<AnimatedOpacity>(
-          find.byType(AnimatedOpacity),
-        );
-        expect(opacityWidget.opacity, 1.0);
-      });
-
-      testWidgets('buttons become visible on mouse exit (returns to hidden)',
+    // ── Always visible ────────────────────────────────────────────────────
+    group('always visible', () {
+      testWidgets('buttons are visible immediately without hover',
           (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -146,31 +92,11 @@ void main() {
         );
         await tester.pump();
 
-        // Simulate mouse enter then exit
-        final gesture = await tester.createGesture(
-          kind: PointerDeviceKind.mouse,
-        );
-        await gesture.addPointer(location: Offset.zero);
-        addTearDown(gesture.removePointer);
-
-        // Move in
-        final center = tester.getCenter(find.byType(MessageActionBar));
-        await gesture.moveTo(center);
-        await tester.pump();
-
-        var opacity = tester.widget<AnimatedOpacity>(
-          find.byType(AnimatedOpacity),
-        );
-        expect(opacity.opacity, 1.0);
-
-        // Move out
-        await gesture.moveTo(const Offset(-100, -100));
-        await tester.pump();
-
-        opacity = tester.widget<AnimatedOpacity>(
-          find.byType(AnimatedOpacity),
-        );
-        expect(opacity.opacity, 0.0);
+        // No AnimatedOpacity wrapper — buttons are rendered directly
+        expect(find.byType(AnimatedOpacity), findsNothing);
+        // Buttons are findable and tappable
+        expect(find.byIcon(Icons.copy), findsOneWidget);
+        expect(find.byIcon(Icons.delete_outline), findsOneWidget);
       });
     });
 
@@ -189,11 +115,6 @@ void main() {
             ),
           ),
         );
-
-        // Make visible first
-        await tester.tap(find.byType(MessageActionBar));
-        await tester.pump();
-        await tester.pumpAndSettle();
 
         await tester.tap(find.byIcon(Icons.copy));
         expect(called, isTrue);
@@ -214,10 +135,6 @@ void main() {
           ),
         );
 
-        await tester.tap(find.byType(MessageActionBar));
-        await tester.pump();
-        await tester.pumpAndSettle();
-
         await tester.tap(find.byIcon(Icons.edit));
         expect(called, isTrue);
       });
@@ -235,10 +152,6 @@ void main() {
             ),
           ),
         );
-
-        await tester.tap(find.byType(MessageActionBar));
-        await tester.pump();
-        await tester.pumpAndSettle();
 
         await tester.tap(find.byIcon(Icons.delete_outline));
         expect(called, isTrue);
@@ -260,10 +173,6 @@ void main() {
           ),
         );
 
-        await tester.tap(find.byType(MessageActionBar));
-        await tester.pump();
-        await tester.pumpAndSettle();
-
         await tester.tap(find.byIcon(Icons.refresh));
         expect(called, isTrue);
       });
@@ -282,10 +191,6 @@ void main() {
             ),
           ),
         );
-
-        await tester.tap(find.byType(MessageActionBar));
-        await tester.pump();
-        await tester.pumpAndSettle();
 
         await tester.tap(find.byIcon(Icons.call_split));
         expect(called, isTrue);
