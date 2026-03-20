@@ -1,6 +1,3 @@
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,8 +7,7 @@ import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
 import 'package:myoffgridai_client/core/services/knowledge_service.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_bubble.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:myoffgridai_client/shared/utils/download_utils.dart';
 
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
@@ -418,18 +414,21 @@ class _ChatConversationScreenState
 
   /// Handles printing/previewing the conversation as a PDF.
   ///
-  /// Downloads the PDF from the server, saves it to a temp file, and
-  /// opens it with the system PDF viewer (which supports printing).
+  /// On web, triggers a browser download via [DownloadUtils].
+  /// On native platforms, saves to a temp file and opens with the system viewer.
   void _handlePrint(String title) {
     final service = ref.read(chatServiceProvider);
     service.exportConversationPdf(widget.conversationId).then(
       (bytes) async {
         if (!mounted) return;
-        final dir = await getTemporaryDirectory();
-        final filename = title.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-        final file = File('${dir.path}/$filename.pdf');
-        await file.writeAsBytes(Uint8List.fromList(bytes));
-        await OpenFilex.open(file.path);
+        final filename =
+            '${title.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')}.pdf';
+        DownloadUtils.downloadBytes(bytes, filename);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('PDF downloaded')),
+          );
+        }
       },
     ).catchError((e) {
       if (mounted) {
