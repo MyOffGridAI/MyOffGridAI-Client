@@ -1933,6 +1933,8 @@ void main() {
                   downloadedBytes: 450000,
                   percentComplete: 45,
                   status: 'DOWNLOADING',
+                  speedBytesPerSecond: 524288,
+                  estimatedSecondsRemaining: 60,
                 ),
               ]);
 
@@ -1972,6 +1974,8 @@ void main() {
                   downloadedBytes: 1000000,
                   percentComplete: 100,
                   status: 'COMPLETE',
+                  speedBytesPerSecond: 0,
+                  estimatedSecondsRemaining: 0,
                 ),
               ]);
 

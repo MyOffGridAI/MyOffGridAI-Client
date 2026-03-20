@@ -12,6 +12,7 @@ import 'package:myoffgridai_client/core/services/library_service.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/empty_state_view.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
+import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -420,7 +421,7 @@ class _KiwixTabState extends ConsumerState<_KiwixTab> {
       children: [
         _KiwixStatusBar(isOwnerOrAdmin: isOwnerOrAdmin),
         _MyZimFilesSection(isOwnerOrAdmin: isOwnerOrAdmin),
-        _ActiveDownloadsSection(),
+        _ActiveDownloadsSection(isOwnerOrAdmin: isOwnerOrAdmin),
         const SizedBox(height: 8),
         _KiwixCatalogBrowseSection(
           searchController: _searchController,
@@ -828,8 +829,12 @@ class _ZimFileTileState extends ConsumerState<_ZimFileTile> {
   }
 }
 
-/// Section showing active downloads with progress indicators.
+/// Section showing active downloads with progress, speed, ETA, and cancel.
 class _ActiveDownloadsSection extends ConsumerWidget {
+  final bool isOwnerOrAdmin;
+
+  const _ActiveDownloadsSection({required this.isOwnerOrAdmin});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final downloadsAsync = ref.watch(kiwixDownloadsProvider);
@@ -859,18 +864,74 @@ class _ActiveDownloadsSection extends ConsumerWidget {
                   leading: const Icon(Icons.downloading),
                   title: Text(dl.filename,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: LinearProgressIndicator(
-                    value: dl.percentComplete / 100,
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      LinearProgressIndicator(
+                        value: dl.percentComplete / 100,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _buildProgressText(dl),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                  trailing: Text(
-                    '${dl.percentComplete.toStringAsFixed(0)}%',
-                    style: theme.textTheme.bodySmall,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${dl.percentComplete.toStringAsFixed(0)}%',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      if (isOwnerOrAdmin) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          tooltip: 'Cancel download',
+                          onPressed: () async {
+                            final service = ref.read(libraryServiceProvider);
+                            await service.cancelKiwixDownload(dl.id);
+                            ref.invalidate(kiwixDownloadsProvider);
+                          },
+                        ),
+                      ],
+                    ],
                   ),
                 )),
           ],
         );
       },
     );
+  }
+
+  String _buildProgressText(KiwixDownloadStatusModel dl) {
+    final downloaded = SizeFormatter.formatBytes(dl.downloadedBytes);
+    final total = dl.totalBytes > 0
+        ? SizeFormatter.formatBytes(dl.totalBytes)
+        : '?';
+    final parts = <String>['$downloaded / $total'];
+    if (dl.speedBytesPerSecond > 0) {
+      parts.add('${SizeFormatter.formatBytes(dl.speedBytesPerSecond.round())}/s');
+    }
+    if (dl.estimatedSecondsRemaining > 0) {
+      parts.add(_formatEta(dl.estimatedSecondsRemaining));
+    }
+    return parts.join('  ·  ');
+  }
+
+  String _formatEta(int seconds) {
+    if (seconds >= 3600) {
+      final h = seconds ~/ 3600;
+      final m = (seconds % 3600) ~/ 60;
+      return '${h}h ${m}m remaining';
+    } else if (seconds >= 60) {
+      final m = seconds ~/ 60;
+      final s = seconds % 60;
+      return '${m}m ${s}s remaining';
+    }
+    return '${seconds}s remaining';
   }
 }
 

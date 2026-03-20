@@ -334,6 +334,8 @@ class KiwixDownloadStatusModel {
   final double percentComplete;
   final String status;
   final String? error;
+  final double speedBytesPerSecond;
+  final int estimatedSecondsRemaining;
 
   const KiwixDownloadStatusModel({
     required this.id,
@@ -343,6 +345,8 @@ class KiwixDownloadStatusModel {
     this.percentComplete = 0,
     required this.status,
     this.error,
+    this.speedBytesPerSecond = 0,
+    this.estimatedSecondsRemaining = 0,
   });
 
   /// Creates a [KiwixDownloadStatusModel] from a JSON map.
@@ -355,6 +359,10 @@ class KiwixDownloadStatusModel {
       percentComplete: (json['percentComplete'] as num?)?.toDouble() ?? 0,
       status: json['status'] as String? ?? 'QUEUED',
       error: json['error'] as String?,
+      speedBytesPerSecond:
+          (json['speedBytesPerSecond'] as num?)?.toDouble() ?? 0,
+      estimatedSecondsRemaining:
+          json['estimatedSecondsRemaining'] as int? ?? 0,
     );
   }
 
@@ -366,4 +374,7 @@ class KiwixDownloadStatusModel {
 
   /// Whether the download has failed.
   bool get isFailed => status == 'FAILED';
+
+  /// Whether the download was cancelled.
+  bool get isCancelled => status == 'CANCELLED';
 }

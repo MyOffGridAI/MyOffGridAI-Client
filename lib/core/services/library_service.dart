@@ -254,6 +254,13 @@ class LibraryService {
     return KiwixDownloadStatusModel.fromJson(data);
   }
 
+  /// Cancels an in-progress Kiwix download.
+  Future<void> cancelKiwixDownload(String downloadId) async {
+    await _client.delete(
+      '${AppConstants.libraryBasePath}/kiwix/downloads/$downloadId',
+    );
+  }
+
   // ── Gutenberg ───────────────────────────────────────────────────────────
 
   /// Browses the Project Gutenberg catalog without a search query.
