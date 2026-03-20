@@ -9,6 +9,7 @@ import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
+import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/empty_state_view.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
@@ -233,8 +234,10 @@ class _LibraryTab extends ConsumerWidget {
               }
               return ListView.builder(
                 itemCount: ebooks.length,
-                itemBuilder: (context, index) =>
-                    _EbookTile(ebook: ebooks[index]),
+                itemBuilder: (context, index) => _EbookTile(
+                  ebook: ebooks[index],
+                  isOwnerOrAdmin: isOwnerOrAdmin,
+                ),
               );
             },
           ),
@@ -244,14 +247,26 @@ class _LibraryTab extends ConsumerWidget {
   }
 }
 
-/// Renders a single eBook entry with format icon, metadata, and Gutenberg badge.
-class _EbookTile extends StatelessWidget {
+/// Renders a single eBook entry with format icon, metadata, Gutenberg badge,
+/// and an optional delete action for owners/admins.
+class _EbookTile extends ConsumerStatefulWidget {
   final EbookModel ebook;
+  final bool isOwnerOrAdmin;
 
-  const _EbookTile({required this.ebook});
+  const _EbookTile({required this.ebook, required this.isOwnerOrAdmin});
+
+  @override
+  ConsumerState<_EbookTile> createState() => _EbookTileState();
+}
+
+/// State for [_EbookTile] managing the delete-in-progress indicator.
+class _EbookTileState extends ConsumerState<_EbookTile> {
+  bool _deleting = false;
 
   @override
   Widget build(BuildContext context) {
+    final ebook = widget.ebook;
+
     return ListTile(
       leading: Icon(_formatIcon(ebook.format)),
       title: Text(ebook.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -264,18 +279,81 @@ class _EbookTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: ebook.isFromGutenberg
-          ? Tooltip(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (ebook.isFromGutenberg)
+            Tooltip(
               message: 'From Project Gutenberg',
               child: Icon(Icons.public,
                   size: 16, color: Theme.of(context).colorScheme.primary),
-            )
-          : null,
+            ),
+          if (widget.isOwnerOrAdmin)
+            PopupMenuButton<String>(
+              icon: _deleting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.more_vert),
+              enabled: !_deleting,
+              onSelected: (value) {
+                if (value == 'delete') _confirmDelete();
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: Text('Delete', style: TextStyle(color: Colors.red)),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
       onTap: () => context.go(
         AppConstants.routeBookReader,
         extra: ebook,
       ),
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete eBook',
+      message: 'Are you sure you want to delete "${widget.ebook.title}"? '
+          'This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    try {
+      final service = ref.read(libraryServiceProvider);
+      await service.deleteEbook(widget.ebook.id);
+      ref.invalidate(ebooksProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${widget.ebook.title}" deleted'),
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
   }
 
   IconData _formatIcon(String format) {
@@ -445,7 +523,7 @@ class _GutenbergBrowseView extends ConsumerWidget {
 }
 
 /// A single browse section with a title and horizontal scrolling book cards.
-class _GutenbergBrowseSection extends ConsumerWidget {
+class _GutenbergBrowseSection extends ConsumerStatefulWidget {
   final String title;
   final AutoDisposeFutureProvider<GutenbergSearchResultModel> provider;
   final bool isOwnerOrAdmin;
@@ -457,8 +535,25 @@ class _GutenbergBrowseSection extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncValue = ref.watch(provider);
+  ConsumerState<_GutenbergBrowseSection> createState() =>
+      _GutenbergBrowseSectionState();
+}
+
+/// State for [_GutenbergBrowseSection] managing the scroll controller
+/// for the visible scrollbar on horizontal book lists.
+class _GutenbergBrowseSectionState
+    extends ConsumerState<_GutenbergBrowseSection> {
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncValue = ref.watch(widget.provider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,7 +561,7 @@ class _GutenbergBrowseSection extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
-            title,
+            widget.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -486,7 +581,7 @@ class _GutenbergBrowseSection extends ConsumerWidget {
                         style: Theme.of(context).textTheme.bodySmall),
                     const SizedBox(height: 4),
                     TextButton(
-                      onPressed: () => ref.invalidate(provider),
+                      onPressed: () => ref.invalidate(widget.provider),
                       child: const Text('Retry'),
                     ),
                   ],
@@ -499,13 +594,18 @@ class _GutenbergBrowseSection extends ConsumerWidget {
                   child: Text('No books available'),
                 );
               }
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                itemCount: result.results.length,
-                itemBuilder: (context, index) => _GutenbergBookCard(
-                  book: result.results[index],
-                  isOwnerOrAdmin: isOwnerOrAdmin,
+              return Scrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                child: ListView.builder(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: result.results.length,
+                  itemBuilder: (context, index) => _GutenbergBookCard(
+                    book: result.results[index],
+                    isOwnerOrAdmin: widget.isOwnerOrAdmin,
+                  ),
                 ),
               );
             },

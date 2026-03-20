@@ -800,6 +800,152 @@ void main() {
     });
   });
 
+  // ── Library tab - delete ebook ──────────────────────────────────────────
+
+  group('Library tab - delete ebook', () {
+    const testEbook = EbookModel(
+      id: 'e1',
+      title: 'Deletable Book',
+      author: 'Test Author',
+      format: 'EPUB',
+      fileSizeBytes: 1024,
+    );
+
+    testWidgets('owner sees delete option on eBook tile', (tester) async {
+      stubEbooks([testEbook]);
+      stubBrowse();
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      // Verify popup menu button is present
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+
+      // Tap the popup menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete'), findsOneWidget);
+    });
+
+    testWidgets('admin sees delete option on eBook tile', (tester) async {
+      const adminUser = UserModel(
+        id: '3',
+        username: 'admin',
+        displayName: 'Admin',
+        role: 'ROLE_ADMIN',
+        isActive: true,
+      );
+
+      stubEbooks([testEbook]);
+      stubBrowse();
+      await tester.pumpWidget(buildScreen(user: adminUser));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+    });
+
+    testWidgets('member does not see delete option', (tester) async {
+      stubEbooks([testEbook]);
+      stubBrowse();
+      await tester.pumpWidget(buildScreen(user: memberUser));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+    });
+
+    testWidgets('tapping delete shows confirmation dialog', (tester) async {
+      stubEbooks([testEbook]);
+      stubBrowse();
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      // Tap popup menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      // Tap Delete option
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      // Confirmation dialog appears
+      expect(find.text('Delete eBook'), findsOneWidget);
+      expect(find.textContaining('Are you sure'), findsOneWidget);
+    });
+
+    testWidgets('confirming delete calls deleteEbook and refreshes list',
+        (tester) async {
+      stubEbooks([testEbook]);
+      stubBrowse();
+      when(() => mockService.deleteEbook('e1'))
+          .thenAnswer((_) async {});
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      // Open popup menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      // Tap Delete
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      // Confirm in dialog
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.deleteEbook('e1')).called(1);
+      expect(find.text('"Deletable Book" deleted'), findsOneWidget);
+    });
+
+    testWidgets('cancelling delete does not call deleteEbook',
+        (tester) async {
+      stubEbooks([testEbook]);
+      stubBrowse();
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      // Open popup menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      // Tap Delete
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      // Cancel in dialog
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      verifyNever(() => mockService.deleteEbook(any()));
+    });
+
+    testWidgets('delete error shows error snackbar', (tester) async {
+      stubEbooks([testEbook]);
+      stubBrowse();
+      when(() => mockService.deleteEbook('e1'))
+          .thenThrow(const ApiException(
+              statusCode: 500, message: 'Delete failed'));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      // Open popup menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      // Tap Delete
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      // Confirm
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete failed'), findsOneWidget);
+    });
+  });
+
   // ── Retry callbacks ─────────────────────────────────────────────────────
 
   group('Library tab - error retry', () {
