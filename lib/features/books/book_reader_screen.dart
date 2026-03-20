@@ -7,7 +7,7 @@ import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
-import 'package:epub_view/epub_view.dart' hide DefaultBuilderOptions;
+import 'package:epub_view/epub_view.dart' as epub;
 import 'package:pdfx/pdfx.dart';
 
 /// Displays an eBook for reading based on its format.
@@ -191,13 +191,13 @@ class _EpubReaderView extends StatefulWidget {
 
 /// State for [_EpubReaderView] managing the EPUB controller lifecycle.
 class _EpubReaderViewState extends State<_EpubReaderView> {
-  late final EpubController _epubController;
+  late final epub.EpubController _epubController;
 
   @override
   void initState() {
     super.initState();
-    _epubController = EpubController(
-      document: EpubDocument.openData(widget.bytes),
+    _epubController = epub.EpubController(
+      document: epub.EpubDocument.openData(widget.bytes),
     );
   }
 
@@ -209,10 +209,10 @@ class _EpubReaderViewState extends State<_EpubReaderView> {
 
   @override
   Widget build(BuildContext context) {
-    return EpubView(
+    return epub.EpubView(
       controller: _epubController,
-      builders: EpubViewBuilders<DefaultBuilderOptions>(
-        options: const DefaultBuilderOptions(),
+      builders: epub.EpubViewBuilders<epub.DefaultBuilderOptions>(
+        options: const epub.DefaultBuilderOptions(),
         loaderBuilder: (_) => const LoadingIndicator(),
       ),
     );
