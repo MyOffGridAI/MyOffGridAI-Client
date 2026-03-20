@@ -367,3 +367,19 @@ final kiwixDownloadsProvider =
   final service = ref.watch(libraryServiceProvider);
   return service.listKiwixDownloads();
 });
+
+/// Provider for browsing the Gutenberg catalog (popular books).
+final gutenbergBrowseProvider = FutureProvider.autoDispose
+    .family<GutenbergSearchResultModel, ({String sort, int limit})>(
+        (ref, params) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.browseGutenberg(sort: params.sort, limit: params.limit);
+});
+
+/// Provider for searching the Gutenberg catalog by query.
+final gutenbergSearchProvider = FutureProvider.autoDispose
+    .family<GutenbergSearchResultModel, ({String query, int limit})>(
+        (ref, params) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.searchGutenberg(params.query, limit: params.limit);
+});

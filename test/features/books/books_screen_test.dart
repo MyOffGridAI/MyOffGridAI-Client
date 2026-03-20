@@ -163,6 +163,17 @@ void main() {
           start: any(named: 'start'),
         )).thenAnswer((_) async =>
         const KiwixCatalogSearchResultModel(totalCount: 0, entries: []));
+    // Default stubs for Gutenberg providers triggered by adjacent-tab prebuild
+    when(() => mockService.browseGutenberg(
+          sort: any(named: 'sort'),
+          limit: any(named: 'limit'),
+        )).thenAnswer((_) async =>
+        const GutenbergSearchResultModel(count: 0, results: []));
+    when(() => mockService.searchGutenberg(
+          any(),
+          limit: any(named: 'limit'),
+        )).thenAnswer((_) async =>
+        const GutenbergSearchResultModel(count: 0, results: []));
   });
 
   void stubDefaultMocks() {
@@ -369,8 +380,8 @@ void main() {
     });
   });
 
-  group('Gutenberg tab - WebView', () {
-    testWidgets('renders WebViewWidget on Gutenberg tab', (tester) async {
+  group('Gutenberg tab - native UI', () {
+    testWidgets('shows search bar on Gutenberg tab', (tester) async {
       stubDefaultMocks();
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
@@ -378,81 +389,257 @@ void main() {
       await tester.tap(find.text('Gutenberg'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(WebViewWidget), findsOneWidget);
+      expect(find.text('Search Gutenberg...'), findsOneWidget);
+      expect(find.byIcon(Icons.search), findsOneWidget);
     });
 
-    testWidgets('shows navigation bar with back, forward, home icons',
+    testWidgets('shows browse results as grid cards', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(
+                id: 1342,
+                title: 'Pride and Prejudice',
+                authors: ['Austen, Jane'],
+                downloadCount: 50000,
+              ),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pride and Prejudice'), findsOneWidget);
+      expect(find.text('Austen, Jane'), findsOneWidget);
+    });
+
+    testWidgets('shows download count on book card', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(
+                id: 1,
+                title: 'Test Book',
+                downloadCount: 50000,
+              ),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('50.0K'), findsOneWidget);
+    });
+
+    testWidgets('shows placeholder icon when no cover image', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(id: 1, title: 'No Cover Book'),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.auto_stories), findsWidgets);
+    });
+
+    testWidgets('search triggers search provider with query',
         (tester) async {
       stubDefaultMocks();
+      when(() => mockService.searchGutenberg(
+            'pride',
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(
+                id: 1342,
+                title: 'Pride and Prejudice',
+                authors: ['Austen, Jane'],
+              ),
+            ],
+          ));
+
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Gutenberg'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
-      expect(find.byIcon(Icons.home), findsOneWidget);
-    });
-  });
+      await tester.enterText(find.byType(TextField).first, 'pride');
+      // Wait for debounce (500ms)
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
 
-  group('extractGutenbergIdFromUrl', () {
-    test('extracts ID from /ebooks/{id}.epub3.images', () {
-      expect(
-        extractGutenbergIdFromUrl(
-            'https://www.gutenberg.org/ebooks/1342.epub3.images'),
-        1342,
-      );
+      verify(() => mockService.searchGutenberg(
+            'pride',
+            limit: any(named: 'limit'),
+          )).called(1);
     });
 
-    test('extracts ID from /ebooks/{id}.kindle.images', () {
-      expect(
-        extractGutenbergIdFromUrl(
-            'https://www.gutenberg.org/ebooks/84.kindle.images'),
-        84,
-      );
+    testWidgets('import button visible for owner', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(id: 1, title: 'Book With Import'),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Import'), findsOneWidget);
     });
 
-    test('extracts ID from /files/{id}/...', () {
-      expect(
-        extractGutenbergIdFromUrl(
-            'https://www.gutenberg.org/files/1342/1342-0.txt'),
-        1342,
-      );
+    testWidgets('import button hidden for member', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(id: 1, title: 'Book No Import'),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen(user: memberUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Import'), findsNothing);
     });
 
-    test('extracts ID from /cache/epub/{id}/...', () {
-      expect(
-        extractGutenbergIdFromUrl(
-            'https://www.gutenberg.org/cache/epub/1342/pg1342.epub'),
-        1342,
-      );
+    testWidgets('tapping import calls importGutenbergBook', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(id: 42, title: 'Importable Book'),
+            ],
+          ));
+      when(() => mockService.importGutenbergBook(42))
+          .thenAnswer((_) async => const EbookModel(
+                id: 'e-new',
+                title: 'Importable Book',
+                format: 'EPUB',
+                fileSizeBytes: 1024,
+              ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Import'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.importGutenbergBook(42)).called(1);
+      expect(find.text('"Importable Book" imported successfully'),
+          findsOneWidget);
     });
 
-    test('returns null for book page URL', () {
-      expect(
-        extractGutenbergIdFromUrl('https://www.gutenberg.org/ebooks/1342'),
-        isNull,
-      );
+    testWidgets('tapping card opens detail bottom sheet', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(
+                id: 1342,
+                title: 'Pride and Prejudice',
+                authors: ['Austen, Jane'],
+                subjects: ['Fiction', 'Romance'],
+                downloadCount: 50000,
+              ),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      // Tap the card (the title text)
+      await tester.tap(find.text('Pride and Prejudice'));
+      await tester.pumpAndSettle();
+
+      // Detail sheet shows subjects
+      expect(find.text('Subjects'), findsOneWidget);
+      expect(find.text('Fiction'), findsOneWidget);
+      expect(find.text('Romance'), findsOneWidget);
+      expect(find.text('Import to Library'), findsOneWidget);
     });
 
-    test('returns null for browse URL', () {
-      expect(
-        extractGutenbergIdFromUrl(
-            'https://www.gutenberg.org/ebooks/search/?query=pride'),
-        isNull,
-      );
+    testWidgets('error state shows retry button', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseGutenberg(
+            sort: any(named: 'sort'),
+            limit: any(named: 'limit'),
+          )).thenThrow(
+          const ApiException(statusCode: 500, message: 'Server error'));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Load Failed'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
     });
 
-    test('returns null for home page', () {
-      expect(
-        extractGutenbergIdFromUrl('https://www.gutenberg.org/'),
-        isNull,
-      );
-    });
+    testWidgets('empty browse shows empty state', (tester) async {
+      stubDefaultMocks();
 
-    test('returns null for invalid URL', () {
-      expect(extractGutenbergIdFromUrl('not a url'), isNull);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No books available'), findsOneWidget);
     });
   });
 
