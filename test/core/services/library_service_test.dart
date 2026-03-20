@@ -487,6 +487,86 @@ void main() {
 
   // ── Gutenberg ───────────────────────────────────────────────────────────
 
+  group('browseGutenberg', () {
+    test('returns parsed browse results with default params', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/gutenberg/browse',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'count': 2,
+              'next': null,
+              'previous': null,
+              'results': [
+                {
+                  'id': 1342,
+                  'title': 'Pride and Prejudice',
+                  'authors': ['Austen, Jane'],
+                  'subjects': <String>[],
+                  'languages': ['en'],
+                  'downloadCount': 80000,
+                  'formats': <String, String>{},
+                },
+                {
+                  'id': 84,
+                  'title': 'Frankenstein',
+                  'authors': ['Shelley, Mary'],
+                  'subjects': <String>[],
+                  'languages': ['en'],
+                  'downloadCount': 100000,
+                  'formats': <String, String>{},
+                },
+              ],
+            },
+          });
+
+      final result = await service.browseGutenberg();
+
+      expect(result.count, 2);
+      expect(result.results, hasLength(2));
+      expect(result.results[0].title, 'Pride and Prejudice');
+      expect(result.results[1].title, 'Frankenstein');
+    });
+
+    test('passes sort and limit params', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/gutenberg/browse',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'count': 0,
+              'results': <dynamic>[],
+            },
+          });
+
+      await service.browseGutenberg(sort: 'descending', limit: 5);
+
+      final captured = verify(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/gutenberg/browse',
+            queryParams: captureAny(named: 'queryParams'),
+          )).captured;
+
+      final params = captured.first as Map<String, dynamic>;
+      expect(params['sort'], 'descending');
+      expect(params['limit'], 5);
+    });
+
+    test('throws ApiException on API error', () async {
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/gutenberg/browse',
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(const ApiException(
+        statusCode: 500,
+        message: 'Internal server error',
+      ));
+
+      expect(
+        () => service.browseGutenberg(),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  });
+
   group('searchGutenberg', () {
     test('returns parsed search results', () async {
       when(() => mockClient.get<Map<String, dynamic>>(
@@ -686,6 +766,64 @@ void main() {
       addTearDown(container.dispose);
       final url = await container.read(kiwixUrlProvider.future);
       expect(url, 'http://localhost:8888');
+    });
+  });
+
+  group('gutenbergPopularProvider', () {
+    test('returns popular books from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/gutenberg/browse',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'count': 1,
+              'results': [
+                {
+                  'id': 1342,
+                  'title': 'Pride and Prejudice',
+                  'authors': ['Austen, Jane'],
+                  'downloadCount': 80000,
+                },
+              ],
+            },
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final result = await container.read(gutenbergPopularProvider.future);
+      expect(result.results, hasLength(1));
+      expect(result.results[0].title, 'Pride and Prejudice');
+    });
+  });
+
+  group('gutenbergRecentProvider', () {
+    test('returns recent books from service', () async {
+      final mockClient = MockApiClient();
+      when(() => mockClient.get<Map<String, dynamic>>(
+            '${AppConstants.libraryBasePath}/gutenberg/browse',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': {
+              'count': 1,
+              'results': [
+                {
+                  'id': 99999,
+                  'title': 'Newest Book',
+                  'authors': ['New Author'],
+                  'downloadCount': 10,
+                },
+              ],
+            },
+          });
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(mockClient)],
+      );
+      addTearDown(container.dispose);
+      final result = await container.read(gutenbergRecentProvider.future);
+      expect(result.results, hasLength(1));
+      expect(result.results[0].title, 'Newest Book');
     });
   });
 }

@@ -37,6 +37,24 @@ void main() {
     registerFallbackValue(0);
   });
 
+  void stubBrowse({
+    GutenbergSearchResultModel? popular,
+    GutenbergSearchResultModel? recent,
+  }) {
+    when(() => mockService.browseGutenberg(
+          sort: 'popular',
+          limit: any(named: 'limit'),
+        )).thenAnswer((_) async =>
+        popular ??
+        const GutenbergSearchResultModel(count: 0, results: []));
+    when(() => mockService.browseGutenberg(
+          sort: 'descending',
+          limit: any(named: 'limit'),
+        )).thenAnswer((_) async =>
+        recent ??
+        const GutenbergSearchResultModel(count: 0, results: []));
+  }
+
   void stubDefaultMocks() {
     when(() => mockService.listEbooks(
           search: any(named: 'search'),
@@ -49,6 +67,7 @@ void main() {
               available: false,
               bookCount: 0,
             ));
+    stubBrowse();
   }
 
   void stubEbooks(List<EbookModel> ebooks) {
@@ -515,7 +534,7 @@ void main() {
   });
 
   group('Gutenberg tab - search', () {
-    testWidgets('shows initial empty state', (tester) async {
+    testWidgets('shows browse sections when no search query', (tester) async {
       stubDefaultMocks();
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
@@ -523,11 +542,8 @@ void main() {
       await tester.tap(find.text('Gutenberg'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Search Gutenberg'), findsOneWidget);
-      expect(
-          find.text(
-              'Search 70,000+ free public domain books from Project Gutenberg'),
-          findsOneWidget);
+      expect(find.text('Popular Books'), findsOneWidget);
+      expect(find.text('Newest Releases'), findsOneWidget);
     });
 
     testWidgets('submitting search triggers results', (tester) async {
@@ -603,8 +619,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Search Failed'), findsOneWidget);
-      expect(find.text('Search unavailable. The server may be offline.'),
-          findsOneWidget);
     });
 
     testWidgets('shows download icon for owner on Gutenberg results',
@@ -914,8 +928,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.clear));
       await tester.pumpAndSettle();
 
-      // Should revert to initial empty search state
-      expect(find.text('Search Gutenberg'), findsOneWidget);
+      // Should revert to browse view (no search results shown)
+      expect(find.text('Popular Books'), findsOneWidget);
       expect(find.text('Some Book'), findsNothing);
     });
   });
@@ -971,6 +985,179 @@ void main() {
       // Should show recovered results
       expect(find.text('Recovered Search Result'), findsOneWidget);
       expect(find.text('Search Failed'), findsNothing);
+    });
+  });
+
+  // ── Gutenberg tab - browse sections ────────────────────────────────────
+
+  group('Gutenberg tab - browse sections', () {
+    testWidgets('shows popular books in browse section', (tester) async {
+      stubDefaultMocks();
+      stubBrowse(
+        popular: const GutenbergSearchResultModel(
+          count: 1,
+          results: [
+            GutenbergBookModel(
+              id: 1342,
+              title: 'Pride and Prejudice',
+              authors: ['Austen, Jane'],
+              downloadCount: 80000,
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Popular Books'), findsOneWidget);
+      expect(find.text('Pride and Prejudice'), findsOneWidget);
+      expect(find.text('Austen, Jane'), findsOneWidget);
+    });
+
+    testWidgets('shows newest releases in browse section', (tester) async {
+      stubDefaultMocks();
+      stubBrowse(
+        recent: const GutenbergSearchResultModel(
+          count: 1,
+          results: [
+            GutenbergBookModel(
+              id: 99999,
+              title: 'Brand New Book',
+              authors: ['Modern Author'],
+              downloadCount: 10,
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Newest Releases'), findsOneWidget);
+      expect(find.text('Brand New Book'), findsOneWidget);
+    });
+
+    testWidgets('browse section shows error independently', (tester) async {
+      when(() => mockService.listEbooks(
+            search: any(named: 'search'),
+            format: any(named: 'format'),
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer((_) async => <EbookModel>[]);
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+              ));
+      when(() => mockService.browseGutenberg(
+            sort: 'popular',
+            limit: any(named: 'limit'),
+          )).thenThrow(
+          const ApiException(statusCode: 500, message: 'Popular error'));
+      when(() => mockService.browseGutenberg(
+            sort: 'descending',
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => const GutenbergSearchResultModel(
+            count: 1,
+            results: [
+              GutenbergBookModel(
+                id: 100,
+                title: 'Recent Book',
+                authors: [],
+                downloadCount: 5,
+              ),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      // Popular section failed, newest loaded
+      expect(find.text('Popular Books'), findsOneWidget);
+      expect(find.text('Load Failed'), findsOneWidget);
+      expect(find.text('Newest Releases'), findsOneWidget);
+      expect(find.text('Recent Book'), findsOneWidget);
+    });
+  });
+
+  // ── Gutenberg tab - debounced search ─────────────────────────────────
+
+  group('Gutenberg tab - debounced search', () {
+    testWidgets('typing triggers debounced search after 500ms',
+        (tester) async {
+      stubDefaultMocks();
+      stubGutenberg(const GutenbergSearchResultModel(
+        count: 1,
+        results: [
+          GutenbergBookModel(
+            id: 200,
+            title: 'Debounce Result',
+            authors: ['Test Author'],
+            languages: ['en'],
+            downloadCount: 100,
+          ),
+        ],
+      ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      // Type in search field (onChanged, not onSubmitted)
+      final searchField = find.byType(TextField);
+      await tester.enterText(searchField, 'debounce');
+
+      // Before debounce fires, browse view is still showing
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('Popular Books'), findsOneWidget);
+
+      // After debounce fires (500ms total)
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Debounce Result'), findsOneWidget);
+    });
+
+    testWidgets('Enter submits immediately without debounce wait',
+        (tester) async {
+      stubDefaultMocks();
+      stubGutenberg(const GutenbergSearchResultModel(
+        count: 1,
+        results: [
+          GutenbergBookModel(
+            id: 300,
+            title: 'Instant Result',
+            authors: [],
+            languages: [],
+            downloadCount: 50,
+          ),
+        ],
+      ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gutenberg'));
+      await tester.pumpAndSettle();
+
+      final searchField = find.byType(TextField);
+      await tester.enterText(searchField, 'instant');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Instant Result'), findsOneWidget);
     });
   });
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +35,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
   final _searchController = TextEditingController();
   String _gutenbergQuery = '';
   bool _isUploading = false;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -42,9 +45,24 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) setState(() => _gutenbergQuery = value.trim());
+    });
+    // Update suffix icon reactively
+    setState(() {});
+  }
+
+  void _onSearchSubmitted(String value) {
+    _searchDebounce?.cancel();
+    setState(() => _gutenbergQuery = value.trim());
   }
 
   @override
@@ -78,7 +96,8 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
             searchController: _searchController,
             query: _gutenbergQuery,
             isOwnerOrAdmin: isOwnerOrAdmin,
-            onSearch: (query) => setState(() => _gutenbergQuery = query),
+            onSearch: _onSearchSubmitted,
+            onSearchChanged: _onSearchChanged,
           ),
         ],
       ),
@@ -343,18 +362,21 @@ class _KiwixWebViewState extends State<_KiwixWebView>
 
 // ── Gutenberg Tab (Search & Import) ──────────────────────────────────────
 
-/// Renders the Gutenberg tab with search input and import-capable result list.
+/// Renders the Gutenberg tab with search input, curated browse sections,
+/// and import-capable result list.
 class _GutenbergTab extends ConsumerWidget {
   final TextEditingController searchController;
   final String query;
   final bool isOwnerOrAdmin;
   final ValueChanged<String> onSearch;
+  final ValueChanged<String> onSearchChanged;
 
   const _GutenbergTab({
     required this.searchController,
     required this.query,
     required this.isOwnerOrAdmin,
     required this.onSearch,
+    required this.onSearchChanged,
   });
 
   @override
@@ -379,17 +401,13 @@ class _GutenbergTab extends ConsumerWidget {
                     )
                   : null,
             ),
+            onChanged: onSearchChanged,
             onSubmitted: onSearch,
           ),
         ),
         Expanded(
           child: query.isEmpty
-              ? const EmptyStateView(
-                  icon: Icons.auto_stories,
-                  title: 'Search Gutenberg',
-                  subtitle:
-                      'Search 70,000+ free public domain books from Project Gutenberg',
-                )
+              ? _GutenbergBrowseView(isOwnerOrAdmin: isOwnerOrAdmin)
               : _GutenbergResults(
                   query: query,
                   isOwnerOrAdmin: isOwnerOrAdmin,
@@ -397,6 +415,216 @@ class _GutenbergTab extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Curated browse view showing Popular Books and Newest Releases sections.
+class _GutenbergBrowseView extends ConsumerWidget {
+  final bool isOwnerOrAdmin;
+
+  const _GutenbergBrowseView({required this.isOwnerOrAdmin});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListView(
+      children: [
+        _GutenbergBrowseSection(
+          title: 'Popular Books',
+          provider: gutenbergPopularProvider,
+          isOwnerOrAdmin: isOwnerOrAdmin,
+        ),
+        const SizedBox(height: 8),
+        _GutenbergBrowseSection(
+          title: 'Newest Releases',
+          provider: gutenbergRecentProvider,
+          isOwnerOrAdmin: isOwnerOrAdmin,
+        ),
+      ],
+    );
+  }
+}
+
+/// A single browse section with a title and horizontal scrolling book cards.
+class _GutenbergBrowseSection extends ConsumerWidget {
+  final String title;
+  final AutoDisposeFutureProvider<GutenbergSearchResultModel> provider;
+  final bool isOwnerOrAdmin;
+
+  const _GutenbergBrowseSection({
+    required this.title,
+    required this.provider,
+    required this.isOwnerOrAdmin,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncValue = ref.watch(provider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ),
+        SizedBox(
+          height: 180,
+          child: asyncValue.when(
+            loading: () => const Center(child: LoadingIndicator()),
+            error: (e, _) => Padding(
+              padding: const EdgeInsets.all(8),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Load Failed',
+                        style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 4),
+                    TextButton(
+                      onPressed: () => ref.invalidate(provider),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            data: (result) {
+              if (result.results.isEmpty) {
+                return const Center(
+                  child: Text('No books available'),
+                );
+              }
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemCount: result.results.length,
+                itemBuilder: (context, index) => _GutenbergBookCard(
+                  book: result.results[index],
+                  isOwnerOrAdmin: isOwnerOrAdmin,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Compact book card for horizontal scroll lists in browse sections.
+class _GutenbergBookCard extends ConsumerStatefulWidget {
+  final GutenbergBookModel book;
+  final bool isOwnerOrAdmin;
+
+  const _GutenbergBookCard({
+    required this.book,
+    required this.isOwnerOrAdmin,
+  });
+
+  @override
+  ConsumerState<_GutenbergBookCard> createState() =>
+      _GutenbergBookCardState();
+}
+
+/// State for [_GutenbergBookCard] managing the import-in-progress indicator.
+class _GutenbergBookCardState extends ConsumerState<_GutenbergBookCard> {
+  bool _importing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = widget.book;
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: 160,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: InkWell(
+          onTap: widget.isOwnerOrAdmin && !_importing ? _importBook : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.auto_stories,
+                    size: 28, color: theme.colorScheme.primary),
+                const SizedBox(height: 8),
+                Text(
+                  book.title,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                if (book.authors.isNotEmpty)
+                  Text(
+                    book.authors.first,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Icon(Icons.download,
+                        size: 14, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '${book.downloadCount}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    if (_importing)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _importBook() async {
+    setState(() => _importing = true);
+    try {
+      final service = ref.read(libraryServiceProvider);
+      await service.importGutenbergBook(widget.book.id);
+      ref.invalidate(ebooksProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${widget.book.title}" imported successfully'),
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
   }
 }
 
@@ -425,7 +653,7 @@ class _GutenbergResults extends ConsumerWidget {
       loading: () => const LoadingIndicator(),
       error: (e, _) => ErrorView(
         title: 'Search Failed',
-        message: 'Search unavailable. The server may be offline.',
+        message: e.toString(),
         onRetry: () => ref.invalidate(gutenbergSearchProvider(query)),
       ),
       data: (result) {

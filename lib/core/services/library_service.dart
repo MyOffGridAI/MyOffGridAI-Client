@@ -142,6 +142,22 @@ class LibraryService {
 
   // ── Gutenberg ───────────────────────────────────────────────────────────
 
+  /// Browses the Project Gutenberg catalog without a search query.
+  ///
+  /// Returns books sorted by [sort] (popular, ascending, or descending),
+  /// limited to [limit] results.
+  Future<GutenbergSearchResultModel> browseGutenberg({
+    String sort = 'popular',
+    int limit = 10,
+  }) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/gutenberg/browse',
+      queryParams: {'sort': sort, 'limit': limit},
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return GutenbergSearchResultModel.fromJson(data);
+  }
+
   /// Searches the Project Gutenberg catalog.
   Future<GutenbergSearchResultModel> searchGutenberg(
     String query, {
@@ -207,4 +223,18 @@ final kiwixStatusProvider =
 final kiwixUrlProvider = FutureProvider.autoDispose<String>((ref) async {
   final service = ref.watch(libraryServiceProvider);
   return service.getKiwixUrl();
+});
+
+/// Provider for popular Gutenberg books (browse, sorted by popularity).
+final gutenbergPopularProvider =
+    FutureProvider.autoDispose<GutenbergSearchResultModel>((ref) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.browseGutenberg(sort: 'popular', limit: 10);
+});
+
+/// Provider for newest Gutenberg books (browse, sorted descending by ID).
+final gutenbergRecentProvider =
+    FutureProvider.autoDispose<GutenbergSearchResultModel>((ref) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.browseGutenberg(sort: 'descending', limit: 10);
 });
