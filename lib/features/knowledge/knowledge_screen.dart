@@ -10,10 +10,46 @@ import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
 import 'package:myoffgridai_client/core/services/enrichment_service.dart';
 import 'package:myoffgridai_client/core/services/knowledge_service.dart';
 import 'package:myoffgridai_client/core/services/system_service.dart';
+import 'package:myoffgridai_client/shared/utils/size_formatter.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/empty_state_view.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
+
+/// Maps a MIME type and filename to a short document type label.
+///
+/// Returns a human-readable abbreviation (e.g., "PDF", "DOCX") based on
+/// [mimeType]. Falls back to the uppercase file extension from [filename]
+/// when the MIME type is null or unrecognized.
+@visibleForTesting
+String docTypeLabel(String? mimeType, String filename) {
+  const mimeLabels = {
+    'application/pdf': 'PDF',
+    'text/plain': 'TXT',
+    'text/markdown': 'MD',
+    'application/msword': 'DOC',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        'DOCX',
+    'application/vnd.ms-excel': 'XLS',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+    'application/vnd.ms-powerpoint': 'PPT',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+        'PPTX',
+    'application/rtf': 'RTF',
+    'text/html': 'HTML',
+    'application/json': 'JSON',
+  };
+
+  if (mimeType != null && mimeLabels.containsKey(mimeType)) {
+    return mimeLabels[mimeType]!;
+  }
+
+  final dotIndex = filename.lastIndexOf('.');
+  if (dotIndex != -1 && dotIndex < filename.length - 1) {
+    return filename.substring(dotIndex + 1).toUpperCase();
+  }
+  return '';
+}
 
 /// Displays the Knowledge Vault with document list and upload capability.
 ///
@@ -36,6 +72,32 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
 
   bool _isUploading = false;
   bool _isDragging = false;
+  String _sortField = 'name';
+  bool _sortAscending = true;
+
+  /// Sorts [docs] in place by the active sort field and direction.
+  List<KnowledgeDocumentModel> _sortDocuments(
+      List<KnowledgeDocumentModel> docs) {
+    final sorted = List<KnowledgeDocumentModel>.from(docs);
+    sorted.sort((a, b) {
+      int cmp;
+      if (_sortField == 'type') {
+        final aLabel =
+            docTypeLabel(a.mimeType, a.filename).toLowerCase();
+        final bLabel =
+            docTypeLabel(b.mimeType, b.filename).toLowerCase();
+        cmp = aLabel.compareTo(bLabel);
+      } else {
+        final aName =
+            (a.displayName ?? a.filename).toLowerCase();
+        final bName =
+            (b.displayName ?? b.filename).toLowerCase();
+        cmp = aName.compareTo(bName);
+      }
+      return _sortAscending ? cmp : -cmp;
+    });
+    return sorted;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,18 +161,62 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
                     subtitle: 'Upload documents to teach your AI',
                   );
                 }
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    return _DocumentTile(
-                      document: doc,
-                      onTap: () => context.go('/knowledge/${doc.id}'),
-                      onDelete: () => _deleteDocument(doc.id),
-                      onRetry:
-                          doc.isFailed ? () => _retryProcessing(doc.id) : null,
-                    );
-                  },
+                final sorted = _sortDocuments(docs);
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      child: Row(
+                        children: [
+                          _SortButton(
+                            label: 'Name',
+                            isActive: _sortField == 'name',
+                            ascending: _sortAscending,
+                            onTap: () => setState(() {
+                              if (_sortField == 'name') {
+                                _sortAscending = !_sortAscending;
+                              } else {
+                                _sortField = 'name';
+                                _sortAscending = true;
+                              }
+                            }),
+                          ),
+                          const SizedBox(width: 8),
+                          _SortButton(
+                            label: 'Type',
+                            isActive: _sortField == 'type',
+                            ascending: _sortAscending,
+                            onTap: () => setState(() {
+                              if (_sortField == 'type') {
+                                _sortAscending = !_sortAscending;
+                              } else {
+                                _sortField = 'type';
+                                _sortAscending = true;
+                              }
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: sorted.length,
+                        itemBuilder: (context, index) {
+                          final doc = sorted[index];
+                          return _DocumentTile(
+                            document: doc,
+                            onTap: () =>
+                                context.go('/knowledge/${doc.id}'),
+                            onDelete: () => _deleteDocument(doc.id),
+                            onRetry: doc.isFailed
+                                ? () => _retryProcessing(doc.id)
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -579,11 +685,13 @@ class _DocumentTile extends StatelessWidget {
         ),
         subtitle: Row(
           children: [
-            Text('${document.fileSizeBytes} bytes'),
-            const SizedBox(width: 8),
+            Text(docTypeLabel(document.mimeType, document.filename)),
+            const Text(' · '),
+            Text(SizeFormatter.formatBytes(document.fileSizeBytes)),
+            const Text(' · '),
             _statusChip(context, document.status),
             if (document.isIndexed) ...[
-              const SizedBox(width: 8),
+              const Text(' | '),
               Text('${document.chunkCount} chunks'),
             ],
           ],
@@ -653,6 +761,38 @@ class _DocumentTile extends StatelessWidget {
         fontWeight: FontWeight.w600,
         color: colors[status] ?? Colors.grey,
       ),
+    );
+  }
+}
+
+/// A sort toggle button showing field name and directional arrow.
+///
+/// Displays an up arrow when [ascending] and active, down arrow when
+/// descending and active, and no arrow when inactive.
+class _SortButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final bool ascending;
+  final VoidCallback onTap;
+
+  const _SortButton({
+    required this.label,
+    required this.isActive,
+    required this.ascending,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final arrow = isActive ? (ascending ? ' \u2191' : ' \u2193') : '';
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: isActive
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+      child: Text('$label$arrow'),
     );
   }
 }

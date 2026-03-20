@@ -173,11 +173,11 @@ void main() {
       expect(find.text('0 chunks'), findsNothing);
     });
 
-    testWidgets('shows file size', (tester) async {
+    testWidgets('shows formatted file size', (tester) async {
       await tester.pumpWidget(buildScreen(documents: [indexedDoc]));
       await tester.pumpAndSettle();
 
-      expect(find.text('1024 bytes'), findsOneWidget);
+      expect(find.text('1.0 KB'), findsOneWidget);
     });
 
     testWidgets('shows displayName when present', (tester) async {
@@ -783,6 +783,166 @@ void main() {
             storeTopN: any(named: 'storeTopN'),
             summarizeWithClaude: any(named: 'summarizeWithClaude'),
           )).called(1);
+    });
+  });
+
+  group('docTypeLabel', () {
+    test('returns PDF for application/pdf', () {
+      expect(docTypeLabel('application/pdf', 'file.pdf'), 'PDF');
+    });
+
+    test('returns TXT for text/plain', () {
+      expect(docTypeLabel('text/plain', 'file.txt'), 'TXT');
+    });
+
+    test('returns MD for text/markdown', () {
+      expect(docTypeLabel('text/markdown', 'readme.md'), 'MD');
+    });
+
+    test('returns DOCX for openxml word document', () {
+      expect(
+        docTypeLabel(
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'report.docx',
+        ),
+        'DOCX',
+      );
+    });
+
+    test('returns DOC for application/msword', () {
+      expect(docTypeLabel('application/msword', 'old.doc'), 'DOC');
+    });
+
+    test('returns XLSX for openxml spreadsheet', () {
+      expect(
+        docTypeLabel(
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'data.xlsx',
+        ),
+        'XLSX',
+      );
+    });
+
+    test('returns HTML for text/html', () {
+      expect(docTypeLabel('text/html', 'page.html'), 'HTML');
+    });
+
+    test('returns JSON for application/json', () {
+      expect(docTypeLabel('application/json', 'config.json'), 'JSON');
+    });
+
+    test('falls back to extension when mimeType is null', () {
+      expect(docTypeLabel(null, 'report.pdf'), 'PDF');
+    });
+
+    test('falls back to extension for unknown MIME type', () {
+      expect(docTypeLabel('application/octet-stream', 'data.csv'), 'CSV');
+    });
+
+    test('returns empty string for no extension and unknown MIME', () {
+      expect(docTypeLabel('application/octet-stream', 'noext'), '');
+    });
+
+    test('returns empty string for null MIME and no extension', () {
+      expect(docTypeLabel(null, 'noext'), '');
+    });
+  });
+
+  group('Sort bar', () {
+    testWidgets('renders Name and Type sort buttons', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [indexedDoc, pendingDoc]));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextButton, 'Name \u2191'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Type'), findsOneWidget);
+    });
+
+    testWidgets('tapping Name toggles sort direction', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [indexedDoc, pendingDoc]));
+      await tester.pumpAndSettle();
+
+      // Initial: Name ascending (↑)
+      expect(find.widgetWithText(TextButton, 'Name \u2191'), findsOneWidget);
+
+      // Tap Name to toggle to descending (↓)
+      await tester.tap(find.widgetWithText(TextButton, 'Name \u2191'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextButton, 'Name \u2193'), findsOneWidget);
+    });
+
+    testWidgets('tapping Type switches sort field', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [indexedDoc, pendingDoc]));
+      await tester.pumpAndSettle();
+
+      // Tap Type — it becomes active with ascending arrow
+      await tester.tap(find.widgetWithText(TextButton, 'Type'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextButton, 'Type \u2191'), findsOneWidget);
+      // Name should no longer show arrow
+      expect(find.widgetWithText(TextButton, 'Name'), findsOneWidget);
+    });
+
+    testWidgets('documents sort A-Z by name by default', (tester) async {
+      // pendingDoc filename = 'notes.txt', indexedDoc displayName = 'User Guide'
+      // A-Z: notes.txt < User Guide
+      await tester.pumpWidget(
+          buildScreen(documents: [indexedDoc, pendingDoc]));
+      await tester.pumpAndSettle();
+
+      final tiles = tester.widgetList<ListTile>(find.byType(ListTile));
+      final titles = tiles
+          .map((t) => (t.title as Text).data)
+          .toList();
+      expect(titles, ['notes.txt', 'User Guide']);
+    });
+
+    testWidgets('tapping Name toggles to Z-A', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [indexedDoc, pendingDoc]));
+      await tester.pumpAndSettle();
+
+      // Tap Name to go descending
+      await tester.tap(find.widgetWithText(TextButton, 'Name \u2191'));
+      await tester.pumpAndSettle();
+
+      final tiles = tester.widgetList<ListTile>(find.byType(ListTile));
+      final titles = tiles
+          .map((t) => (t.title as Text).data)
+          .toList();
+      expect(titles, ['User Guide', 'notes.txt']);
+    });
+
+    testWidgets('tapping Type sorts by doc type', (tester) async {
+      // indexedDoc: guide.pdf (mimeType null → extension PDF)
+      // pendingDoc: notes.txt (mimeType null → extension TXT)
+      // A-Z type: PDF < TXT
+      await tester.pumpWidget(
+          buildScreen(documents: [pendingDoc, indexedDoc]));
+      await tester.pumpAndSettle();
+
+      // Switch to Type sort
+      await tester.tap(find.widgetWithText(TextButton, 'Type'));
+      await tester.pumpAndSettle();
+
+      final tiles = tester.widgetList<ListTile>(find.byType(ListTile));
+      final titles = tiles
+          .map((t) => (t.title as Text).data)
+          .toList();
+      // PDF before TXT alphabetically
+      expect(titles, ['User Guide', 'notes.txt']);
+    });
+
+    testWidgets('shows doc type label in subtitle', (tester) async {
+      await tester.pumpWidget(buildScreen(documents: [indexedDoc]));
+      await tester.pumpAndSettle();
+
+      // indexedDoc has no mimeType, filename 'guide.pdf' → label 'PDF'
+      expect(find.text('PDF'), findsOneWidget);
     });
   });
 }
