@@ -442,91 +442,18 @@ class _EpubReaderViewState extends ConsumerState<_EpubReaderView> {
     );
   }
 
-  /// Shows the bookmarks list as a bottom sheet.
+  /// Shows the bookmarks list as a bottom sheet with delete buttons.
   void _showBookmarksList() {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.5,
-        minChildSize: 0.25,
-        maxChildSize: 0.8,
-        builder: (context, scrollController) => FutureBuilder<List<EpubBookmarkModel>>(
-          future: _bookmarkService.getBookmarks(widget.ebookId),
-          builder: (context, snapshot) {
-            final bookmarks = snapshot.data ?? [];
-
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Bookmarks (${bookmarks.length})',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                const Divider(height: 1),
-                if (bookmarks.isEmpty)
-                  const Expanded(
-                    child: Center(
-                      child: Text('No bookmarks yet'),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: bookmarks.length,
-                      itemBuilder: (context, index) {
-                        final bookmark = bookmarks[index];
-                        final createdAt = DateTime.tryParse(bookmark.createdAt);
-                        final timeLabel = createdAt != null
-                            ? DateFormatter.formatRelative(createdAt)
-                            : '';
-
-                        return Dismissible(
-                          key: ValueKey(bookmark.cfi),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 16),
-                            color: Theme.of(context).colorScheme.error,
-                            child: Icon(
-                              Icons.delete,
-                              color: Theme.of(context).colorScheme.onError,
-                            ),
-                          ),
-                          onDismissed: (_) {
-                            _bookmarkService.removeBookmark(
-                              widget.ebookId,
-                              bookmark.cfi,
-                            );
-                          },
-                          child: ListTile(
-                            leading: const Icon(Icons.bookmark),
-                            title: Text(
-                              bookmark.label ??
-                                  bookmark.chapterTitle ??
-                                  'Chapter ${bookmark.chapterNumber}',
-                            ),
-                            subtitle: Text(
-                              'Chapter ${bookmark.chapterNumber}'
-                              '${timeLabel.isNotEmpty ? ' \u2022 $timeLabel' : ''}',
-                            ),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _epubController!.gotoEpubCfi(bookmark.cfi);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
+      builder: (sheetContext) => _BookmarksSheet(
+        bookmarkService: _bookmarkService,
+        ebookId: widget.ebookId,
+        onNavigate: (cfi) {
+          Navigator.pop(sheetContext);
+          _epubController!.gotoEpubCfi(cfi);
+        },
       ),
     );
   }
@@ -633,6 +560,121 @@ class _EpubReaderViewState extends ConsumerState<_EpubReaderView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Bookmarks Sheet ──────────────────────────────────────────────────────
+
+/// Stateful bottom sheet that displays bookmarks with live delete support.
+class _BookmarksSheet extends StatefulWidget {
+  final EpubBookmarkService bookmarkService;
+  final String ebookId;
+  final void Function(String cfi) onNavigate;
+
+  const _BookmarksSheet({
+    required this.bookmarkService,
+    required this.ebookId,
+    required this.onNavigate,
+  });
+
+  @override
+  State<_BookmarksSheet> createState() => _BookmarksSheetState();
+}
+
+/// State for [_BookmarksSheet] managing the bookmark list lifecycle.
+class _BookmarksSheetState extends State<_BookmarksSheet> {
+  List<EpubBookmarkModel> _bookmarks = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookmarks();
+  }
+
+  Future<void> _loadBookmarks() async {
+    final bookmarks = await widget.bookmarkService.getBookmarks(widget.ebookId);
+    if (mounted) {
+      setState(() {
+        _bookmarks = bookmarks;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _deleteBookmark(EpubBookmarkModel bookmark) async {
+    await widget.bookmarkService.removeBookmark(widget.ebookId, bookmark.cfi);
+    if (mounted) {
+      setState(() {
+        _bookmarks = _bookmarks.where((b) => b.cfi != bookmark.cfi).toList();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.5,
+      minChildSize: 0.25,
+      maxChildSize: 0.8,
+      builder: (context, scrollController) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Bookmarks (${_bookmarks.length})',
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          const Divider(height: 1),
+          if (_loading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_bookmarks.isEmpty)
+            const Expanded(
+              child: Center(child: Text('No bookmarks yet')),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: _bookmarks.length,
+                itemBuilder: (context, index) {
+                  final bookmark = _bookmarks[index];
+                  final createdAt = DateTime.tryParse(bookmark.createdAt);
+                  final timeLabel = createdAt != null
+                      ? DateFormatter.formatRelative(createdAt)
+                      : '';
+
+                  return ListTile(
+                    leading: const Icon(Icons.bookmark),
+                    title: Text(
+                      bookmark.label ??
+                          bookmark.chapterTitle ??
+                          'Chapter ${bookmark.chapterNumber}',
+                    ),
+                    subtitle: Text(
+                      'Chapter ${bookmark.chapterNumber}'
+                      '${timeLabel.isNotEmpty ? ' \u2022 $timeLabel' : ''}',
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: theme.colorScheme.error,
+                      ),
+                      tooltip: 'Delete bookmark',
+                      onPressed: () => _deleteBookmark(bookmark),
+                    ),
+                    onTap: () => widget.onNavigate(bookmark.cfi),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
