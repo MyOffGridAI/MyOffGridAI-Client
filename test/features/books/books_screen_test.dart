@@ -1891,6 +1891,8 @@ void main() {
       await tester.tap(find.text('Kiwix'));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.byIcon(Icons.download));
+      await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.download));
       await tester.pumpAndSettle();
 

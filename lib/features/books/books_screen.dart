@@ -1033,7 +1033,7 @@ class _KiwixBrowseCards extends ConsumerWidget {
     final asyncValue = ref.watch(kiwixCatalogBrowseProvider(selectedLanguage));
 
     return SizedBox(
-      height: 190,
+      height: 240,
       child: asyncValue.when(
         loading: () => const Center(child: LoadingIndicator()),
         error: (e, _) => Center(
@@ -1098,7 +1098,7 @@ class _KiwixCatalogCardState extends ConsumerState<_KiwixCatalogCard> {
     final theme = Theme.of(context);
 
     return SizedBox(
-      width: 170,
+      width: 200,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Padding(
@@ -1117,6 +1117,19 @@ class _KiwixCatalogCardState extends ConsumerState<_KiwixCatalogCard> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (entry.description != null &&
+                  entry.description!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  entry.description!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 [
