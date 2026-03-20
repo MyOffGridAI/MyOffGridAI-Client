@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +8,10 @@ import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/chat_messages_notifier.dart';
 import 'package:myoffgridai_client/core/services/chat_service.dart';
+import 'package:myoffgridai_client/core/services/knowledge_service.dart';
 import 'package:myoffgridai_client/features/chat/widgets/message_bubble.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
 import 'package:myoffgridai_client/shared/widgets/loading_indicator.dart';
@@ -118,6 +124,37 @@ class _ChatConversationScreenState
       appBar: AppBar(
         title: Text(title ?? 'New Conversation'),
         automaticallyImplyLeading: false,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              switch (value) {
+                case 'print':
+                  _handlePrint(title ?? 'New Conversation');
+                case 'save_to_library':
+                  _handleSaveToLibrary();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'print',
+                child: ListTile(
+                  leading: Icon(Icons.print),
+                  title: Text('Print'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'save_to_library',
+                child: ListTile(
+                  leading: Icon(Icons.library_add),
+                  title: Text('Save to Library'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -374,6 +411,63 @@ class _ChatConversationScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to branch: $e')),
+        );
+      }
+    });
+  }
+
+  /// Handles printing/previewing the conversation as a PDF.
+  ///
+  /// Downloads the PDF from the server, saves it to a temp file, and
+  /// opens it with the system PDF viewer (which supports printing).
+  void _handlePrint(String title) {
+    final service = ref.read(chatServiceProvider);
+    service.exportConversationPdf(widget.conversationId).then(
+      (bytes) async {
+        if (!mounted) return;
+        final dir = await getTemporaryDirectory();
+        final filename = title.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+        final file = File('${dir.path}/$filename.pdf');
+        await file.writeAsBytes(Uint8List.fromList(bytes));
+        await OpenFilex.open(file.path);
+      },
+    ).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to export PDF: ${e is ApiException ? e.message : e}',
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  /// Handles saving the conversation to the Knowledge Library.
+  void _handleSaveToLibrary() {
+    final service = ref.read(chatServiceProvider);
+    service.saveConversationToLibrary(widget.conversationId).then(
+      (doc) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Saved "${doc.displayName ?? doc.filename}" to Knowledge Library',
+              ),
+            ),
+          );
+          ref.invalidate(knowledgeDocumentsProvider);
+        }
+      },
+    ).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to save to library: ${e is ApiException ? e.message : e}',
+            ),
+          ),
         );
       }
     });

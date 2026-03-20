@@ -7,6 +7,7 @@ import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/models/conversation_model.dart';
 import 'package:myoffgridai_client/core/models/inference_stream_event.dart';
+import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
 import 'package:myoffgridai_client/core/models/message_model.dart';
 import 'package:myoffgridai_client/core/services/log_service.dart';
 import 'package:myoffgridai_client/core/services/sse_io.dart'
@@ -187,6 +188,29 @@ class ChatService {
     );
     final data = response['data'] as Map<String, dynamic>;
     return ConversationModel.fromJson(data);
+  }
+
+  /// Exports a conversation as a PDF document.
+  ///
+  /// Returns the raw PDF bytes from the server for local saving or printing.
+  Future<List<int>> exportConversationPdf(String conversationId) async {
+    return _client.getBytes(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/export-pdf',
+    );
+  }
+
+  /// Saves a conversation to the Knowledge Library as a PDF document.
+  ///
+  /// The server generates the PDF, stores it, and triggers knowledge
+  /// processing for RAG search indexing. Returns the created document.
+  Future<KnowledgeDocumentModel> saveConversationToLibrary(
+    String conversationId,
+  ) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '${AppConstants.chatBasePath}/conversations/$conversationId/save-to-library',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return KnowledgeDocumentModel.fromJson(data);
   }
 
   /// Regenerates an assistant message via SSE streaming.

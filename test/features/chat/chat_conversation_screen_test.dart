@@ -343,11 +343,46 @@ void main() {
       expect(find.text('Failed to load messages'), findsOneWidget);
     });
 
-    // Note: The _sendMessage method (lines 194-216) and onSubmitted (line 175)
-    // require the full apiClientProvider to be overridden. sendMessage calls
+    // Note: The _sendMessage method and onSubmitted require the full
+    // apiClientProvider to be overridden. sendMessage calls
     // ref.read(chatMessagesNotifierProvider(...).notifier).sendMessage which
     // accesses the API client. These lines cannot be covered without
     // modifying lib/ code or providing a full mock API client chain.
+
+    testWidgets('shows popup menu button in AppBar', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+    });
+
+    testWidgets('popup contains Print and Save to Library items',
+        (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Open the popup menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Print'), findsOneWidget);
+      expect(find.text('Save to Library'), findsOneWidget);
+      expect(find.byIcon(Icons.print), findsOneWidget);
+      expect(find.byIcon(Icons.library_add), findsOneWidget);
+    });
+
+    testWidgets('popup menu icons are visible', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      // Open the popup menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      // Both icons should be visible
+      expect(find.byIcon(Icons.print), findsOneWidget);
+      expect(find.byIcon(Icons.library_add), findsOneWidget);
+    });
   });
 }
 
