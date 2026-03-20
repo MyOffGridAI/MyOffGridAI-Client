@@ -10,7 +10,7 @@ MyOffGrid AI is a private, offline-first personal AI assistant designed to run e
 
 Most AI assistants send your data to someone else's server. MyOffGrid AI doesn't.
 
-- **100% local inference** — Your AI runs on your hardware using Ollama or LM Studio. No API keys needed for core functionality.
+- **100% local inference** — Your AI runs on your hardware.
 - **Long-term memory** — The AI extracts facts from every conversation and remembers them permanently. It knows your soil pH, your generator maintenance schedule, your canning recipes — because you told it once.
 - **Knowledge vault** — Upload PDFs, Word docs, spreadsheets, or write directly in the built-in editor. The AI indexes everything and draws from your documents when answering questions.
 - **Privacy fortress** — One toggle cuts all outbound network traffic via iptables. Your device becomes a true air gap.
@@ -30,25 +30,25 @@ Every conversation is mined for facts. The AI extracts and embeds them as long-t
 Your personal document library that the AI can search and reference. Upload files (PDF, DOCX, XLSX, PPTX, RTF, images with OCR, plain text) or create rich-text documents directly in the built-in Quill editor. Documents are chunked, embedded, and indexed for semantic search. Fetch content from URLs or import web search results directly into your vault.
 
 ### AI Judge
-An optional quality-control layer. A second local model scores every AI response on a 0–10 scale. If the score falls below your configured threshold, the system can automatically escalate to a cloud frontier model (Claude, GPT, or Grok) for an enhanced response — giving you local speed with cloud quality as a safety net.
+An optional quality-control layer. A second local model scores every AI response on a 0–10 scale. If the score falls below your configured threshold, the system can automatically escalate to a cloud frontier model (Claude, GPT, or Grok) for an enhanced response — giving you local speed with cloud quality as a safety net.  If AI Judge is enabled, you can also choose to save whatever enhanced data is retrieved so that your local AI Memory is expanded with that information making it relevant and used with future chats.
 
 ### Sensors
-Connect physical sensors (temperature, humidity, soil moisture, power, voltage) via serial port. The dashboard shows live readings, 24-hour history charts, and configurable threshold alerts. When a sensor crosses a threshold, the AI creates a memory and sends a push notification. Sensor data can trigger automated events.
+Connect physical sensors (temperature, humidity, soil moisture, power, voltage) via serial port. The dashboard shows live readings, 24-hour history charts, and configurable threshold alerts. When a sensor crosses a threshold, the AI creates a memory and sends a push notification. Sensor data can trigger automated events and can also be used with LLM data to give highly-relevant contemporary answers to your questions or notifications.  "Based on your soil conditions right now, you should plant the Blue Lake beans we talked about last week in the second garden this weekend."
 
 ### Events & Automation
-Schedule tasks with cron expressions, set recurring intervals, or trigger actions when sensor values cross thresholds. Actions include push notifications, AI prompts (ask the AI a question on a schedule), and AI summaries of recent conversations — all running autonomously on your device.
+Schedule tasks with cron expressions, set recurring intervals, or trigger actions when sensor values cross thresholds. Actions include push notifications, AI prompts (ask the AI a question on a schedule), and AI summaries of recent conversations — all running autonomously on your device.  If using MyOffGridAI mobile app on your Android device, you can have fully functional push notifications entirely offline and off-grid with just a regular WiFi router and your MyOffGridAI-Server.
 
 ### Skills
 Built-in AI capabilities that go beyond chat:
 - **Inventory Tracker** — manage off-grid supplies with low-stock alerts across categories (food, water, fuel, medical, tools, seeds, and more)
-- **Recipe Generator** — creates recipes from your current food inventory
+- **Recipe Generator** — creates recipes from your current food inventory using either your favorite uploaded recipes or AI generated
 - **Resource Calculator** — estimates power, water, and food runway based on your supplies
 - **Task Planner** — AI-generated step-by-step plans with resource estimates
 - **Document Summarizer** — condenses knowledge vault documents
 
 ### Offline Library
 Three ways to access knowledge without internet:
-- **Ebook Library** — upload and read EPUBs and PDFs in the built-in reader
+- **Ebook Library** — download and read EPUBs and PDFs in the built-in reader
 - **Kiwix** — load ZIM files (compressed snapshots of Wikipedia, Stack Overflow, medical references, survival guides) and browse them locally
 - **Project Gutenberg** — search and import from 70,000+ free public domain books
 
@@ -56,7 +56,7 @@ Three ways to access knowledge without internet:
 Every night, the AI analyzes patterns across your conversations, memories, sensors, and inventory to generate actionable insights — resource warnings, seasonal reminders, health observations, and homestead recommendations. Delivered as notifications by morning.
 
 ### Notifications
-Real-time push notifications via MQTT to all connected devices. Sensor alerts, event triggers, insight summaries, and system warnings arrive instantly — even on mobile with background service support on Android.
+Real-time push notifications via MQTT to all local WiFi connected devices. Sensor alerts, event triggers, insight summaries, and system warnings arrive instantly — even on mobile with background service support on Android.
 
 ### Privacy & Data Sovereignty
 - **Fortress Mode** — blocks all outbound network traffic at the firewall level
@@ -67,10 +67,10 @@ Real-time push notifications via MQTT to all connected devices. Sensor alerts, e
 - **Encrypted secrets** — all API keys encrypted at rest with AES-256-GCM
 
 ### Model Management
-Browse the HuggingFace catalog, discover LM Studio models, select optimal quantization levels, and download GGUF models directly to your device. Switch active models, monitor inference health, and restart the inference server — all from the settings screen.
+Browse the HuggingFace catalog, discover LLM models, select optimal quantization levels, and download GGUF models directly to your device. Switch active models, monitor inference health, and restart the inference server — all from the settings screen.
 
 ### MCP Server
-MyOffGrid AI implements the Model Context Protocol, allowing Claude Desktop to call your device's tools directly — search your knowledge base, query your sensors, manage your inventory, and browse your memories, all from Claude's desktop app.
+MyOffGrid AI implements the Model Context Protocol, allowing Claude Desktop or other LLM systems to call your device's tools directly — search your knowledge base, query your sensors, manage your inventory, and browse your memories, all from Claude's desktop app.
 
 ### Search
 Unified search across all three domains simultaneously — conversations, memories, and knowledge documents — with results organized by tab.
@@ -100,22 +100,22 @@ MyOffGrid AI is a two-part system:
 ### How It Runs
 
 ```
-┌─────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────┐
 │                 Your Hardware                        │
-│                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────────┐ │
-│  │  Flutter  │  │  Spring  │  │  Ollama /          │ │
-│  │  Client   │──│  Boot    │──│  LM Studio /       │ │
-│  │  (App)    │  │  Server  │  │  llama-server      │ │
-│  └──────────┘  └────┬─────┘  └───────────────────┘ │
+│                                                      │
+│  ┌──────────┐  ┌──────────┐  ┌─────────────────────┐ │
+│  │ Flutter  │  │  Spring  │  │  Ollama /           │ │
+│  │ Client   │──│  Boot    │──│  LM Studio /        │ │
+│  │ (App)    │  │  Server  │  │  llama-server       │ │
+│  └──────────┘  └────┬─────┘  └─────────────────────┘ │
 │                     │                                │
 │         ┌───────────┼───────────┐                    │
 │         │           │           │                    │
-│    ┌────┴────┐ ┌────┴────┐ ┌───┴─────┐             │
-│    │ Postgres│ │Mosquitto│ │ Sensors │             │
-│    │+pgvector│ │  (MQTT) │ │ (Serial)│             │
-│    └─────────┘ └─────────┘ └─────────┘             │
-└─────────────────────────────────────────────────────┘
+│    ┌────┴────┐ ┌────┴────┐ ┌────┴─────┐              │
+│    │ Postgres│ │Mosquitto│ │ Sensors  │              │
+│    │+pgvector│ │  (MQTT) │ │ (Serial) │              │
+│    └─────────┘ └─────────┘ └──────────┘              │
+└──────────────────────────────────────────────────────┘
 ```
 
 - **PostgreSQL + pgvector** — stores conversations, memories, knowledge chunks, and 768-dimensional vector embeddings for semantic search
