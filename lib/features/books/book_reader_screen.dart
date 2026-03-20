@@ -262,19 +262,45 @@ class _EpubReaderViewState extends ConsumerState<_EpubReaderView> {
     if (mounted) {
       setState(() {
         _chapters = chapters;
-        _totalChapters = chapters.where((c) => c.type == 'chapter').length;
-        if (_totalChapters == 0) _totalChapters = chapters.length;
+        _totalChapters = chapters.length;
       });
     }
+  }
+
+  /// Determines the current TOC chapter from the scroll position index.
+  ///
+  /// Finds the last chapter whose [startIndex] is <= the current position,
+  /// which is more reliable than the library's internal chapter tracking
+  /// for EPUBs with complex structure (e.g. Project Gutenberg).
+  int _chapterIndexFromPosition(int positionIndex) {
+    int chapterIdx = 0;
+    for (int i = 0; i < _chapters.length; i++) {
+      if (_chapters[i].startIndex <= positionIndex) {
+        chapterIdx = i;
+      } else {
+        break;
+      }
+    }
+    return chapterIdx;
   }
 
   /// Called when the visible chapter changes.
   void _onChapterChanged(EpubChapterViewValue? value) {
     if (value == null) return;
 
-    final chapterNumber = value.chapterNumber;
-    final chapterTitle = value.chapter?.Title;
     _chapterProgress = value.progress.clamp(0.0, 100.0);
+
+    // Compute chapter from scroll position against TOC startIndexes
+    // rather than trusting the library's chapterNumber, which can be
+    // wrong for EPUBs with complex structure (e.g. Project Gutenberg).
+    final posIndex = value.position.index;
+    final chapterIdx = _chapters.isNotEmpty
+        ? _chapterIndexFromPosition(posIndex)
+        : 0;
+    final chapterNumber = chapterIdx + 1;
+    final chapterTitle = _chapters.isNotEmpty
+        ? _chapters[chapterIdx].title
+        : value.chapter?.Title;
 
     final totalForProgress = _totalChapters > 0 ? _totalChapters : 1;
     final progress =
