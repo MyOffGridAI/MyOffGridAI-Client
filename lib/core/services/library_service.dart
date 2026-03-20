@@ -140,6 +140,113 @@ class LibraryService {
     );
   }
 
+  // ── Kiwix Process Management ────────────────────────────────────────────
+
+  /// Starts the kiwix-serve process.
+  Future<void> startKiwix() async {
+    await _client.post<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/start',
+    );
+  }
+
+  /// Stops the kiwix-serve process.
+  Future<void> stopKiwix() async {
+    await _client.post<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/stop',
+    );
+  }
+
+  /// Browses the Kiwix online catalog.
+  Future<KiwixCatalogSearchResultModel> browseKiwixCatalog({
+    String? lang,
+    String? category,
+    int count = 20,
+    int start = 0,
+  }) async {
+    final queryParams = <String, dynamic>{
+      'count': count,
+      'start': start,
+    };
+    if (lang != null && lang.isNotEmpty) queryParams['lang'] = lang;
+    if (category != null && category.isNotEmpty) {
+      queryParams['category'] = category;
+    }
+
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/catalog/browse',
+      queryParams: queryParams,
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return KiwixCatalogSearchResultModel.fromJson(data);
+  }
+
+  /// Searches the Kiwix online catalog.
+  Future<KiwixCatalogSearchResultModel> searchKiwixCatalog(
+    String query, {
+    String? lang,
+    int count = 20,
+  }) async {
+    final queryParams = <String, dynamic>{
+      'q': query,
+      'count': count,
+    };
+    if (lang != null && lang.isNotEmpty) queryParams['lang'] = lang;
+
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/catalog/search',
+      queryParams: queryParams,
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return KiwixCatalogSearchResultModel.fromJson(data);
+  }
+
+  /// Starts a ZIM file download from the Kiwix catalog.
+  Future<String> downloadFromCatalog({
+    required String downloadUrl,
+    required String filename,
+    required String displayName,
+    String? category,
+    String? language,
+    int sizeBytes = 0,
+  }) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/catalog/download',
+      data: {
+        'downloadUrl': downloadUrl,
+        'filename': filename,
+        'displayName': displayName,
+        'category': category,
+        'language': language,
+        'sizeBytes': sizeBytes,
+      },
+    );
+    return response['data'] as String;
+  }
+
+  /// Lists all active and recent Kiwix downloads.
+  Future<List<KiwixDownloadStatusModel>> listKiwixDownloads() async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/downloads',
+    );
+    final data = response['data'] as List<dynamic>?;
+    if (data == null) return [];
+    return data
+        .map((e) =>
+            KiwixDownloadStatusModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Gets progress for a specific Kiwix download.
+  Future<KiwixDownloadStatusModel> getKiwixDownloadProgress(
+    String downloadId,
+  ) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${AppConstants.libraryBasePath}/kiwix/downloads/$downloadId',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return KiwixDownloadStatusModel.fromJson(data);
+  }
+
   // ── Gutenberg ───────────────────────────────────────────────────────────
 
   /// Browses the Project Gutenberg catalog without a search query.
@@ -237,4 +344,25 @@ final gutenbergRecentProvider =
     FutureProvider.autoDispose<GutenbergSearchResultModel>((ref) async {
   final service = ref.watch(libraryServiceProvider);
   return service.browseGutenberg(sort: 'descending', limit: 15);
+});
+
+/// Provider for Kiwix catalog browse results.
+final kiwixCatalogBrowseProvider =
+    FutureProvider.autoDispose<KiwixCatalogSearchResultModel>((ref) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.browseKiwixCatalog(count: 20);
+});
+
+/// Provider for Kiwix catalog search results keyed by query string.
+final kiwixCatalogSearchProvider = FutureProvider.autoDispose
+    .family<KiwixCatalogSearchResultModel, String>((ref, query) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.searchKiwixCatalog(query);
+});
+
+/// Provider for active Kiwix downloads.
+final kiwixDownloadsProvider =
+    FutureProvider.autoDispose<List<KiwixDownloadStatusModel>>((ref) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.listKiwixDownloads();
 });

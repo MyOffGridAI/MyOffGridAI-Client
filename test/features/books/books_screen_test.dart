@@ -35,6 +35,18 @@ void main() {
     mockService = MockLibraryService();
     registerFallbackValue('');
     registerFallbackValue(0);
+    // Default stubs for Kiwix providers triggered by adjacent-tab prebuild
+    when(() => mockService.listZimFiles())
+        .thenAnswer((_) async => <ZimFileModel>[]);
+    when(() => mockService.listKiwixDownloads())
+        .thenAnswer((_) async => <KiwixDownloadStatusModel>[]);
+    when(() => mockService.browseKiwixCatalog(
+          lang: any(named: 'lang'),
+          category: any(named: 'category'),
+          count: any(named: 'count'),
+          start: any(named: 'start'),
+        )).thenAnswer((_) async =>
+        const KiwixCatalogSearchResultModel(totalCount: 0, entries: []));
   });
 
   void stubBrowse({
@@ -291,7 +303,7 @@ void main() {
   });
 
   group('Kiwix tab', () {
-    testWidgets('shows unavailable when server is down', (tester) async {
+    testWidgets('shows stopped when server is down', (tester) async {
       stubDefaultMocks();
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
@@ -300,16 +312,11 @@ void main() {
       await tester.tap(find.text('Kiwix'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Kiwix Unavailable'), findsOneWidget);
+      expect(find.text('Kiwix Stopped'), findsOneWidget);
     });
 
     testWidgets('shows error view when kiwix status fails', (tester) async {
-      when(() => mockService.listEbooks(
-            search: any(named: 'search'),
-            format: any(named: 'format'),
-            page: any(named: 'page'),
-            size: any(named: 'size'),
-          )).thenAnswer((_) async => <EbookModel>[]);
+      stubDefaultMocks();
       when(() => mockService.getKiwixStatus())
           .thenThrow(const ApiException(
               statusCode: 500, message: 'Kiwix error'));
@@ -320,16 +327,12 @@ void main() {
       await tester.tap(find.text('Kiwix'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Load Failed'), findsOneWidget);
+      expect(find.text('Status Check Failed'), findsOneWidget);
     });
 
-    testWidgets('shows unavailable when url is null', (tester) async {
-      when(() => mockService.listEbooks(
-            search: any(named: 'search'),
-            format: any(named: 'format'),
-            page: any(named: 'page'),
-            size: any(named: 'size'),
-          )).thenAnswer((_) async => <EbookModel>[]);
+    testWidgets('shows running but no open button when url is null',
+        (tester) async {
+      stubDefaultMocks();
       when(() => mockService.getKiwixStatus())
           .thenAnswer((_) async => const KiwixStatusModel(
                 available: true,
@@ -343,7 +346,8 @@ void main() {
       await tester.tap(find.text('Kiwix'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Kiwix Unavailable'), findsOneWidget);
+      expect(find.text('Kiwix Running'), findsOneWidget);
+      expect(find.text('Open Kiwix'), findsNothing);
     });
   });
 
@@ -998,13 +1002,8 @@ void main() {
   group('Kiwix tab - error retry', () {
     testWidgets('tapping Retry on Kiwix error view re-fetches status',
         (tester) async {
+      stubDefaultMocks();
       var callCount = 0;
-      when(() => mockService.listEbooks(
-            search: any(named: 'search'),
-            format: any(named: 'format'),
-            page: any(named: 'page'),
-            size: any(named: 'size'),
-          )).thenAnswer((_) async => <EbookModel>[]);
       when(() => mockService.getKiwixStatus()).thenAnswer((_) async {
         callCount++;
         if (callCount == 1) {
@@ -1024,16 +1023,16 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify error state
-      expect(find.text('Load Failed'), findsOneWidget);
+      expect(find.text('Status Check Failed'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
 
       // Tap retry
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
 
-      // After retry, Kiwix is unavailable (not errored)
-      expect(find.text('Kiwix Unavailable'), findsOneWidget);
-      expect(find.text('Load Failed'), findsNothing);
+      // After retry, Kiwix is stopped (not errored)
+      expect(find.text('Kiwix Stopped'), findsOneWidget);
+      expect(find.text('Status Check Failed'), findsNothing);
     });
   });
 
@@ -1376,6 +1375,519 @@ void main() {
       // Verify navigation occurred
       expect(navigatedTo, '/books/reader');
       expect(find.text('BOOK_READER'), findsOneWidget);
+    });
+  });
+
+  // ── Kiwix tab - status bar ────────────────────────────────────────────
+
+  group('Kiwix tab - status bar', () {
+    testWidgets('shows running when server is available', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: true,
+                url: 'http://localhost:8888',
+                bookCount: 3,
+                processManaged: true,
+              ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kiwix Running'), findsOneWidget);
+      expect(find.text('Open Kiwix'), findsOneWidget);
+    });
+
+    testWidgets('owner sees start button when stopped and processManaged',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                processManaged: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    });
+
+    testWidgets('owner sees stop button when running and processManaged',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: true,
+                url: 'http://localhost:8888',
+                bookCount: 2,
+                processManaged: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.stop), findsOneWidget);
+    });
+
+    testWidgets('member does not see start/stop button', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                processManaged: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(user: memberUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.play_arrow), findsNothing);
+      expect(find.byIcon(Icons.stop), findsNothing);
+    });
+
+    testWidgets('hides start/stop when processManaged is false',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                processManaged: false,
+              ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.play_arrow), findsNothing);
+    });
+
+    testWidgets('tapping start calls startKiwix', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: false,
+                bookCount: 0,
+                processManaged: true,
+              ));
+      when(() => mockService.startKiwix()).thenAnswer((_) async {});
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.play_arrow));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.startKiwix()).called(1);
+    });
+
+    testWidgets('tapping stop calls stopKiwix', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.getKiwixStatus())
+          .thenAnswer((_) async => const KiwixStatusModel(
+                available: true,
+                url: 'http://localhost:8888',
+                bookCount: 2,
+                processManaged: true,
+              ));
+      when(() => mockService.stopKiwix()).thenAnswer((_) async {});
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.stop));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.stopKiwix()).called(1);
+    });
+  });
+
+  // ── Kiwix tab - ZIM files ─────────────────────────────────────────────
+
+  group('Kiwix tab - ZIM files', () {
+    testWidgets('shows empty message when no ZIM files', (tester) async {
+      stubDefaultMocks();
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('My ZIM Files'), findsOneWidget);
+      expect(find.text('No ZIM files yet. Browse the catalog below.'),
+          findsOneWidget);
+    });
+
+    testWidgets('displays ZIM file list', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.listZimFiles())
+          .thenAnswer((_) async => [
+                const ZimFileModel(
+                  id: 'z1',
+                  filename: 'wikipedia_en.zim',
+                  displayName: 'Wikipedia EN',
+                  category: 'reference',
+                  language: 'eng',
+                  fileSizeBytes: 90000000000,
+                ),
+              ]);
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wikipedia EN'), findsOneWidget);
+    });
+
+    testWidgets('owner sees delete button on ZIM file', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.listZimFiles())
+          .thenAnswer((_) async => [
+                const ZimFileModel(
+                  id: 'z1',
+                  filename: 'test.zim',
+                  displayName: 'Test ZIM',
+                  fileSizeBytes: 1024,
+                ),
+              ]);
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.delete), findsOneWidget);
+    });
+
+    testWidgets('member does not see delete button on ZIM file',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.listZimFiles())
+          .thenAnswer((_) async => [
+                const ZimFileModel(
+                  id: 'z1',
+                  filename: 'test.zim',
+                  displayName: 'Test ZIM',
+                  fileSizeBytes: 1024,
+                ),
+              ]);
+
+      await tester.pumpWidget(buildScreen(user: memberUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.delete), findsNothing);
+    });
+
+    testWidgets('tapping delete shows confirmation dialog', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.listZimFiles())
+          .thenAnswer((_) async => [
+                const ZimFileModel(
+                  id: 'z1',
+                  filename: 'test.zim',
+                  displayName: 'Test ZIM',
+                  fileSizeBytes: 1024,
+                ),
+              ]);
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete ZIM File'), findsOneWidget);
+      expect(find.textContaining('Are you sure'), findsOneWidget);
+    });
+
+    testWidgets('confirming delete calls deleteZimFile', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.listZimFiles())
+          .thenAnswer((_) async => [
+                const ZimFileModel(
+                  id: 'z1',
+                  filename: 'test.zim',
+                  displayName: 'Test ZIM',
+                  fileSizeBytes: 1024,
+                ),
+              ]);
+      when(() => mockService.deleteZimFile('z1'))
+          .thenAnswer((_) async {});
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.deleteZimFile('z1')).called(1);
+    });
+  });
+
+  // ── Kiwix tab - catalog browse ────────────────────────────────────────
+
+  group('Kiwix tab - catalog browse', () {
+    testWidgets('shows browse catalog section title', (tester) async {
+      stubDefaultMocks();
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Browse Catalog'), findsOneWidget);
+      expect(find.text('Search Kiwix catalog...'), findsOneWidget);
+    });
+
+    testWidgets('shows catalog entries in browse cards', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseKiwixCatalog(
+            lang: any(named: 'lang'),
+            category: any(named: 'category'),
+            count: any(named: 'count'),
+            start: any(named: 'start'),
+          )).thenAnswer((_) async =>
+          const KiwixCatalogSearchResultModel(
+            totalCount: 1,
+            entries: [
+              KiwixCatalogEntryModel(
+                id: 'uuid1',
+                title: 'Wikipedia English',
+                language: 'eng',
+                sizeBytes: 90000000000,
+                downloadUrl: 'https://example.com/wiki.zim',
+              ),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wikipedia English'), findsOneWidget);
+    });
+
+    testWidgets('owner sees download button on catalog card', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseKiwixCatalog(
+            lang: any(named: 'lang'),
+            category: any(named: 'category'),
+            count: any(named: 'count'),
+            start: any(named: 'start'),
+          )).thenAnswer((_) async =>
+          const KiwixCatalogSearchResultModel(
+            totalCount: 1,
+            entries: [
+              KiwixCatalogEntryModel(
+                id: 'uuid1',
+                title: 'Test ZIM',
+                sizeBytes: 1024,
+                downloadUrl: 'https://example.com/test.zim',
+              ),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.download), findsOneWidget);
+    });
+
+    testWidgets('member does not see download button', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseKiwixCatalog(
+            lang: any(named: 'lang'),
+            category: any(named: 'category'),
+            count: any(named: 'count'),
+            start: any(named: 'start'),
+          )).thenAnswer((_) async =>
+          const KiwixCatalogSearchResultModel(
+            totalCount: 1,
+            entries: [
+              KiwixCatalogEntryModel(
+                id: 'uuid1',
+                title: 'Test ZIM',
+                sizeBytes: 1024,
+                downloadUrl: 'https://example.com/test.zim',
+              ),
+            ],
+          ));
+
+      await tester.pumpWidget(buildScreen(user: memberUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.download), findsNothing);
+    });
+
+    testWidgets('download button calls downloadFromCatalog', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.browseKiwixCatalog(
+            lang: any(named: 'lang'),
+            category: any(named: 'category'),
+            count: any(named: 'count'),
+            start: any(named: 'start'),
+          )).thenAnswer((_) async =>
+          const KiwixCatalogSearchResultModel(
+            totalCount: 1,
+            entries: [
+              KiwixCatalogEntryModel(
+                id: 'uuid1',
+                title: 'Test ZIM',
+                name: 'test',
+                sizeBytes: 1024,
+                downloadUrl: 'https://example.com/test.zim',
+              ),
+            ],
+          ));
+      when(() => mockService.downloadFromCatalog(
+            downloadUrl: any(named: 'downloadUrl'),
+            filename: any(named: 'filename'),
+            displayName: any(named: 'displayName'),
+            category: any(named: 'category'),
+            language: any(named: 'language'),
+            sizeBytes: any(named: 'sizeBytes'),
+          )).thenAnswer((_) async => 'download-id-1');
+
+      await tester.pumpWidget(buildScreen(user: ownerUser));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.download));
+      await tester.pumpAndSettle();
+
+      verify(() => mockService.downloadFromCatalog(
+            downloadUrl: 'https://example.com/test.zim',
+            filename: 'test.zim',
+            displayName: 'Test ZIM',
+            category: any(named: 'category'),
+            language: any(named: 'language'),
+            sizeBytes: 1024,
+          )).called(1);
+      expect(find.text('Downloading "Test ZIM"...'), findsOneWidget);
+    });
+
+    testWidgets('shows empty catalog message', (tester) async {
+      stubDefaultMocks();
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No catalog entries available'), findsOneWidget);
+    });
+  });
+
+  // ── Kiwix tab - active downloads ──────────────────────────────────────
+
+  group('Kiwix tab - active downloads', () {
+    testWidgets('shows active downloads with progress', (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.listKiwixDownloads())
+          .thenAnswer((_) async => [
+                const KiwixDownloadStatusModel(
+                  id: 'dl1',
+                  filename: 'wikipedia.zim',
+                  totalBytes: 1000000,
+                  downloadedBytes: 450000,
+                  percentComplete: 45,
+                  status: 'DOWNLOADING',
+                ),
+              ]);
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Active Downloads'), findsOneWidget);
+      expect(find.text('wikipedia.zim'), findsOneWidget);
+      expect(find.text('45%'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('hides active downloads when no active downloads',
+        (tester) async {
+      stubDefaultMocks();
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Active Downloads'), findsNothing);
+    });
+
+    testWidgets('hides completed downloads from active section',
+        (tester) async {
+      stubDefaultMocks();
+      when(() => mockService.listKiwixDownloads())
+          .thenAnswer((_) async => [
+                const KiwixDownloadStatusModel(
+                  id: 'dl1',
+                  filename: 'done.zim',
+                  totalBytes: 1000000,
+                  downloadedBytes: 1000000,
+                  percentComplete: 100,
+                  status: 'COMPLETE',
+                ),
+              ]);
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kiwix'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Active Downloads'), findsNothing);
     });
   });
 }

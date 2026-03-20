@@ -373,55 +373,785 @@ class _EbookTileState extends ConsumerState<_EbookTile> {
   }
 }
 
-// ── Kiwix Tab (WebView) ──────────────────────────────────────────────────
+// ── Kiwix Tab ────────────────────────────────────────────────────────────
 
-/// Renders the Kiwix tab showing ZIM content via WebView when available.
-class _KiwixTab extends ConsumerWidget {
+/// Renders the Kiwix tab with status bar, local ZIM files, active downloads,
+/// catalog browse, and search.
+class _KiwixTab extends ConsumerStatefulWidget {
   const _KiwixTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_KiwixTab> createState() => _KiwixTabState();
+}
+
+/// State for [_KiwixTab] managing catalog search and download polling.
+class _KiwixTabState extends ConsumerState<_KiwixTab> {
+  final _searchController = TextEditingController();
+  String _catalogQuery = '';
+  Timer? _downloadPollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDownloadPolling();
+  }
+
+  @override
+  void dispose() {
+    _downloadPollTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _startDownloadPolling() {
+    _downloadPollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) ref.invalidate(kiwixDownloadsProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authStateProvider).valueOrNull;
+    final isOwnerOrAdmin =
+        user?.role == 'ROLE_OWNER' || user?.role == 'ROLE_ADMIN';
+
+    return ListView(
+      children: [
+        _KiwixStatusBar(isOwnerOrAdmin: isOwnerOrAdmin),
+        _MyZimFilesSection(isOwnerOrAdmin: isOwnerOrAdmin),
+        _ActiveDownloadsSection(),
+        const SizedBox(height: 8),
+        _KiwixCatalogBrowseSection(
+          searchController: _searchController,
+          query: _catalogQuery,
+          isOwnerOrAdmin: isOwnerOrAdmin,
+          onSearchChanged: (value) {
+            setState(() => _catalogQuery = value.trim());
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Status bar showing kiwix-serve state with start/stop toggle and "Open Kiwix" button.
+class _KiwixStatusBar extends ConsumerStatefulWidget {
+  final bool isOwnerOrAdmin;
+
+  const _KiwixStatusBar({required this.isOwnerOrAdmin});
+
+  @override
+  ConsumerState<_KiwixStatusBar> createState() => _KiwixStatusBarState();
+}
+
+/// State for [_KiwixStatusBar] managing the start/stop loading indicator.
+class _KiwixStatusBarState extends ConsumerState<_KiwixStatusBar> {
+  bool _toggling = false;
+
+  @override
+  Widget build(BuildContext context) {
     final statusAsync = ref.watch(kiwixStatusProvider);
+    final theme = Theme.of(context);
 
     return statusAsync.when(
-      loading: () => const LoadingIndicator(),
-      error: (e, _) => ErrorView(
-        title: 'Load Failed',
-        message: e.toString(),
-        onRetry: () => ref.invalidate(kiwixStatusProvider),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: LoadingIndicator(),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(8),
+        child: ErrorView(
+          title: 'Status Check Failed',
+          message: e.toString(),
+          onRetry: () => ref.invalidate(kiwixStatusProvider),
+        ),
       ),
       data: (status) {
-        if (!status.available || status.url == null) {
-          return const EmptyStateView(
-            icon: Icons.language,
-            title: 'Kiwix Unavailable',
-            subtitle: 'The Kiwix server is not reachable. '
-                'Check that the Kiwix container is running.',
-          );
-        }
-        return _KiwixWebView(url: status.url!);
+        final isRunning = status.available;
+
+        return Card(
+          margin: const EdgeInsets.all(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  isRunning ? Icons.check_circle : Icons.cancel,
+                  color: isRunning ? Colors.green : Colors.red,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isRunning ? 'Kiwix Running' : 'Kiwix Stopped',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+                if (isRunning && status.url != null)
+                  FilledButton.tonal(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => _KiwixWebViewPage(url: status.url!),
+                      ),
+                    ),
+                    child: const Text('Open Kiwix'),
+                  ),
+                if (widget.isOwnerOrAdmin && status.processManaged) ...[
+                  const SizedBox(width: 8),
+                  _toggling
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          icon: Icon(isRunning ? Icons.stop : Icons.play_arrow),
+                          tooltip: isRunning ? 'Stop Kiwix' : 'Start Kiwix',
+                          onPressed: () => _toggleKiwix(isRunning),
+                        ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleKiwix(bool isRunning) async {
+    setState(() => _toggling = true);
+    try {
+      final service = ref.read(libraryServiceProvider);
+      if (isRunning) {
+        await service.stopKiwix();
+      } else {
+        await service.startKiwix();
+      }
+      ref.invalidate(kiwixStatusProvider);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _toggling = false);
+    }
+  }
+}
+
+/// Section showing local ZIM files with delete for OWNER/ADMIN.
+class _MyZimFilesSection extends ConsumerWidget {
+  final bool isOwnerOrAdmin;
+
+  const _MyZimFilesSection({required this.isOwnerOrAdmin});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final zimAsync = ref.watch(zimFilesProvider);
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'My ZIM Files',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        zimAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(16),
+            child: LoadingIndicator(),
+          ),
+          error: (e, _) => Padding(
+            padding: const EdgeInsets.all(8),
+            child: Center(
+              child: TextButton(
+                onPressed: () => ref.invalidate(zimFilesProvider),
+                child: const Text('Retry'),
+              ),
+            ),
+          ),
+          data: (files) {
+            if (files.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(
+                  child: Text('No ZIM files yet. Browse the catalog below.'),
+                ),
+              );
+            }
+            return Column(
+              children: files
+                  .map((zf) => _ZimFileTile(
+                        zimFile: zf,
+                        isOwnerOrAdmin: isOwnerOrAdmin,
+                      ))
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Single ZIM file entry with metadata and delete action.
+class _ZimFileTile extends ConsumerStatefulWidget {
+  final ZimFileModel zimFile;
+  final bool isOwnerOrAdmin;
+
+  const _ZimFileTile({required this.zimFile, required this.isOwnerOrAdmin});
+
+  @override
+  ConsumerState<_ZimFileTile> createState() => _ZimFileTileState();
+}
+
+/// State for [_ZimFileTile] managing the delete-in-progress indicator.
+class _ZimFileTileState extends ConsumerState<_ZimFileTile> {
+  bool _deleting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final zf = widget.zimFile;
+    return ListTile(
+      leading: const Icon(Icons.language),
+      title: Text(
+        zf.displayName ?? zf.filename,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        [
+          if (zf.category != null) zf.category!,
+          if (zf.language != null) zf.language!,
+          _formatSize(zf.fileSizeBytes),
+        ].join(' \u2022 '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: widget.isOwnerOrAdmin
+          ? IconButton(
+              icon: _deleting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.delete, color: Colors.red),
+              onPressed: _deleting ? null : _confirmDelete,
+            )
+          : null,
+    );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete ZIM File',
+      message:
+          'Are you sure you want to delete "${widget.zimFile.displayName ?? widget.zimFile.filename}"? '
+          'This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    try {
+      final service = ref.read(libraryServiceProvider);
+      await service.deleteZimFile(widget.zimFile.id);
+      ref.invalidate(zimFilesProvider);
+      ref.invalidate(kiwixStatusProvider);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+}
+
+/// Section showing active downloads with progress indicators.
+class _ActiveDownloadsSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final downloadsAsync = ref.watch(kiwixDownloadsProvider);
+    final theme = Theme.of(context);
+
+    return downloadsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (downloads) {
+        final active = downloads.where((d) => d.isActive).toList();
+        if (active.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Active Downloads',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ...active.map((dl) => ListTile(
+                  leading: const Icon(Icons.downloading),
+                  title: Text(dl.filename,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: LinearProgressIndicator(
+                    value: dl.percentComplete / 100,
+                  ),
+                  trailing: Text(
+                    '${dl.percentComplete.toStringAsFixed(0)}%',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                )),
+          ],
+        );
       },
     );
   }
 }
 
-/// Embeds the Kiwix server content in a WebView with keep-alive support.
-class _KiwixWebView extends StatefulWidget {
-  final String url;
+/// Catalog browse section with search bar and horizontal cards.
+class _KiwixCatalogBrowseSection extends ConsumerStatefulWidget {
+  final TextEditingController searchController;
+  final String query;
+  final bool isOwnerOrAdmin;
+  final ValueChanged<String> onSearchChanged;
 
-  const _KiwixWebView({required this.url});
+  const _KiwixCatalogBrowseSection({
+    required this.searchController,
+    required this.query,
+    required this.isOwnerOrAdmin,
+    required this.onSearchChanged,
+  });
 
   @override
-  State<_KiwixWebView> createState() => _KiwixWebViewState();
+  ConsumerState<_KiwixCatalogBrowseSection> createState() =>
+      _KiwixCatalogBrowseSectionState();
 }
 
-/// State for [_KiwixWebView] managing the WebView controller and keep-alive lifecycle.
-class _KiwixWebViewState extends State<_KiwixWebView>
-    with AutomaticKeepAliveClientMixin {
-  late final WebViewController _controller;
+/// State for [_KiwixCatalogBrowseSection] managing the scroll controller.
+class _KiwixCatalogBrowseSectionState
+    extends ConsumerState<_KiwixCatalogBrowseSection> {
+  final _scrollController = ScrollController();
+  Timer? _searchDebounce;
 
   @override
-  bool get wantKeepAlive => true;
+  void dispose() {
+    _scrollController.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      widget.onSearchChanged(value);
+    });
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Browse Catalog',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: TextField(
+            controller: widget.searchController,
+            decoration: InputDecoration(
+              hintText: 'Search Kiwix catalog...',
+              prefixIcon: const Icon(Icons.search),
+              border: const OutlineInputBorder(),
+              suffixIcon: widget.searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        widget.searchController.clear();
+                        widget.onSearchChanged('');
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: _onSearchChanged,
+            onSubmitted: widget.onSearchChanged,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (widget.query.isEmpty)
+          _KiwixBrowseCards(
+            isOwnerOrAdmin: widget.isOwnerOrAdmin,
+            scrollController: _scrollController,
+          )
+        else
+          _KiwixSearchResults(
+            query: widget.query,
+            isOwnerOrAdmin: widget.isOwnerOrAdmin,
+          ),
+      ],
+    );
+  }
+}
+
+/// Horizontal scroll cards for Kiwix catalog browse.
+class _KiwixBrowseCards extends ConsumerWidget {
+  final bool isOwnerOrAdmin;
+  final ScrollController scrollController;
+
+  const _KiwixBrowseCards({
+    required this.isOwnerOrAdmin,
+    required this.scrollController,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncValue = ref.watch(kiwixCatalogBrowseProvider);
+
+    return SizedBox(
+      height: 190,
+      child: asyncValue.when(
+        loading: () => const Center(child: LoadingIndicator()),
+        error: (e, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Failed to load catalog',
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => ref.invalidate(kiwixCatalogBrowseProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+        data: (result) {
+          if (result.entries.isEmpty) {
+            return const Center(child: Text('No catalog entries available'));
+          }
+          return Scrollbar(
+            controller: scrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: scrollController,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              itemCount: result.entries.length,
+              itemBuilder: (context, index) => _KiwixCatalogCard(
+                entry: result.entries[index],
+                isOwnerOrAdmin: isOwnerOrAdmin,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Compact card for a Kiwix catalog entry with download button.
+class _KiwixCatalogCard extends ConsumerStatefulWidget {
+  final KiwixCatalogEntryModel entry;
+  final bool isOwnerOrAdmin;
+
+  const _KiwixCatalogCard({
+    required this.entry,
+    required this.isOwnerOrAdmin,
+  });
+
+  @override
+  ConsumerState<_KiwixCatalogCard> createState() => _KiwixCatalogCardState();
+}
+
+/// State for [_KiwixCatalogCard] managing the download-in-progress indicator.
+class _KiwixCatalogCardState extends ConsumerState<_KiwixCatalogCard> {
+  bool _downloading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: 170,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.language,
+                  size: 28, color: theme.colorScheme.primary),
+              const SizedBox(height: 8),
+              Text(
+                entry.title,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                [
+                  if (entry.language != null) entry.language!,
+                  _formatSize(entry.sizeBytes),
+                ].join(' \u2022 '),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const Spacer(),
+              if (widget.isOwnerOrAdmin && entry.downloadUrl != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _downloading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.download, size: 20),
+                          tooltip: 'Download ZIM',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: _startDownload,
+                        ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startDownload() async {
+    setState(() => _downloading = true);
+    try {
+      final entry = widget.entry;
+      final service = ref.read(libraryServiceProvider);
+      await service.downloadFromCatalog(
+        downloadUrl: entry.downloadUrl!,
+        filename: entry.name != null ? '${entry.name}.zim' : 'download.zim',
+        displayName: entry.title,
+        category: entry.category,
+        language: entry.language,
+        sizeBytes: entry.sizeBytes,
+      );
+      ref.invalidate(kiwixDownloadsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Downloading "${entry.title}"...')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+}
+
+/// Search results list for the Kiwix catalog.
+class _KiwixSearchResults extends ConsumerWidget {
+  final String query;
+  final bool isOwnerOrAdmin;
+
+  const _KiwixSearchResults({
+    required this.query,
+    required this.isOwnerOrAdmin,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resultsAsync = ref.watch(kiwixCatalogSearchProvider(query));
+
+    return resultsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(32),
+        child: LoadingIndicator(),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(child: Text('Search failed: ${e.toString()}')),
+      ),
+      data: (result) {
+        if (result.entries.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: Text('No results found')),
+          );
+        }
+        return Column(
+          children: result.entries
+              .map((entry) => _KiwixSearchResultTile(
+                    entry: entry,
+                    isOwnerOrAdmin: isOwnerOrAdmin,
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+/// Single search result tile with download button.
+class _KiwixSearchResultTile extends ConsumerStatefulWidget {
+  final KiwixCatalogEntryModel entry;
+  final bool isOwnerOrAdmin;
+
+  const _KiwixSearchResultTile({
+    required this.entry,
+    required this.isOwnerOrAdmin,
+  });
+
+  @override
+  ConsumerState<_KiwixSearchResultTile> createState() =>
+      _KiwixSearchResultTileState();
+}
+
+/// State for [_KiwixSearchResultTile] managing the download-in-progress indicator.
+class _KiwixSearchResultTileState
+    extends ConsumerState<_KiwixSearchResultTile> {
+  bool _downloading = false;
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    return ListTile(
+      leading: const Icon(Icons.language),
+      title: Text(entry.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        [
+          if (entry.language != null) entry.language!,
+          if (entry.category != null) entry.category!,
+          _formatSize(entry.sizeBytes),
+        ].join(' \u2022 '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: widget.isOwnerOrAdmin && entry.downloadUrl != null
+          ? IconButton(
+              icon: _downloading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download),
+              tooltip: 'Download ZIM',
+              onPressed: _downloading ? null : _startDownload,
+            )
+          : null,
+    );
+  }
+
+  Future<void> _startDownload() async {
+    setState(() => _downloading = true);
+    try {
+      final entry = widget.entry;
+      final service = ref.read(libraryServiceProvider);
+      await service.downloadFromCatalog(
+        downloadUrl: entry.downloadUrl!,
+        filename: entry.name != null ? '${entry.name}.zim' : 'download.zim',
+        displayName: entry.title,
+        category: entry.category,
+        language: entry.language,
+        sizeBytes: entry.sizeBytes,
+      );
+      ref.invalidate(kiwixDownloadsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Downloading "${entry.title}"...')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+}
+
+/// Full-screen page showing Kiwix WebView content.
+class _KiwixWebViewPage extends StatefulWidget {
+  final String url;
+
+  const _KiwixWebViewPage({required this.url});
+
+  @override
+  State<_KiwixWebViewPage> createState() => _KiwixWebViewPageState();
+}
+
+/// State for [_KiwixWebViewPage] managing the WebView controller.
+class _KiwixWebViewPageState extends State<_KiwixWebViewPage> {
+  late final WebViewController _controller;
 
   @override
   void initState() {
@@ -433,8 +1163,10 @@ class _KiwixWebViewState extends State<_KiwixWebView>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    return WebViewWidget(controller: _controller);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Kiwix Content')),
+      body: WebViewWidget(controller: _controller),
+    );
   }
 }
 
