@@ -63,16 +63,18 @@ void main() {
   Widget buildScreen({
     List<KnowledgeDocumentModel> documents = const [],
     bool documentsError = false,
+    String initialScope = 'MINE',
   }) {
     return ProviderScope(
       overrides: [
-        knowledgeDocumentsProvider.overrideWith((ref) {
+        knowledgeDocumentsProvider.overrideWith((ref, scope) {
           if (documentsError) {
             throw const ApiException(
                 statusCode: 500, message: 'Load failed');
           }
           return documents;
         }),
+        knowledgeVaultScopeProvider.overrideWith((ref) => initialScope),
         knowledgeServiceProvider.overrideWithValue(mockService),
         enrichmentServiceProvider.overrideWithValue(mockEnrichmentService),
         storageSettingsProvider.overrideWith((ref) => const StorageSettingsModel(
@@ -89,7 +91,7 @@ void main() {
       await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
 
-      expect(find.text('Knowledge Vault is empty'), findsOneWidget);
+      expect(find.text('No documents'), findsOneWidget);
     });
 
     testWidgets('displays document list', (tester) async {
@@ -570,7 +572,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          knowledgeDocumentsProvider.overrideWith((ref) =>
+          knowledgeDocumentsProvider.overrideWith((ref, scope) =>
               throw const ApiException(
                   statusCode: 500, message: 'Load failed')),
           knowledgeServiceProvider.overrideWithValue(mockService),
@@ -596,7 +598,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           knowledgeDocumentsProvider
-              .overrideWith((ref) => throw Exception('Network error')),
+              .overrideWith((ref, scope) => throw Exception('Network error')),
           knowledgeServiceProvider.overrideWithValue(mockService),
           enrichmentServiceProvider
               .overrideWithValue(mockEnrichmentService),
@@ -648,7 +650,7 @@ void main() {
       // (since the provider still throws).
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          knowledgeDocumentsProvider.overrideWith((ref) =>
+          knowledgeDocumentsProvider.overrideWith((ref, scope) =>
               throw const ApiException(
                   statusCode: 500, message: 'Load failed')),
           knowledgeServiceProvider.overrideWithValue(mockService),
@@ -896,7 +898,11 @@ void main() {
 
       final tiles = tester.widgetList<ListTile>(find.byType(ListTile));
       final titles = tiles
-          .map((t) => (t.title as Text).data)
+          .map((t) {
+            final row = t.title as Row;
+            final expanded = row.children.whereType<Expanded>().first;
+            return (expanded.child as Text).data;
+          })
           .toList();
       expect(titles, ['notes.txt', 'User Guide']);
     });
@@ -912,7 +918,11 @@ void main() {
 
       final tiles = tester.widgetList<ListTile>(find.byType(ListTile));
       final titles = tiles
-          .map((t) => (t.title as Text).data)
+          .map((t) {
+            final row = t.title as Row;
+            final expanded = row.children.whereType<Expanded>().first;
+            return (expanded.child as Text).data;
+          })
           .toList();
       expect(titles, ['User Guide', 'notes.txt']);
     });
@@ -931,7 +941,11 @@ void main() {
 
       final tiles = tester.widgetList<ListTile>(find.byType(ListTile));
       final titles = tiles
-          .map((t) => (t.title as Text).data)
+          .map((t) {
+            final row = t.title as Row;
+            final expanded = row.children.whereType<Expanded>().first;
+            return (expanded.child as Text).data;
+          })
           .toList();
       // PDF before TXT alphabetically
       expect(titles, ['User Guide', 'notes.txt']);
@@ -943,6 +957,89 @@ void main() {
 
       // indexedDoc has no mimeType, filename 'guide.pdf' → label 'PDF'
       expect(find.text('PDF'), findsOneWidget);
+    });
+  });
+
+  group('Shared vault', () {
+    final sharedDoc = KnowledgeDocumentModel.fromJson({
+      'id': '5',
+      'filename': 'shared.pdf',
+      'displayName': 'Shared Recipe',
+      'fileSizeBytes': 512,
+      'status': 'INDEXED',
+      'chunkCount': 3,
+      'isShared': true,
+      'isOwner': false,
+      'ownerDisplayName': 'Jane',
+    });
+
+    final ownedSharedDoc = KnowledgeDocumentModel.fromJson({
+      'id': '6',
+      'filename': 'my-shared.pdf',
+      'displayName': 'My Shared Doc',
+      'fileSizeBytes': 1024,
+      'status': 'INDEXED',
+      'chunkCount': 5,
+      'isShared': true,
+      'isOwner': true,
+    });
+
+    testWidgets('renders My Vault and Shared segments', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [indexedDoc]));
+      await tester.pumpAndSettle();
+
+      expect(find.text('My Vault'), findsOneWidget);
+      expect(find.text('Shared'), findsOneWidget);
+    });
+
+    testWidgets('share toggle button visible for owned docs', (tester) async {
+      await tester.pumpWidget(buildScreen(documents: [indexedDoc]));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithIcon(IconButton, Icons.people_outline), findsOneWidget);
+    });
+
+    testWidgets('delete button hidden for non-owned docs', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [sharedDoc], initialScope: 'SHARED'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+    });
+
+    testWidgets('upload FAB hidden on Shared tab', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [sharedDoc], initialScope: 'SHARED'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.upload_file), findsNothing);
+    });
+
+    testWidgets('app bar actions hidden on Shared tab', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [sharedDoc], initialScope: 'SHARED'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.language), findsNothing);
+      expect(find.byIcon(Icons.note_add), findsNothing);
+    });
+
+    testWidgets('shows owner display name for non-owned docs', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [sharedDoc], initialScope: 'SHARED'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Jane'), findsOneWidget);
+    });
+
+    testWidgets('shows shared icon badge on shared docs', (tester) async {
+      await tester.pumpWidget(
+          buildScreen(documents: [ownedSharedDoc]));
+      await tester.pumpAndSettle();
+
+      // Badge icon (size 16) + toggle IconButton icon = 2 people icons
+      expect(find.byIcon(Icons.people), findsNWidgets(2));
     });
   });
 }

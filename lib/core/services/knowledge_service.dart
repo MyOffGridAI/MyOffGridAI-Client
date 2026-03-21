@@ -13,14 +13,15 @@ class KnowledgeService {
   /// Creates a [KnowledgeService] with the given API [client].
   KnowledgeService({required MyOffGridAIApiClient client}) : _client = client;
 
-  /// Lists knowledge documents with pagination.
+  /// Lists knowledge documents with pagination, optionally filtered by scope.
   Future<List<KnowledgeDocumentModel>> listDocuments({
     int page = 0,
     int size = 20,
+    String scope = 'MINE',
   }) async {
     final response = await _client.get<Map<String, dynamic>>(
       AppConstants.knowledgeBasePath,
-      queryParams: {'page': page, 'size': size},
+      queryParams: {'page': page, 'size': size, 'scope': scope},
     );
     final data = response['data'] as List<dynamic>?;
     if (data == null) return [];
@@ -77,6 +78,19 @@ class KnowledgeService {
   Future<KnowledgeDocumentModel> retryProcessing(String documentId) async {
     final response = await _client.post<Map<String, dynamic>>(
       '${AppConstants.knowledgeBasePath}/$documentId/retry',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return KnowledgeDocumentModel.fromJson(data);
+  }
+
+  /// Updates the sharing status of a document.
+  Future<KnowledgeDocumentModel> updateSharing(
+    String documentId,
+    bool shared,
+  ) async {
+    final response = await _client.patch<Map<String, dynamic>>(
+      '${AppConstants.knowledgeBasePath}/$documentId/sharing',
+      data: {'shared': shared},
     );
     final data = response['data'] as Map<String, dynamic>;
     return KnowledgeDocumentModel.fromJson(data);
@@ -149,11 +163,14 @@ final knowledgeServiceProvider = Provider<KnowledgeService>((ref) {
   return KnowledgeService(client: client);
 });
 
-/// Provider for the knowledge document list.
-final knowledgeDocumentsProvider =
-    FutureProvider.autoDispose<List<KnowledgeDocumentModel>>((ref) async {
+/// Provider for the current vault scope ("MINE" or "SHARED").
+final knowledgeVaultScopeProvider = StateProvider<String>((ref) => 'MINE');
+
+/// Provider for the knowledge document list, filtered by scope.
+final knowledgeDocumentsProvider = FutureProvider.autoDispose
+    .family<List<KnowledgeDocumentModel>, String>((ref, scope) async {
   final service = ref.watch(knowledgeServiceProvider);
-  return service.listDocuments();
+  return service.listDocuments(scope: scope);
 });
 
 /// Provider for a document's content.

@@ -685,7 +685,7 @@ void main() {
         overrides: [apiClientProvider.overrideWithValue(mockClient)],
       );
       addTearDown(container.dispose);
-      final docs = await container.read(knowledgeDocumentsProvider.future);
+      final docs = await container.read(knowledgeDocumentsProvider('MINE').future);
       expect(docs, hasLength(1));
     });
   });

@@ -53,13 +53,27 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
           onPressed: () => context.go('/knowledge'),
         ),
         title: const Text('Document Details'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Delete document',
-            onPressed: () => _deleteDocument(),
-          ),
-        ],
+        actions: docAsync.whenOrNull(
+          data: (doc) => [
+            if (doc.isOwner)
+              IconButton(
+                icon: Icon(
+                  doc.isShared ? Icons.people : Icons.people_outline,
+                  color: doc.isShared
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                tooltip: doc.isShared ? 'Unshare' : 'Share',
+                onPressed: () => _toggleSharing(doc),
+              ),
+            if (doc.isOwner)
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Delete document',
+                onPressed: () => _deleteDocument(),
+              ),
+          ],
+        ),
       ),
       body: docAsync.when(
         loading: () => const LoadingIndicator(),
@@ -96,10 +110,11 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () => _editDisplayName(doc),
-                      ),
+                      if (doc.isOwner)
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editDisplayName(doc),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -115,6 +130,8 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                   if (doc.processedAt != null)
                     _infoRow('Processed',
                         DateFormatter.formatFull(DateTime.parse(doc.processedAt!))),
+                  if (!doc.isOwner && doc.ownerDisplayName != null)
+                    _infoRow('Shared by', doc.ownerDisplayName!),
                   if (doc.errorMessage != null) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -149,7 +166,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                           icon: const Icon(Icons.visibility, size: 18),
                           label: const Text('View'),
                         ),
-                      if (doc.editable)
+                      if (doc.canEdit)
                         ElevatedButton.icon(
                           onPressed: () =>
                               context.go('/knowledge/${doc.id}/edit'),
@@ -297,7 +314,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
     try {
       final service = ref.read(knowledgeServiceProvider);
       await service.deleteDocument(widget.documentId);
-      ref.invalidate(knowledgeDocumentsProvider);
+      _invalidateDocumentLists();
       if (mounted) {
         context.go('/knowledge');
       }
@@ -364,7 +381,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
       final service = ref.read(knowledgeServiceProvider);
       await service.updateDisplayName(widget.documentId, name);
       ref.invalidate(_documentProvider(widget.documentId));
-      ref.invalidate(knowledgeDocumentsProvider);
+      _invalidateDocumentLists();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -372,5 +389,26 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
         );
       }
     }
+  }
+
+  Future<void> _toggleSharing(KnowledgeDocumentModel doc) async {
+    try {
+      final service = ref.read(knowledgeServiceProvider);
+      await service.updateSharing(doc.id, !doc.isShared);
+      ref.invalidate(_documentProvider(widget.documentId));
+      _invalidateDocumentLists();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  /// Invalidates the document list for the current scope.
+  void _invalidateDocumentLists() {
+    final scope = ref.read(knowledgeVaultScopeProvider);
+    ref.invalidate(knowledgeDocumentsProvider(scope));
   }
 }

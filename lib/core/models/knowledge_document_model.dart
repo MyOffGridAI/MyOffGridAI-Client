@@ -15,6 +15,9 @@ class KnowledgeDocumentModel {
   final String? processedAt;
   final bool hasContent;
   final bool editable;
+  final bool isShared;
+  final bool isOwner;
+  final String? ownerDisplayName;
 
   const KnowledgeDocumentModel({
     required this.id,
@@ -29,6 +32,9 @@ class KnowledgeDocumentModel {
     this.processedAt,
     this.hasContent = false,
     this.editable = false,
+    this.isShared = false,
+    this.isOwner = true,
+    this.ownerDisplayName,
   });
 
   /// Creates a [KnowledgeDocumentModel] from a JSON map.
@@ -46,6 +52,9 @@ class KnowledgeDocumentModel {
       processedAt: json['processedAt'] as String?,
       hasContent: json['hasContent'] as bool? ?? false,
       editable: json['editable'] as bool? ?? false,
+      isShared: json['isShared'] as bool? ?? false,
+      isOwner: json['isOwner'] as bool? ?? true,
+      ownerDisplayName: json['ownerDisplayName'] as String?,
     );
   }
 
@@ -57,6 +66,9 @@ class KnowledgeDocumentModel {
 
   /// Whether processing failed.
   bool get isFailed => status == 'FAILED';
+
+  /// Whether the current user can edit this document (must own it and format must be editable).
+  bool get canEdit => isOwner && editable;
 }
 
 /// Represents the content of a document for viewing or editing.

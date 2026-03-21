@@ -101,40 +101,46 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final docsAsync = ref.watch(knowledgeDocumentsProvider);
+    final currentScope = ref.watch(knowledgeVaultScopeProvider);
+    final docsAsync = ref.watch(knowledgeDocumentsProvider(currentScope));
+    final isSharedTab = currentScope == 'SHARED';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Knowledge Vault'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.language),
-            tooltip: 'Fetch URL',
-            onPressed: () => _showFetchUrlSheet(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: 'Web Search',
-            onPressed: () => _showWebSearchSheet(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.note_add),
-            tooltip: 'Create new document',
-            onPressed: () => context.go('/knowledge/new'),
-          ),
+          if (!isSharedTab) ...[
+            IconButton(
+              icon: const Icon(Icons.language),
+              tooltip: 'Fetch URL',
+              onPressed: () => _showFetchUrlSheet(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Web Search',
+              onPressed: () => _showWebSearchSheet(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.note_add),
+              tooltip: 'Create new document',
+              onPressed: () => context.go('/knowledge/new'),
+            ),
+          ],
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _isUploading ? null : _uploadDocument,
-        child: _isUploading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              )
-            : const Icon(Icons.upload_file),
-      ),
+      floatingActionButton: isSharedTab
+          ? null
+          : FloatingActionButton(
+              onPressed: _isUploading ? null : _uploadDocument,
+              child: _isUploading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.upload_file),
+            ),
       body: DropTarget(
         onDragEntered: (_) => setState(() => _isDragging = true),
         onDragExited: (_) => setState(() => _isDragging = false),
@@ -151,19 +157,27 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
                 message: error is ApiException
                     ? error.message
                     : 'An unexpected error occurred.',
-                onRetry: () => ref.invalidate(knowledgeDocumentsProvider),
+                onRetry: () => ref.invalidate(knowledgeDocumentsProvider(currentScope)),
               ),
               data: (docs) {
                 if (docs.isEmpty) {
-                  return const EmptyStateView(
-                    icon: Icons.library_books_outlined,
-                    title: 'Knowledge Vault is empty',
-                    subtitle: 'Upload documents to teach your AI',
+                  return Column(
+                    children: [
+                      _buildScopeSelector(context, currentScope),
+                      const Expanded(
+                        child: EmptyStateView(
+                          icon: Icons.library_books_outlined,
+                          title: 'No documents',
+                          subtitle: 'No documents in this tab',
+                        ),
+                      ),
+                    ],
                   );
                 }
                 final sorted = _sortDocuments(docs);
                 return Column(
                   children: [
+                    _buildScopeSelector(context, currentScope),
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
@@ -208,9 +222,14 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
                             document: doc,
                             onTap: () =>
                                 context.go('/knowledge/${doc.id}'),
-                            onDelete: () => _deleteDocument(doc.id),
-                            onRetry: doc.isFailed
+                            onDelete: doc.isOwner
+                                ? () => _deleteDocument(doc.id)
+                                : null,
+                            onRetry: doc.isFailed && doc.isOwner
                                 ? () => _retryProcessing(doc.id)
+                                : null,
+                            onToggleShare: doc.isOwner
+                                ? () => _toggleSharing(doc)
                                 : null,
                           );
                         },
@@ -326,7 +345,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
                               url: url,
                               summarizeWithClaude: summarize,
                             );
-                            ref.invalidate(knowledgeDocumentsProvider);
+                            _invalidateDocuments();
                             if (ctx.mounted) Navigator.pop(ctx);
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -453,8 +472,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
                             setSheetState(
                                 () => searchResults = result.results);
                             if (storeTopN > 0) {
-                              ref.invalidate(
-                                  knowledgeDocumentsProvider);
+                              _invalidateDocuments();
                             }
                           } on ApiException catch (e) {
                             if (ctx.mounted) {
@@ -556,7 +574,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
         await service.uploadDocument(file.name, bytes);
         uploaded++;
       }
-      ref.invalidate(knowledgeDocumentsProvider);
+      _invalidateDocuments();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$uploaded file(s) uploaded successfully')),
@@ -605,7 +623,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
       }
       final service = ref.read(knowledgeServiceProvider);
       await service.uploadDocument(file.name, file.bytes!);
-      ref.invalidate(knowledgeDocumentsProvider);
+      _invalidateDocuments();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Document uploaded successfully')),
@@ -635,7 +653,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
     try {
       final service = ref.read(knowledgeServiceProvider);
       await service.deleteDocument(documentId);
-      ref.invalidate(knowledgeDocumentsProvider);
+      _invalidateDocuments();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -649,7 +667,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
     try {
       final service = ref.read(knowledgeServiceProvider);
       await service.retryProcessing(documentId);
-      ref.invalidate(knowledgeDocumentsProvider);
+      _invalidateDocuments();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -658,30 +676,89 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
       }
     }
   }
+
+  Future<void> _toggleSharing(KnowledgeDocumentModel doc) async {
+    try {
+      final service = ref.read(knowledgeServiceProvider);
+      await service.updateSharing(doc.id, !doc.isShared);
+      _invalidateDocuments();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  /// Invalidates both scope document lists so UI refreshes.
+  void _invalidateDocuments() {
+    final scope = ref.read(knowledgeVaultScopeProvider);
+    ref.invalidate(knowledgeDocumentsProvider(scope));
+  }
+
+  Widget _buildScopeSelector(BuildContext context, String currentScope) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: SegmentedButton<String>(
+        segments: const [
+          ButtonSegment<String>(
+            value: 'MINE',
+            label: Text('My Vault'),
+            icon: Icon(Icons.lock_outline),
+          ),
+          ButtonSegment<String>(
+            value: 'SHARED',
+            label: Text('Shared'),
+            icon: Icon(Icons.people_outline),
+          ),
+        ],
+        selected: {currentScope},
+        onSelectionChanged: (selection) {
+          ref.read(knowledgeVaultScopeProvider.notifier).state =
+              selection.first;
+        },
+      ),
+    );
+  }
 }
 
 /// Renders a single knowledge document row with status icon, metadata, and action buttons.
 class _DocumentTile extends StatelessWidget {
   final KnowledgeDocumentModel document;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
   final VoidCallback? onRetry;
+  final VoidCallback? onToggleShare;
 
   const _DocumentTile({
     required this.document,
     required this.onTap,
-    required this.onDelete,
+    this.onDelete,
     this.onRetry,
+    this.onToggleShare,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
         leading: _statusIcon(document.status),
-        title: Text(
-          document.displayName ?? document.filename,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            if (document.isShared)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(Icons.people, size: 16,
+                    color: Theme.of(context).colorScheme.primary),
+              ),
+            Expanded(
+              child: Text(
+                document.displayName ?? document.filename,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
         subtitle: Row(
           children: [
@@ -694,23 +771,43 @@ class _DocumentTile extends StatelessWidget {
               const Text(' | '),
               Text('${document.chunkCount} chunks'),
             ],
+            if (!document.isOwner && document.ownerDisplayName != null) ...[
+              const Text(' · '),
+              Text(document.ownerDisplayName!,
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  )),
+            ],
           ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (onToggleShare != null)
+              IconButton(
+                icon: Icon(
+                  document.isShared ? Icons.people : Icons.people_outline,
+                  color: document.isShared
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                onPressed: onToggleShare,
+                tooltip: document.isShared ? 'Unshare' : 'Share',
+              ),
             if (onRetry != null)
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: onRetry,
                 tooltip: 'Retry processing',
               ),
-            IconButton(
-              icon: Icon(Icons.delete_outline,
-                  color: Theme.of(context).colorScheme.error),
-              onPressed: onDelete,
-              tooltip: 'Delete document',
-            ),
+            if (onDelete != null)
+              IconButton(
+                icon: Icon(Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error),
+                onPressed: onDelete,
+                tooltip: 'Delete document',
+              ),
           ],
         ),
         onTap: onTap,

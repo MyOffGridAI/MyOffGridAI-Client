@@ -77,7 +77,7 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
                 data: (doc) => Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (doc.editable)
+                    if (doc.canEdit)
                       IconButton(
                         icon: const Icon(Icons.edit_document),
                         tooltip: 'Edit',

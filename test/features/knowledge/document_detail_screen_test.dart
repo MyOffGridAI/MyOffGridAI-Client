@@ -652,4 +652,82 @@ void main() {
       expect(find.widgetWithText(ElevatedButton, 'View'), findsOneWidget);
     });
   });
+
+  group('Shared vault - detail screen', () {
+    const sharedDoc = KnowledgeDocumentModel(
+      id: 'd20',
+      filename: 'shared-recipe.pdf',
+      displayName: 'Shared Recipe',
+      mimeType: 'application/pdf',
+      fileSizeBytes: 2048,
+      status: 'INDEXED',
+      chunkCount: 3,
+      hasContent: false,
+      editable: false,
+      isShared: true,
+      isOwner: false,
+      ownerDisplayName: 'Jane',
+    );
+
+    const ownedDoc = KnowledgeDocumentModel(
+      id: 'd21',
+      filename: 'my-doc.txt',
+      displayName: 'My Doc',
+      mimeType: 'text/plain',
+      fileSizeBytes: 512,
+      status: 'INDEXED',
+      chunkCount: 1,
+      hasContent: true,
+      editable: true,
+      isShared: false,
+      isOwner: true,
+    );
+
+    const ownedContent = DocumentContentModel(
+      documentId: 'd21',
+      title: 'My Doc',
+      content: '[{"insert":"Hello\\n"}]',
+      editable: true,
+    );
+
+    testWidgets('share button visible for owned docs', (tester) async {
+      when(() => mockService.getDocument('d21'))
+          .thenAnswer((_) async => ownedDoc);
+      when(() => mockService.getDocumentContent('d21'))
+          .thenAnswer((_) async => ownedContent);
+
+      await tester.pumpWidget(buildScreen(documentId: 'd21'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.people_outline), findsOneWidget);
+    });
+
+    testWidgets('edit/delete/rename hidden for non-owned shared docs',
+        (tester) async {
+      when(() => mockService.getDocument('d20'))
+          .thenAnswer((_) async => sharedDoc);
+
+      await tester.pumpWidget(buildScreen(documentId: 'd20'));
+      await tester.pumpAndSettle();
+
+      // No delete button
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+      // No edit display name icon (the pencil icon)
+      expect(find.byIcon(Icons.edit), findsNothing);
+      // No Edit button (editable is false AND isOwner is false)
+      expect(find.widgetWithText(ElevatedButton, 'Edit'), findsNothing);
+    });
+
+    testWidgets('Shared by info row shown for non-owned docs',
+        (tester) async {
+      when(() => mockService.getDocument('d20'))
+          .thenAnswer((_) async => sharedDoc);
+
+      await tester.pumpWidget(buildScreen(documentId: 'd20'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Shared by'), findsOneWidget);
+      expect(find.text('Jane'), findsOneWidget);
+    });
+  });
 }

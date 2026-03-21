@@ -652,5 +652,39 @@ void main() {
       expect(find.textContaining('Chocolate Cake'), findsAny);
       expect(find.textContaining('delicious recipe'), findsAny);
     });
+
+    testWidgets('edit button hidden for non-owned shared docs',
+        (tester) async {
+      const sharedDoc = KnowledgeDocumentModel(
+        id: 'd20',
+        filename: 'shared-notes.txt',
+        displayName: 'Shared Notes',
+        mimeType: 'text/plain',
+        fileSizeBytes: 256,
+        status: 'INDEXED',
+        chunkCount: 1,
+        hasContent: true,
+        editable: true,
+        isShared: true,
+        isOwner: false,
+        ownerDisplayName: 'Jane',
+      );
+
+      when(() => mockService.getDocument('d20'))
+          .thenAnswer((_) async => sharedDoc);
+      when(() => mockService.getDocumentContent('d20'))
+          .thenAnswer((_) async => const DocumentContentModel(
+                documentId: 'd20',
+                title: 'Shared Notes',
+                content: 'Some shared content',
+                editable: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(documentId: 'd20'));
+      await tester.pumpAndSettle();
+
+      // editable is true from server but isOwner is false, so canEdit is false
+      expect(find.byIcon(Icons.edit_document), findsNothing);
+    });
   });
 }
