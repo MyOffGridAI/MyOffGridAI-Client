@@ -348,6 +348,61 @@ class _ImageDocumentView extends StatelessWidget {
   }
 }
 
+// ── Shared Markdown Styling ─────────────────────────────────────────────────
+
+/// Builds a polished [MarkdownStyleSheet] for consistent document rendering.
+///
+/// Used by both [_TextDocumentView] and [_MarkdownDocumentView].
+MarkdownStyleSheet _buildMarkdownStyleSheet(BuildContext context) {
+  final theme = Theme.of(context);
+  final colorScheme = theme.colorScheme;
+
+  return MarkdownStyleSheet(
+    h1: theme.textTheme.titleLarge?.copyWith(
+      fontWeight: FontWeight.bold,
+      color: colorScheme.primary,
+    ),
+    h2: theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.bold,
+    ),
+    h3: theme.textTheme.bodyLarge?.copyWith(
+      fontWeight: FontWeight.bold,
+    ),
+    p: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+    listBullet: theme.textTheme.bodyMedium?.copyWith(
+      color: colorScheme.primary,
+    ),
+    blockquoteDecoration: BoxDecoration(
+      border: Border(
+        left: BorderSide(color: colorScheme.primary, width: 3),
+      ),
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+    ),
+    blockquotePadding:
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    code: theme.textTheme.bodyMedium?.copyWith(
+      fontFamily: 'monospace',
+      backgroundColor: colorScheme.surfaceContainerHighest,
+    ),
+    codeblockDecoration: BoxDecoration(
+      color: colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    codeblockPadding: const EdgeInsets.all(12),
+    horizontalRuleDecoration: BoxDecoration(
+      border: Border(
+        top: BorderSide(
+          color: colorScheme.outline.withValues(alpha: 0.3),
+        ),
+      ),
+    ),
+    tableBorder: TableBorder.all(
+      color: colorScheme.outline.withValues(alpha: 0.3),
+    ),
+    blockSpacing: 12,
+  );
+}
+
 // ── Markdown Viewer ─────────────────────────────────────────────────────────
 
 /// Renders Markdown content with proper formatting.
@@ -360,7 +415,9 @@ class _MarkdownDocumentView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Markdown(
       data: content,
+      styleSheet: _buildMarkdownStyleSheet(context),
       selectable: true,
+      softLineBreak: true,
       padding: const EdgeInsets.all(16),
     );
   }
@@ -435,9 +492,11 @@ class _QuillDocumentViewState extends State<_QuillDocumentView> {
 
 // ── Text Viewer ─────────────────────────────────────────────────────────────
 
-/// Renders plain text content as selectable scrollable text.
+/// Renders plain text content with rich formatting via Markdown conversion.
 ///
 /// If the content appears to be Quill Delta JSON, extracts the plain text first.
+/// Then applies structural pattern detection to convert plain text to Markdown
+/// for polished rendering of titles, headers, lists, and key-value pairs.
 class _TextDocumentView extends StatelessWidget {
   final String content;
 
@@ -445,14 +504,15 @@ class _TextDocumentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayText = _extractPlainText(content);
+    final plainText = _extractPlainText(content);
+    final markdown = _plainTextToMarkdown(plainText);
 
-    return SingleChildScrollView(
+    return Markdown(
+      data: markdown,
+      styleSheet: _buildMarkdownStyleSheet(context),
+      selectable: true,
+      softLineBreak: true,
       padding: const EdgeInsets.all(16),
-      child: SelectableText(
-        displayText,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.6),
-      ),
     );
   }
 
@@ -474,5 +534,105 @@ class _TextDocumentView extends StatelessWidget {
     } catch (_) {
       return content;
     }
+  }
+
+  /// Converts plain text to Markdown by detecting structural patterns.
+  ///
+  /// Detects titles, section headers, numbered lists, bullet items,
+  /// ingredient-like lines, and key-value pairs. If the text already
+  /// contains Markdown syntax, it is returned unchanged.
+  static String _plainTextToMarkdown(String text) {
+    if (_isAlreadyMarkdown(text)) return text;
+
+    final lines = text.split('\n');
+    final result = <String>[];
+    bool titleProcessed = false;
+    bool inIngredientSection = false;
+
+    for (int i = 0; i < lines.length; i++) {
+      final trimmed = lines[i].trim();
+
+      // Empty lines
+      if (trimmed.isEmpty) {
+        result.add('');
+        continue;
+      }
+
+      // Title detection: first non-empty line, short, followed by blank line
+      if (!titleProcessed) {
+        titleProcessed = true;
+        if (trimmed.length < 80 &&
+            i + 1 < lines.length &&
+            lines[i + 1].trim().isEmpty) {
+          result.add('# $trimmed');
+          continue;
+        }
+      }
+
+      // Numbered lists: lines matching ^\d+[.)]
+      final numberedMatch =
+          RegExp(r'^(\d+)[.)]\s*(.*)').firstMatch(trimmed);
+      if (numberedMatch != null) {
+        result.add('${numberedMatch.group(1)}. ${numberedMatch.group(2)}');
+        continue;
+      }
+
+      // Bullet items: lines starting with •
+      if (trimmed.startsWith('•')) {
+        result.add('- ${trimmed.substring(1).trim()}');
+        continue;
+      }
+
+      // Section headers: short lines ending with : or followed by blank line,
+      // not sentences
+      if (trimmed.length < 60 && !_endsWithSentencePunctuation(trimmed)) {
+        final endsWithColon = trimmed.endsWith(':');
+        final hasBlankAfter =
+            i + 1 < lines.length && lines[i + 1].trim().isEmpty;
+        if (endsWithColon || hasBlankAfter) {
+          inIngredientSection =
+              trimmed.toLowerCase().contains('ingredient');
+          result.add('## $trimmed');
+          continue;
+        }
+      }
+
+      // Ingredient-like lines: short lines after an ingredient header
+      if (inIngredientSection &&
+          trimmed.length < 80 &&
+          !_endsWithSentencePunctuation(trimmed)) {
+        result.add('- $trimmed');
+        continue;
+      }
+
+      // Key-value pairs: Label: Value (label < 30 chars)
+      final kvMatch =
+          RegExp(r'^([^:]{1,29}):\s+(.+)$').firstMatch(trimmed);
+      if (kvMatch != null && !_endsWithSentencePunctuation(trimmed)) {
+        result.add('**${kvMatch.group(1)}:** ${kvMatch.group(2)}');
+        continue;
+      }
+
+      // Regular text
+      result.add(trimmed);
+    }
+
+    return result.join('\n');
+  }
+
+  /// Returns `true` if the text already contains Markdown syntax.
+  static bool _isAlreadyMarkdown(String text) {
+    return text.contains(RegExp(r'^#{1,6}\s', multiLine: true)) ||
+        text.contains('**') ||
+        text.contains('- [ ]') ||
+        text.contains('- [x]');
+  }
+
+  /// Returns `true` if the text ends with sentence-ending punctuation.
+  static bool _endsWithSentencePunctuation(String text) {
+    final trimmed = text.trim();
+    return trimmed.endsWith('.') ||
+        trimmed.endsWith('!') ||
+        trimmed.endsWith('?');
   }
 }

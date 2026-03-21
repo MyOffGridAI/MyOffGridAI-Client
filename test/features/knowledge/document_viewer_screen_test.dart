@@ -8,6 +8,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/models/knowledge_document_model.dart';
 import 'package:myoffgridai_client/core/services/knowledge_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:myoffgridai_client/features/knowledge/document_viewer_screen.dart';
 
@@ -339,9 +340,12 @@ void main() {
       await tester.pumpWidget(buildScreen(documentId: 'd2'));
       await tester.pumpAndSettle();
 
+      // Text is rendered through the Markdown widget
+      expect(find.byType(Markdown), findsOneWidget);
       expect(
-        find.text('Hello, this is plain text content for the viewer.'),
-        findsOneWidget,
+        find.textContaining(
+            'Hello, this is plain text content for the viewer.'),
+        findsAny,
       );
     });
 
@@ -360,7 +364,9 @@ void main() {
       await tester.pumpWidget(buildScreen(documentId: 'd2'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Delta content here'), findsOneWidget);
+      // Text is rendered through the Markdown widget after Quill extraction
+      expect(find.byType(Markdown), findsOneWidget);
+      expect(find.textContaining('Delta content here'), findsAny);
     });
 
     testWidgets('markdown doc renders with Markdown widget', (tester) async {
@@ -454,8 +460,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Hello, this is plain text content for the viewer.'),
-        findsOneWidget,
+        find.textContaining(
+            'Hello, this is plain text content for the viewer.'),
+        findsAny,
       );
     });
 
@@ -540,6 +547,110 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('unnamed.txt'), findsOneWidget);
+    });
+
+    testWidgets('text doc renders structured content with markdown formatting',
+        (tester) async {
+      when(() => mockService.getDocument('d2'))
+          .thenAnswer((_) async => textDoc);
+      when(() => mockService.getDocumentContent('d2'))
+          .thenAnswer((_) async => const DocumentContentModel(
+                documentId: 'd2',
+                title: 'My Notes',
+                content: 'Ingredients:\n2 cups flour\n1 cup sugar',
+                editable: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(documentId: 'd2'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Markdown), findsOneWidget);
+      // Header and list items are rendered
+      expect(find.textContaining('Ingredients'), findsAny);
+      expect(find.textContaining('2 cups flour'), findsAny);
+      expect(find.textContaining('1 cup sugar'), findsAny);
+    });
+
+    testWidgets('text doc formats numbered lists', (tester) async {
+      when(() => mockService.getDocument('d2'))
+          .thenAnswer((_) async => textDoc);
+      when(() => mockService.getDocumentContent('d2'))
+          .thenAnswer((_) async => const DocumentContentModel(
+                documentId: 'd2',
+                title: 'My Notes',
+                content: '1. First step\n2. Second step',
+                editable: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(documentId: 'd2'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Markdown), findsOneWidget);
+      expect(find.textContaining('First step'), findsAny);
+      expect(find.textContaining('Second step'), findsAny);
+    });
+
+    testWidgets('text doc formats key-value pairs with bold labels',
+        (tester) async {
+      when(() => mockService.getDocument('d2'))
+          .thenAnswer((_) async => textDoc);
+      when(() => mockService.getDocumentContent('d2'))
+          .thenAnswer((_) async => const DocumentContentModel(
+                documentId: 'd2',
+                title: 'My Notes',
+                content: 'Prep Time: 30 min\nServes: 8',
+                editable: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(documentId: 'd2'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Markdown), findsOneWidget);
+      expect(find.textContaining('Prep Time'), findsAny);
+      expect(find.textContaining('30 min'), findsAny);
+      expect(find.textContaining('Serves'), findsAny);
+    });
+
+    testWidgets('text doc preserves existing markdown syntax',
+        (tester) async {
+      when(() => mockService.getDocument('d2'))
+          .thenAnswer((_) async => textDoc);
+      when(() => mockService.getDocumentContent('d2'))
+          .thenAnswer((_) async => const DocumentContentModel(
+                documentId: 'd2',
+                title: 'My Notes',
+                content: '# My Title\n\nSome **bold** text.',
+                editable: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(documentId: 'd2'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Markdown), findsOneWidget);
+      // Heading text rendered (without the # prefix)
+      expect(find.textContaining('My Title'), findsAny);
+      // Bold text rendered
+      expect(find.textContaining('bold'), findsAny);
+    });
+
+    testWidgets('text doc detects title from first line', (tester) async {
+      when(() => mockService.getDocument('d2'))
+          .thenAnswer((_) async => textDoc);
+      when(() => mockService.getDocumentContent('d2'))
+          .thenAnswer((_) async => const DocumentContentModel(
+                documentId: 'd2',
+                title: 'My Notes',
+                content: 'Chocolate Cake\n\nA delicious recipe.',
+                editable: true,
+              ));
+
+      await tester.pumpWidget(buildScreen(documentId: 'd2'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Markdown), findsOneWidget);
+      // Title "Chocolate Cake" rendered as heading
+      expect(find.textContaining('Chocolate Cake'), findsAny);
+      expect(find.textContaining('delicious recipe'), findsAny);
     });
   });
 }
