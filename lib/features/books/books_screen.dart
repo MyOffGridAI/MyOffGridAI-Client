@@ -11,6 +11,7 @@ import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
 import 'package:myoffgridai_client/features/books/gutenberg_book_card.dart';
 import 'package:myoffgridai_client/features/books/gutenberg_detail_sheet.dart';
+import 'package:myoffgridai_client/features/books/kiwix_catalog_card.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/empty_state_view.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
@@ -913,7 +914,10 @@ class _ActiveDownloadsSection extends ConsumerWidget {
 }
 
 /// Common language options for the Kiwix catalog filter dropdown.
-const _kiwixLanguageOptions = <(String?, String)>[
+///
+/// Shared across the main Kiwix browse section, Browse All screen,
+/// and Category Content screen.
+const kiwixLanguageOptions = <(String?, String)>[
   (null, 'All Languages'),
   ('eng', 'English'),
   ('fra', 'French'),
@@ -1003,7 +1007,7 @@ class _KiwixCatalogBrowseSectionState
                 underline: const SizedBox.shrink(),
                 icon: const Icon(Icons.translate, size: 20),
                 style: theme.textTheme.bodySmall,
-                items: _kiwixLanguageOptions
+                items: kiwixLanguageOptions
                     .map((entry) => DropdownMenuItem<String?>(
                           value: entry.$1,
                           child: Text(entry.$2),
@@ -1034,6 +1038,32 @@ class _KiwixCatalogBrowseSectionState
             ),
             onChanged: _onSearchChanged,
             onSubmitted: widget.onSearchChanged,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Navigation buttons
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () =>
+                      context.push(AppConstants.routeKiwixBrowseAll),
+                  icon: const Icon(Icons.grid_view, size: 18),
+                  label: const Text('Browse All'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () =>
+                      context.push(AppConstants.routeKiwixCategories),
+                  icon: const Icon(Icons.category, size: 18),
+                  label: const Text('Categories'),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -1100,9 +1130,12 @@ class _KiwixBrowseCards extends ConsumerWidget {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               itemCount: result.entries.length,
-              itemBuilder: (context, index) => _KiwixCatalogCard(
-                entry: result.entries[index],
-                isOwnerOrAdmin: isOwnerOrAdmin,
+              itemBuilder: (context, index) => SizedBox(
+                width: 200,
+                child: KiwixCatalogCard(
+                  entry: result.entries[index],
+                  isOwnerOrAdmin: isOwnerOrAdmin,
+                ),
               ),
             ),
           );
@@ -1112,138 +1145,6 @@ class _KiwixBrowseCards extends ConsumerWidget {
   }
 }
 
-/// Compact card for a Kiwix catalog entry with download button.
-class _KiwixCatalogCard extends ConsumerStatefulWidget {
-  final KiwixCatalogEntryModel entry;
-  final bool isOwnerOrAdmin;
-
-  const _KiwixCatalogCard({
-    required this.entry,
-    required this.isOwnerOrAdmin,
-  });
-
-  @override
-  ConsumerState<_KiwixCatalogCard> createState() => _KiwixCatalogCardState();
-}
-
-/// State for [_KiwixCatalogCard] managing the download-in-progress indicator.
-class _KiwixCatalogCardState extends ConsumerState<_KiwixCatalogCard> {
-  bool _downloading = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final entry = widget.entry;
-    final theme = Theme.of(context);
-
-    return SizedBox(
-      width: 200,
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.language,
-                  size: 28, color: theme.colorScheme.primary),
-              const SizedBox(height: 8),
-              Text(
-                entry.title,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (entry.description != null &&
-                  entry.description!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  entry.description!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 11,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 4),
-              Text(
-                [
-                  if (entry.language != null) entry.language!,
-                  _formatSize(entry.sizeBytes),
-                ].join(' \u2022 '),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const Spacer(),
-              if (widget.isOwnerOrAdmin && entry.downloadUrl != null)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _downloading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.download, size: 20),
-                          tooltip: 'Download ZIM',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: _startDownload,
-                        ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _startDownload() async {
-    setState(() => _downloading = true);
-    try {
-      final entry = widget.entry;
-      final service = ref.read(libraryServiceProvider);
-      await service.downloadFromCatalog(
-        downloadUrl: entry.downloadUrl!,
-        filename: entry.name != null ? '${entry.name}.zim' : 'download.zim',
-        displayName: entry.title,
-        category: entry.category,
-        language: entry.language,
-        sizeBytes: entry.sizeBytes,
-      );
-      ref.invalidate(kiwixDownloadsProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Downloading "${entry.title}"...')),
-        );
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _downloading = false);
-    }
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-}
 
 /// Search results list for the Kiwix catalog.
 class _KiwixSearchResults extends ConsumerWidget {

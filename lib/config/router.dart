@@ -12,6 +12,9 @@ import 'package:myoffgridai_client/features/books/books_screen.dart';
 import 'package:myoffgridai_client/features/books/gutenberg_categories_screen.dart';
 import 'package:myoffgridai_client/features/books/gutenberg_category_books_screen.dart';
 import 'package:myoffgridai_client/features/books/gutenberg_top100_screen.dart';
+import 'package:myoffgridai_client/features/books/kiwix_browse_all_screen.dart';
+import 'package:myoffgridai_client/features/books/kiwix_categories_screen.dart';
+import 'package:myoffgridai_client/features/books/kiwix_category_content_screen.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
@@ -141,6 +144,20 @@ GoRouter createRouter(Ref ref) {
           GoRoute(
             path: AppConstants.routeGutenbergCategoryBooks,
             builder: (context, state) => GutenbergCategoryBooksScreen(
+              categoryName: state.extra as String,
+            ),
+          ),
+          GoRoute(
+            path: AppConstants.routeKiwixBrowseAll,
+            builder: (context, state) => const KiwixBrowseAllScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeKiwixCategories,
+            builder: (context, state) => const KiwixCategoriesScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeKiwixCategoryContent,
+            builder: (context, state) => KiwixCategoryContentScreen(
               categoryName: state.extra as String,
             ),
           ),

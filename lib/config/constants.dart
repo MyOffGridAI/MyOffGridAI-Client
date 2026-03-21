@@ -83,6 +83,10 @@ class AppConstants {
   static const String routeGutenbergCategories = '/books/gutenberg/categories';
   static const String routeGutenbergCategoryBooks =
       '/books/gutenberg/categories/books';
+  static const String routeKiwixBrowseAll = '/books/kiwix/browse';
+  static const String routeKiwixCategories = '/books/kiwix/categories';
+  static const String routeKiwixCategoryContent =
+      '/books/kiwix/categories/content';
   static const String routeDeviceNotSetup = '/device-not-setup';
 
   // Pagination

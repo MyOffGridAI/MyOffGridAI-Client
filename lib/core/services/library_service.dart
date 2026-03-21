@@ -353,6 +353,15 @@ final kiwixCatalogBrowseProvider = FutureProvider.autoDispose
   return service.browseKiwixCatalog(lang: lang, count: 20);
 });
 
+/// Provider for Kiwix catalog browse results filtered by category and language.
+final kiwixCatalogBrowseByCategoryProvider = FutureProvider.autoDispose
+    .family<KiwixCatalogSearchResultModel,
+        ({String? category, String? lang, int count})>((ref, params) async {
+  final service = ref.watch(libraryServiceProvider);
+  return service.browseKiwixCatalog(
+      category: params.category, lang: params.lang, count: params.count);
+});
+
 /// Provider for Kiwix catalog search results keyed by query and language.
 final kiwixCatalogSearchProvider = FutureProvider.autoDispose
     .family<KiwixCatalogSearchResultModel, ({String query, String? lang})>(
