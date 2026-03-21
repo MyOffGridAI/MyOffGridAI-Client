@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +9,8 @@ import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
+import 'package:myoffgridai_client/features/books/gutenberg_book_card.dart';
+import 'package:myoffgridai_client/features/books/gutenberg_detail_sheet.dart';
 import 'package:myoffgridai_client/shared/widgets/confirmation_dialog.dart';
 import 'package:myoffgridai_client/shared/widgets/empty_state_view.dart';
 import 'package:myoffgridai_client/shared/widgets/error_view.dart';
@@ -1505,7 +1506,7 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _GutenbergDetailSheet(
+      builder: (_) => GutenbergDetailSheet(
         book: book,
         isOwnerOrAdmin: widget.isOwnerOrAdmin,
         isImporting: _isImporting[book.id] ?? false,
@@ -1585,6 +1586,32 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
             onChanged: _onSearchChanged,
           ),
         ),
+        // Navigation buttons
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () =>
+                      context.push(AppConstants.routeGutenbergTop100),
+                  icon: const Icon(Icons.emoji_events, size: 18),
+                  label: const Text('Top 100 Books'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () =>
+                      context.push(AppConstants.routeGutenbergCategories),
+                  icon: const Icon(Icons.category, size: 18),
+                  label: const Text('Categories'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
         // Results
         Expanded(
           child: resultAsync.when(
@@ -1622,7 +1649,7 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
                 itemCount: result.results.length,
                 itemBuilder: (context, index) {
                   final book = result.results[index];
-                  return _GutenbergBookCard(
+                  return GutenbergBookCard(
                     book: book,
                     isOwnerOrAdmin: widget.isOwnerOrAdmin,
                     isImporting: _isImporting[book.id] ?? false,
@@ -1639,319 +1666,3 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
   }
 }
 
-/// A card displaying a Gutenberg book with cover image, title, author,
-/// download count, and an import button.
-class _GutenbergBookCard extends StatelessWidget {
-  final GutenbergBookModel book;
-  final bool isOwnerOrAdmin;
-  final bool isImporting;
-  final VoidCallback onImport;
-  final VoidCallback onTap;
-
-  const _GutenbergBookCard({
-    required this.book,
-    required this.isOwnerOrAdmin,
-    required this.isImporting,
-    required this.onImport,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final coverUrl = book.formats['image/jpeg'];
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Cover image
-            AspectRatio(
-              aspectRatio: 3 / 4,
-              child: coverUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: coverUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: const Center(
-                          child: Icon(Icons.auto_stories, size: 40),
-                        ),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: const Center(
-                          child: Icon(Icons.auto_stories, size: 40),
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: const Center(
-                        child: Icon(Icons.auto_stories, size: 40),
-                      ),
-                    ),
-            ),
-            // Metadata
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      book.title,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (book.authors.isNotEmpty)
-                      Text(
-                        book.authors.first,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(Icons.download,
-                            size: 12,
-                            color: theme.colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 2),
-                        Text(
-                          SizeFormatter.formatCount(book.downloadCount),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    if (isOwnerOrAdmin)
-                      SizedBox(
-                        width: double.infinity,
-                        child: isImporting
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              )
-                            : FilledButton.tonal(
-                                onPressed: onImport,
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 4),
-                                  minimumSize: const Size(0, 30),
-                                  textStyle: theme.textTheme.labelSmall,
-                                ),
-                                child: const Text('Import'),
-                              ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Bottom sheet showing full metadata for a Gutenberg book.
-class _GutenbergDetailSheet extends StatelessWidget {
-  final GutenbergBookModel book;
-  final bool isOwnerOrAdmin;
-  final bool isImporting;
-  final VoidCallback onImport;
-
-  const _GutenbergDetailSheet({
-    required this.book,
-    required this.isOwnerOrAdmin,
-    required this.isImporting,
-    required this.onImport,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final coverUrl = book.formats['image/jpeg'];
-
-    // Collect format labels from MIME types
-    final formatLabels = book.formats.keys
-        .where((k) => k != 'image/jpeg')
-        .map((mime) => switch (mime) {
-              'application/epub+zip' => 'EPUB',
-              'application/x-mobipocket-ebook' => 'MOBI',
-              'text/plain' || 'text/plain; charset=us-ascii' ||
-              'text/plain; charset=utf-8' =>
-                'TXT',
-              'text/html' => 'HTML',
-              'application/pdf' => 'PDF',
-              'application/rdf+xml' => 'RDF',
-              _ => mime.split('/').last.toUpperCase(),
-            })
-        .toSet()
-        .toList();
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scrollController) {
-        return SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurfaceVariant.withAlpha(80),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              // Cover + title row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (coverUrl != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
-                        imageUrl: coverUrl,
-                        width: 120,
-                        height: 160,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(
-                          width: 120,
-                          height: 160,
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          child: const Icon(Icons.auto_stories, size: 40),
-                        ),
-                      ),
-                    )
-                  else
-                    Container(
-                      width: 120,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.auto_stories, size: 40),
-                    ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          book.title,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        if (book.authors.isNotEmpty)
-                          Text(
-                            book.authors.join(', '),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.download,
-                                size: 16,
-                                color: theme.colorScheme.onSurfaceVariant),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${SizeFormatter.formatCount(book.downloadCount)} downloads',
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Subjects
-              if (book.subjects.isNotEmpty) ...[
-                Text('Subjects', style: theme.textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: book.subjects
-                      .map((s) => Chip(
-                            label: Text(s),
-                            labelStyle: theme.textTheme.bodySmall,
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                          ))
-                      .toList(),
-                ),
-                const SizedBox(height: 16),
-              ],
-              // Formats
-              if (formatLabels.isNotEmpty) ...[
-                Text('Available Formats', style: theme.textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: formatLabels
-                      .map((f) => Chip(
-                            label: Text(f),
-                            labelStyle: theme.textTheme.bodySmall,
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                          ))
-                      .toList(),
-                ),
-                const SizedBox(height: 16),
-              ],
-              // Import button
-              if (isOwnerOrAdmin)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: isImporting ? null : onImport,
-                    icon: isImporting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.download),
-                    label:
-                        Text(isImporting ? 'Importing...' : 'Import to Library'),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}

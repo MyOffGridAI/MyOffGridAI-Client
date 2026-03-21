@@ -79,6 +79,10 @@ class AppConstants {
   static const String routeSearch = '/search';
   static const String routeBooks = '/books';
   static const String routeBookReader = '/books/reader';
+  static const String routeGutenbergTop100 = '/books/gutenberg/top100';
+  static const String routeGutenbergCategories = '/books/gutenberg/categories';
+  static const String routeGutenbergCategoryBooks =
+      '/books/gutenberg/categories/books';
   static const String routeDeviceNotSetup = '/device-not-setup';
 
   // Pagination

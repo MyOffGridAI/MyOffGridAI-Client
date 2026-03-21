@@ -9,6 +9,9 @@ import 'package:myoffgridai_client/features/auth/register_screen.dart';
 import 'package:myoffgridai_client/features/auth/users_screen.dart';
 import 'package:myoffgridai_client/features/books/book_reader_screen.dart';
 import 'package:myoffgridai_client/features/books/books_screen.dart';
+import 'package:myoffgridai_client/features/books/gutenberg_categories_screen.dart';
+import 'package:myoffgridai_client/features/books/gutenberg_category_books_screen.dart';
+import 'package:myoffgridai_client/features/books/gutenberg_top100_screen.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/features/chat/chat_conversation_screen.dart';
 import 'package:myoffgridai_client/features/chat/chat_list_screen.dart';
@@ -125,6 +128,20 @@ GoRouter createRouter(Ref ref) {
             path: AppConstants.routeBookReader,
             builder: (context, state) => BookReaderScreen(
               ebook: state.extra as EbookModel,
+            ),
+          ),
+          GoRoute(
+            path: AppConstants.routeGutenbergTop100,
+            builder: (context, state) => const GutenbergTop100Screen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeGutenbergCategories,
+            builder: (context, state) => const GutenbergCategoriesScreen(),
+          ),
+          GoRoute(
+            path: AppConstants.routeGutenbergCategoryBooks,
+            builder: (context, state) => GutenbergCategoryBooksScreen(
+              categoryName: state.extra as String,
             ),
           ),
           GoRoute(
