@@ -9,6 +9,7 @@ import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/services/local_notification_service.dart';
 import 'package:myoffgridai_client/core/services/log_service.dart';
 import 'package:myoffgridai_client/core/services/window_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Entry point for the MyOffGridAI client application.
 ///
@@ -27,7 +28,8 @@ Future<void> main() async {
   // Restore window geometry before the window is shown (macOS only)
   WindowService? windowService;
   if (WindowService.isSupported) {
-    windowService = WindowService(storage: storage, log: logService);
+    final prefs = await SharedPreferences.getInstance();
+    windowService = WindowService(prefs: prefs, log: logService);
     await windowService.initialize();
   }
 

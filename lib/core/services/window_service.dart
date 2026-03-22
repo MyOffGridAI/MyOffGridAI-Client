@@ -5,8 +5,8 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/constants.dart';
-import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/services/log_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// Service that persists and restores the application window's position and size.
@@ -14,6 +14,9 @@ import 'package:window_manager/window_manager.dart';
 /// Listens for window move/resize events via [WindowListener], debounces saves
 /// (500 ms) to avoid hammering storage during drag operations, and restores
 /// the saved geometry on startup before the window is shown.
+///
+/// Uses [SharedPreferences] (NSUserDefaults on macOS) for reliable persistence.
+/// Window geometry is not sensitive data and does not need Keychain encryption.
 ///
 /// All methods are no-ops on platforms other than macOS (and on web).
 class WindowService with WindowListener {
@@ -26,18 +29,18 @@ class WindowService with WindowListener {
   /// Returns `true` when this service can operate (macOS desktop only).
   static bool get isSupported => !kIsWeb && Platform.isMacOS;
 
-  final SecureStorageService _storage;
   final LogService _log;
+  final SharedPreferences _prefs;
   Timer? _debounceTimer;
 
   /// Creates a [WindowService].
   ///
-  /// Requires a [SecureStorageService] for persistence and a [LogService]
+  /// Requires a [SharedPreferences] instance for persistence and a [LogService]
   /// for structured logging.
   WindowService({
-    required SecureStorageService storage,
+    required SharedPreferences prefs,
     required LogService log,
-  })  : _storage = storage,
+  })  : _prefs = prefs,
         _log = log;
 
   /// Initializes the window manager, restores saved geometry, and begins
@@ -50,10 +53,10 @@ class WindowService with WindowListener {
 
     await windowManager.ensureInitialized();
 
-    final x = await _readDouble(AppConstants.windowXKey);
-    final y = await _readDouble(AppConstants.windowYKey);
-    final width = await _readDouble(AppConstants.windowWidthKey) ?? _defaultWidth;
-    final height = await _readDouble(AppConstants.windowHeightKey) ?? _defaultHeight;
+    final x = _prefs.getDouble(AppConstants.windowXKey);
+    final y = _prefs.getDouble(AppConstants.windowYKey);
+    final width = _prefs.getDouble(AppConstants.windowWidthKey) ?? _defaultWidth;
+    final height = _prefs.getDouble(AppConstants.windowHeightKey) ?? _defaultHeight;
 
     final hasPosition = x != null && y != null;
 
@@ -107,31 +110,23 @@ class WindowService with WindowListener {
     _debounceTimer = Timer(_debounceDuration, _saveGeometry);
   }
 
-  /// Reads the current window bounds and persists them to secure storage.
+  /// Reads the current window bounds and persists them to shared preferences.
   Future<void> _saveGeometry() async {
     try {
       final position = await windowManager.getPosition();
       final size = await windowManager.getSize();
 
       await Future.wait([
-        _storage.writeValue(AppConstants.windowXKey, position.dx.toString()),
-        _storage.writeValue(AppConstants.windowYKey, position.dy.toString()),
-        _storage.writeValue(AppConstants.windowWidthKey, size.width.toString()),
-        _storage.writeValue(AppConstants.windowHeightKey, size.height.toString()),
+        _prefs.setDouble(AppConstants.windowXKey, position.dx),
+        _prefs.setDouble(AppConstants.windowYKey, position.dy),
+        _prefs.setDouble(AppConstants.windowWidthKey, size.width),
+        _prefs.setDouble(AppConstants.windowHeightKey, size.height),
       ]);
 
       _log.debug(_tag, 'Saved geometry: ${size.width}x${size.height} at (${position.dx}, ${position.dy})');
     } catch (e, st) {
       _log.error(_tag, 'Failed to save geometry', e, st);
     }
-  }
-
-  /// Reads a double value from secure storage by [key], returning `null`
-  /// if the key is absent or the stored value is not a valid double.
-  Future<double?> _readDouble(String key) async {
-    final raw = await _storage.readValue(key);
-    if (raw == null) return null;
-    return double.tryParse(raw);
   }
 }
 
