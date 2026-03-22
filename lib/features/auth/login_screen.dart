@@ -88,7 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            hintText: 'http://offgrid.local:8080',
+            hintText: 'http://localhost:3000',
           ),
           keyboardType: TextInputType.url,
         ),

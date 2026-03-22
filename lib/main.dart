@@ -8,6 +8,7 @@ import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/services/local_notification_service.dart';
 import 'package:myoffgridai_client/core/services/log_service.dart';
+import 'package:myoffgridai_client/core/services/window_service.dart';
 
 /// Entry point for the MyOffGridAI client application.
 ///
@@ -23,6 +24,13 @@ Future<void> main() async {
   final storage = SecureStorageService();
   final serverUrl = await storage.getServerUrl();
 
+  // Restore window geometry before the window is shown (macOS only)
+  WindowService? windowService;
+  if (WindowService.isSupported) {
+    windowService = WindowService(storage: storage, log: logService);
+    await windowService.initialize();
+  }
+
   // Initialize local notifications before runApp
   final localNotifications = LocalNotificationService();
   await localNotifications.initialize();
@@ -32,6 +40,8 @@ Future<void> main() async {
       overrides: [
         logServiceProvider.overrideWithValue(logService),
         secureStorageProvider.overrideWithValue(storage),
+        if (windowService != null)
+          windowServiceProvider.overrideWithValue(windowService),
         localNotificationServiceProvider
             .overrideWithValue(localNotifications),
         apiClientProvider.overrideWith((ref) {

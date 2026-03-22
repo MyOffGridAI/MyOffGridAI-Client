@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 /// All application-wide constants for MyOffGridAI-Client.
 ///
@@ -8,10 +7,7 @@ class AppConstants {
   AppConstants._();
 
   // Server connection
-  // Web runs in the browser on the dev machine — use localhost.
-  // Native apps (iOS/Android) connect over the network to the appliance.
-  static const String defaultServerUrl =
-      kIsWeb ? 'http://localhost:8080' : 'http://offgrid.local:8080';
+  static const String defaultServerUrl = 'http://localhost:8080';
   static const String devServerUrl = 'http://localhost:8080';
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 120);
@@ -129,6 +125,12 @@ class AppConstants {
   static const String foregroundServiceNotificationTitle = 'MyOffGridAI';
   static const String foregroundServiceNotificationBody =
       'AI assistant connected';
+
+  // Secure storage keys (window geometry)
+  static const String windowXKey = 'window_x';
+  static const String windowYKey = 'window_y';
+  static const String windowWidthKey = 'window_width';
+  static const String windowHeightKey = 'window_height';
 
   // Secure storage keys (device)
   static const String deviceIdKey = 'device_id';
