@@ -69,6 +69,7 @@ class WindowService with WindowListener {
       }
       await windowManager.show();
       await windowManager.focus();
+      await windowManager.setPreventClose(true);
     });
 
     windowManager.addListener(this);
@@ -92,9 +93,10 @@ class WindowService with WindowListener {
   void onWindowMoved() => _scheduleSave();
 
   @override
-  void onWindowClose() {
+  void onWindowClose() async {
     _debounceTimer?.cancel();
-    _saveGeometry();
+    await _saveGeometry();
+    await windowManager.destroy();
   }
 
   // ── Private helpers ───────────────────────────────────────────────────
