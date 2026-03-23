@@ -2272,6 +2272,9 @@ class _FakeAuthNotifier extends AsyncNotifier<UserModel?>
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<UserModel?> loginWithBiometric() async => null;
 }
 
 /// Auth notifier that throws an error to simulate auth failure.
@@ -2295,4 +2298,7 @@ class _ErrorAuthNotifier extends AsyncNotifier<UserModel?>
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<UserModel?> loginWithBiometric() async => null;
 }

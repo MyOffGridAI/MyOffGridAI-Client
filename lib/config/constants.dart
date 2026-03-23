@@ -126,6 +126,11 @@ class AppConstants {
   static const String foregroundServiceNotificationBody =
       'AI assistant connected';
 
+  // Secure storage keys (remember me / biometric)
+  static const String rememberedUsernameKey = 'remembered_username';
+  static const String rememberMeKey = 'remember_me';
+  static const String biometricEnabledKey = 'biometric_enabled';
+
   // Secure storage keys (window geometry)
   static const String windowXKey = 'window_x';
   static const String windowYKey = 'window_y';

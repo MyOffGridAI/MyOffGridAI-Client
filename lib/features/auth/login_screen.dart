@@ -5,12 +5,14 @@ import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
 import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
+import 'package:myoffgridai_client/core/auth/biometric_service.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 
 /// Login screen for MyOffGridAI.
 ///
-/// Displays the brand wordmark, username/password fields, and a login button.
-/// Users can also tap the server URL at the bottom to change the connection target.
+/// Displays the brand wordmark, username/password fields, Remember Me checkbox,
+/// biometric toggle, and login buttons. Users can also tap the server URL at
+/// the bottom to change the connection target.
 class LoginScreen extends ConsumerStatefulWidget {
   /// Creates a [LoginScreen].
   const LoginScreen({super.key});
@@ -19,7 +21,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-/// State for [LoginScreen] managing form validation, server URL editing, and login submission.
+/// State for [LoginScreen] managing form validation, server URL editing,
+/// Remember Me, biometric preferences, and login submission.
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
@@ -27,18 +30,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String _serverUrl = AppConstants.defaultServerUrl;
+  bool _rememberMe = false;
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+  bool _hasRefreshToken = false;
 
   @override
   void initState() {
     super.initState();
-    _loadServerUrl();
+    _loadSavedPreferences();
   }
 
-  Future<void> _loadServerUrl() async {
+  /// Loads server URL, remembered username, Remember Me state, biometric
+  /// availability, biometric enabled flag, and refresh token presence.
+  Future<void> _loadSavedPreferences() async {
     final storage = ref.read(secureStorageProvider);
     final url = await storage.getServerUrl();
+    final rememberMe = await storage.getRememberMe();
+    final rememberedUsername = await storage.getRememberedUsername();
+    final biometricEnabled = await storage.getBiometricEnabled();
+    final refreshToken = await storage.getRefreshToken();
+
+    final biometricService = ref.read(biometricServiceProvider);
+    final biometricAvailable = await biometricService.isAvailable();
+
     if (mounted) {
-      setState(() => _serverUrl = url);
+      setState(() {
+        _serverUrl = url;
+        _rememberMe = rememberMe;
+        _biometricEnabled = biometricEnabled;
+        _biometricAvailable = biometricAvailable;
+        _hasRefreshToken = refreshToken != null;
+        if (rememberMe && rememberedUsername != null) {
+          _usernameController.text = rememberedUsername;
+        }
+      });
     }
   }
 
@@ -52,6 +78,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
+
+    final storage = ref.read(secureStorageProvider);
+
+    // Save or clear Remember Me preferences
+    await storage.saveRememberMe(_rememberMe);
+    if (_rememberMe) {
+      await storage.saveRememberedUsername(_usernameController.text.trim());
+      await storage.saveBiometricEnabled(_biometricEnabled);
+    } else {
+      await storage.clearRememberedUsername();
+      await storage.saveBiometricEnabled(false);
+    }
 
     await ref.read(authStateProvider.notifier).login(
           _usernameController.text.trim(),
@@ -74,6 +112,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     } else {
       context.go(AppConstants.routeHome);
+    }
+
+    setState(() => _isLoading = false);
+  }
+
+  /// Attempts biometric login using stored refresh token.
+  Future<void> _loginWithBiometric() async {
+    setState(() => _isLoading = true);
+
+    final user =
+        await ref.read(authStateProvider.notifier).loginWithBiometric();
+
+    if (!mounted) return;
+
+    if (user != null) {
+      context.go(AppConstants.routeHome);
+    } else {
+      final authState = ref.read(authStateProvider);
+      if (authState.hasError) {
+        final error = authState.error;
+        final message = error is ApiException
+            ? error.message
+            : error?.toString() ?? 'Biometric login failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: AppConstants.snackBarDuration,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Biometric authentication cancelled'),
+            duration: AppConstants.snackBarDuration,
+          ),
+        );
+      }
     }
 
     setState(() => _isLoading = false);
@@ -116,6 +191,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     controller.dispose();
   }
+
+  /// Whether the biometric login button should be shown.
+  bool get _showBiometricLoginButton =>
+      _biometricEnabled && _biometricAvailable && _hasRefreshToken;
 
   @override
   Widget build(BuildContext context) {
@@ -191,10 +270,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
+                    // Remember Me checkbox
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _rememberMe,
+                          onChanged: (value) {
+                            setState(() {
+                              _rememberMe = value ?? false;
+                              if (!_rememberMe) {
+                                _biometricEnabled = false;
+                              }
+                            });
+                          },
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _rememberMe = !_rememberMe;
+                              if (!_rememberMe) {
+                                _biometricEnabled = false;
+                              }
+                            });
+                          },
+                          child: const Text('Remember Me'),
+                        ),
+                      ],
+                    ),
+                    // Biometric toggle — visible when Remember Me is checked
+                    // and device has biometric hardware
+                    if (_rememberMe && _biometricAvailable)
+                      Row(
+                        children: [
+                          const SizedBox(width: 8),
+                          const Icon(Icons.fingerprint, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text('Enable biometric login'),
+                          ),
+                          Switch(
+                            value: _biometricEnabled,
+                            onChanged: (value) {
+                              setState(() => _biometricEnabled = value);
+                            },
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _isLoading ? null : _login,
-                      child: _isLoading
+                      child: _isLoading && !_showBiometricLoginButton
                           ? const SizedBox(
                               width: 20,
                               height: 20,
@@ -202,6 +328,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             )
                           : const Text('Login'),
                     ),
+                    // Biometric login button — visible when biometric is
+                    // enabled and a refresh token exists
+                    if (_showBiometricLoginButton) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _loginWithBiometric,
+                        icon: const Icon(Icons.fingerprint),
+                        label: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Login with Biometrics'),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () => context.go(AppConstants.routeRegister),

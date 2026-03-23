@@ -39,6 +39,7 @@ dependencies:
   flutter_markdown: ^0.7.4+3
   markdown: ^7.3.0
   shared_preferences: ^2.3.4
+  local_auth: ^2.3.0
   window_manager: ^0.4.3
   flutter_highlight: ^0.7.0
   highlight: ^0.7.0

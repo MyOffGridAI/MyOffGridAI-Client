@@ -153,6 +153,99 @@ class SecureStorageService {
     }
   }
 
+  /// Saves the remembered username to secure storage.
+  Future<void> saveRememberedUsername(String username) async {
+    _cache[AppConstants.rememberedUsernameKey] = username;
+    try {
+      await _storage.write(
+          key: AppConstants.rememberedUsernameKey, value: username);
+    } catch (_) {
+      // Cached in memory — persistent write is best-effort
+    }
+  }
+
+  /// Returns the stored remembered username, or null if not set.
+  Future<String?> getRememberedUsername() async {
+    final cached = _cache[AppConstants.rememberedUsernameKey];
+    if (cached != null) return cached;
+    try {
+      final value =
+          await _storage.read(key: AppConstants.rememberedUsernameKey);
+      if (value != null) _cache[AppConstants.rememberedUsernameKey] = value;
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Clears the remembered username from secure storage.
+  Future<void> clearRememberedUsername() async {
+    _cache.remove(AppConstants.rememberedUsernameKey);
+    try {
+      await _storage.delete(key: AppConstants.rememberedUsernameKey);
+    } catch (_) {
+      // Cache is already cleared — persistent delete is best-effort
+    }
+  }
+
+  /// Saves the Remember Me preference ('true' or 'false').
+  Future<void> saveRememberMe(bool enabled) async {
+    final value = enabled.toString();
+    _cache[AppConstants.rememberMeKey] = value;
+    try {
+      await _storage.write(key: AppConstants.rememberMeKey, value: value);
+    } catch (_) {
+      // Cached in memory — persistent write is best-effort
+    }
+  }
+
+  /// Returns the stored Remember Me preference, defaulting to false.
+  Future<bool> getRememberMe() async {
+    final cached = _cache[AppConstants.rememberMeKey];
+    if (cached != null) return cached == 'true';
+    try {
+      final value = await _storage.read(key: AppConstants.rememberMeKey);
+      if (value != null) _cache[AppConstants.rememberMeKey] = value;
+      return value == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Saves the biometric enabled preference ('true' or 'false').
+  Future<void> saveBiometricEnabled(bool enabled) async {
+    final value = enabled.toString();
+    _cache[AppConstants.biometricEnabledKey] = value;
+    try {
+      await _storage.write(key: AppConstants.biometricEnabledKey, value: value);
+    } catch (_) {
+      // Cached in memory — persistent write is best-effort
+    }
+  }
+
+  /// Returns the stored biometric enabled preference, defaulting to false.
+  Future<bool> getBiometricEnabled() async {
+    final cached = _cache[AppConstants.biometricEnabledKey];
+    if (cached != null) return cached == 'true';
+    try {
+      final value = await _storage.read(key: AppConstants.biometricEnabledKey);
+      if (value != null) _cache[AppConstants.biometricEnabledKey] = value;
+      return value == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Clears only the access token, preserving the refresh token for biometric re-login.
+  Future<void> clearAccessToken() async {
+    _cache.remove(AppConstants.accessTokenKey);
+    try {
+      await _storage.delete(key: AppConstants.accessTokenKey);
+    } catch (_) {
+      // Cache is already cleared — persistent delete is best-effort
+    }
+  }
+
   /// Writes an arbitrary [value] to secure storage under [key].
   ///
   /// The value is cached in memory and persisted on a best-effort basis.

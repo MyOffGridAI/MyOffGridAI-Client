@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/config/theme.dart';
 import 'package:myoffgridai_client/core/auth/auth_service.dart';
+import 'package:myoffgridai_client/core/auth/biometric_service.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
 import 'package:myoffgridai_client/core/models/user_model.dart';
 import 'package:myoffgridai_client/core/services/device_registration_service.dart';
@@ -112,11 +113,46 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
     }
   }
 
+  /// Attempts biometric login using a stored refresh token.
+  ///
+  /// Returns the authenticated [UserModel] on success, or null if biometric
+  /// authentication fails or no refresh token is available.
+  Future<UserModel?> loginWithBiometric() async {
+    final storage = ref.read(secureStorageProvider);
+    final biometricEnabled = await storage.getBiometricEnabled();
+    if (!biometricEnabled) return null;
+
+    final refreshToken = await storage.getRefreshToken();
+    if (refreshToken == null) return null;
+
+    final biometricService = ref.read(biometricServiceProvider);
+    final authenticated = await biometricService.authenticate();
+    if (!authenticated) return null;
+
+    state = const AsyncLoading();
+    try {
+      final authService = ref.read(authServiceProvider);
+      final response = await authService.refresh();
+      state = AsyncData(response.user);
+      _applyUserSettings();
+      _startNotificationServices(response.user.id);
+      return response.user;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return null;
+    }
+  }
+
   /// Logs out the current user and clears the auth state.
+  ///
+  /// When biometric login is enabled, preserves the refresh token so the
+  /// user can re-authenticate via biometrics on next launch.
   Future<void> logout() async {
     _stopNotificationServices();
+    final storage = ref.read(secureStorageProvider);
+    final biometricEnabled = await storage.getBiometricEnabled();
     final authService = ref.read(authServiceProvider);
-    await authService.logout();
+    await authService.logout(preserveRefreshToken: biometricEnabled);
     state = const AsyncData(null);
   }
 

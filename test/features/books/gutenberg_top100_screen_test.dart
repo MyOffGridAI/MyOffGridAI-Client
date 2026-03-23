@@ -234,4 +234,7 @@ class _FakeAuthNotifier extends AsyncNotifier<UserModel?>
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<UserModel?> loginWithBiometric() async => null;
 }

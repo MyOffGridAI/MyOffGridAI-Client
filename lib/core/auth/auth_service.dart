@@ -93,7 +93,10 @@ class AuthService {
   }
 
   /// Logs out the current user by clearing local tokens and calling the server.
-  Future<void> logout() async {
+  ///
+  /// When [preserveRefreshToken] is true, only the access token is cleared
+  /// so the refresh token remains available for biometric re-login.
+  Future<void> logout({bool preserveRefreshToken = false}) async {
     try {
       final token = await _storage.getAccessToken();
       if (token != null) {
@@ -105,7 +108,11 @@ class AuthService {
     } catch (_) {
       // Server logout is best-effort; always clear local tokens
     }
-    await _storage.clearTokens();
+    if (preserveRefreshToken) {
+      await _storage.clearAccessToken();
+    } else {
+      await _storage.clearTokens();
+    }
   }
 
   /// Refreshes the access token using the stored refresh token.

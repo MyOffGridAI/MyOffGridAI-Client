@@ -58,6 +58,16 @@ class MemoryService {
     return MemoryModel.fromJson(data);
   }
 
+  /// Updates the shared visibility of a memory.
+  Future<MemoryModel> updateShared(String id, bool shared) async {
+    final response = await _client.put<Map<String, dynamic>>(
+      '${AppConstants.memoryBasePath}/$id/shared',
+      data: {'shared': shared},
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return MemoryModel.fromJson(data);
+  }
+
   /// Updates the importance level of a memory.
   Future<MemoryModel> updateImportance(String id, String importance) async {
     final response = await _client.put<Map<String, dynamic>>(
@@ -66,6 +76,22 @@ class MemoryService {
     );
     final data = response['data'] as Map<String, dynamic>;
     return MemoryModel.fromJson(data);
+  }
+
+  /// Batch-deletes memories by their IDs.
+  Future<void> deleteMemoriesBatch(List<String> ids) async {
+    await _client.delete(
+      '${AppConstants.memoryBasePath}/batch',
+      data: {'ids': ids},
+    );
+  }
+
+  /// Batch-updates the shared visibility of memories.
+  Future<void> updateSharedBatch(List<String> ids, bool shared) async {
+    await _client.put<Map<String, dynamic>>(
+      '${AppConstants.memoryBasePath}/batch/shared',
+      data: {'ids': ids, 'shared': shared},
+    );
   }
 
   /// Performs a semantic search across memories.

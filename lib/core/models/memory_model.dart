@@ -4,6 +4,7 @@
 /// LOW, MEDIUM, HIGH, CRITICAL.
 class MemoryModel {
   final String id;
+  final String? userId;
   final String content;
   final String importance;
   final String? tags;
@@ -12,9 +13,11 @@ class MemoryModel {
   final String? updatedAt;
   final String? lastAccessedAt;
   final int accessCount;
+  final bool shared;
 
   const MemoryModel({
     required this.id,
+    this.userId,
     required this.content,
     required this.importance,
     this.tags,
@@ -23,12 +26,14 @@ class MemoryModel {
     this.updatedAt,
     this.lastAccessedAt,
     required this.accessCount,
+    this.shared = false,
   });
 
   /// Creates a [MemoryModel] from a JSON map.
   factory MemoryModel.fromJson(Map<String, dynamic> json) {
     return MemoryModel(
       id: json['id'] as String,
+      userId: json['userId'] as String?,
       content: json['content'] as String? ?? '',
       importance: json['importance'] as String? ?? 'LOW',
       tags: json['tags'] as String?,
@@ -37,6 +42,7 @@ class MemoryModel {
       updatedAt: json['updatedAt'] as String?,
       lastAccessedAt: json['lastAccessedAt'] as String?,
       accessCount: json['accessCount'] as int? ?? 0,
+      shared: json['shared'] as bool? ?? false,
     );
   }
 

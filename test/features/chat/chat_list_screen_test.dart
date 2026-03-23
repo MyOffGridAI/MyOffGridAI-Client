@@ -303,6 +303,9 @@ class _FakeAuthNotifier extends AsyncNotifier<UserModel?>
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<UserModel?> loginWithBiometric() async => null;
 }
 
 class _PendingAuthNotifier extends AsyncNotifier<UserModel?>
@@ -326,6 +329,9 @@ class _PendingAuthNotifier extends AsyncNotifier<UserModel?>
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<UserModel?> loginWithBiometric() async => null;
 }
 
 class _ErrorAuthNotifier extends AsyncNotifier<UserModel?>
@@ -348,4 +354,7 @@ class _ErrorAuthNotifier extends AsyncNotifier<UserModel?>
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<UserModel?> loginWithBiometric() async => null;
 }
