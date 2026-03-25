@@ -4,16 +4,24 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myoffgridai_client/core/auth/secure_storage_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 
+class MockSharedPreferencesAsync extends Mock
+    implements SharedPreferencesAsync {}
+
 void main() {
   late MockFlutterSecureStorage mockStorage;
+  late MockSharedPreferencesAsync mockPrefs;
   late SecureStorageService service;
 
   setUp(() {
     mockStorage = MockFlutterSecureStorage();
-    service = SecureStorageService(storage: mockStorage);
+    mockPrefs = MockSharedPreferencesAsync();
+    service = SecureStorageService(storage: mockStorage, prefs: mockPrefs);
   });
 
   // ── saveTokens ─────────────────────────────────────────────────────────
@@ -463,9 +471,112 @@ void main() {
     });
   });
 
+  // ── saveRememberMe / getRememberMe (SharedPreferences) ───────────────
+  group('saveRememberMe / getRememberMe', () {
+    test('saves true and retrieves it', () async {
+      when(() => mockPrefs.setBool(AppConstants.rememberMeKey, true))
+          .thenAnswer((_) async {});
+      when(() => mockPrefs.getBool(AppConstants.rememberMeKey))
+          .thenAnswer((_) async => true);
+
+      await service.saveRememberMe(true);
+      final result = await service.getRememberMe();
+
+      expect(result, isTrue);
+      verify(() => mockPrefs.setBool(AppConstants.rememberMeKey, true))
+          .called(1);
+    });
+
+    test('saves false and retrieves it', () async {
+      when(() => mockPrefs.setBool(AppConstants.rememberMeKey, false))
+          .thenAnswer((_) async {});
+      when(() => mockPrefs.getBool(AppConstants.rememberMeKey))
+          .thenAnswer((_) async => false);
+
+      await service.saveRememberMe(false);
+      final result = await service.getRememberMe();
+
+      expect(result, isFalse);
+    });
+
+    test('defaults to false when key not set', () async {
+      when(() => mockPrefs.getBool(AppConstants.rememberMeKey))
+          .thenAnswer((_) async => null);
+
+      final result = await service.getRememberMe();
+
+      expect(result, isFalse);
+    });
+  });
+
+  // ── saveRememberedUsername / getRememberedUsername / clearRememberedUsername ──
+  group('saveRememberedUsername / getRememberedUsername', () {
+    test('saves and retrieves username', () async {
+      when(() => mockPrefs.setString(
+              AppConstants.rememberedUsernameKey, 'admin'))
+          .thenAnswer((_) async {});
+      when(() => mockPrefs.getString(AppConstants.rememberedUsernameKey))
+          .thenAnswer((_) async => 'admin');
+
+      await service.saveRememberedUsername('admin');
+      final result = await service.getRememberedUsername();
+
+      expect(result, 'admin');
+      verify(() => mockPrefs.setString(
+              AppConstants.rememberedUsernameKey, 'admin'))
+          .called(1);
+    });
+
+    test('returns null when key not set', () async {
+      when(() => mockPrefs.getString(AppConstants.rememberedUsernameKey))
+          .thenAnswer((_) async => null);
+
+      final result = await service.getRememberedUsername();
+
+      expect(result, isNull);
+    });
+
+    test('clearRememberedUsername removes the key', () async {
+      when(() => mockPrefs.remove(AppConstants.rememberedUsernameKey))
+          .thenAnswer((_) async {});
+
+      await service.clearRememberedUsername();
+
+      verify(() => mockPrefs.remove(AppConstants.rememberedUsernameKey))
+          .called(1);
+    });
+  });
+
+  // ── saveBiometricEnabled / getBiometricEnabled (SharedPreferences) ──
+  group('saveBiometricEnabled / getBiometricEnabled', () {
+    test('saves true and retrieves it', () async {
+      when(() => mockPrefs.setBool(AppConstants.biometricEnabledKey, true))
+          .thenAnswer((_) async {});
+      when(() => mockPrefs.getBool(AppConstants.biometricEnabledKey))
+          .thenAnswer((_) async => true);
+
+      await service.saveBiometricEnabled(true);
+      final result = await service.getBiometricEnabled();
+
+      expect(result, isTrue);
+    });
+
+    test('defaults to false when key not set', () async {
+      when(() => mockPrefs.getBool(AppConstants.biometricEnabledKey))
+          .thenAnswer((_) async => null);
+
+      final result = await service.getBiometricEnabled();
+
+      expect(result, isFalse);
+    });
+  });
+
   // ── Provider body tests ───────────────────────────────────────────────
   group('secureStorageProvider', () {
     test('creates SecureStorageService with default constructor', () {
+      // SharedPreferencesAsync requires a platform instance to be set
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.empty();
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final storage = container.read(secureStorageProvider);
