@@ -1551,15 +1551,27 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
             decoration: InputDecoration(
               hintText: 'Search Gutenberg...',
               prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_searchQuery.isNotEmpty)
+                    IconButton(
                       icon: const Icon(Icons.clear),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchQuery = '');
                       },
-                    )
-                  : null,
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
+                    onPressed: () {
+                      ref.invalidate(gutenbergBrowseProvider);
+                      ref.invalidate(gutenbergSearchProvider);
+                    },
+                  ),
+                ],
+              ),
               border: const OutlineInputBorder(),
               isDense: true,
               contentPadding:
