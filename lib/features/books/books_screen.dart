@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myoffgridai_client/config/constants.dart';
 import 'package:myoffgridai_client/core/api/api_exception.dart';
+import 'package:myoffgridai_client/core/api/myoffgridai_api_client.dart';
 import 'package:myoffgridai_client/core/auth/auth_state.dart';
 import 'package:myoffgridai_client/core/models/library_models.dart';
 import 'package:myoffgridai_client/core/services/library_service.dart';
@@ -38,6 +40,8 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isUploading = false;
+  String _sortField = 'title';
+  String _sortDirection = 'asc';
 
   @override
   void initState() {
@@ -76,6 +80,14 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
             isOwnerOrAdmin: isOwnerOrAdmin,
             isUploading: _isUploading,
             onUpload: _uploadEbook,
+            sortField: _sortField,
+            sortDirection: _sortDirection,
+            onSortChanged: (field, direction) {
+              setState(() {
+                _sortField = field;
+                _sortDirection = direction;
+              });
+            },
           ),
           const _KiwixTab(),
           _GutenbergTab(isOwnerOrAdmin: isOwnerOrAdmin),
@@ -158,22 +170,33 @@ class _BooksScreenState extends ConsumerState<BooksScreen>
 
 // ── Library Tab (eBooks) ──────────────────────────────────────────────────
 
-/// Renders the Library tab listing uploaded eBooks with an optional upload button.
+/// Renders the Library tab listing uploaded eBooks with an optional upload button
+/// and sort controls.
 class _LibraryTab extends ConsumerWidget {
   final bool isOwnerOrAdmin;
   final bool isUploading;
   final VoidCallback onUpload;
+  final String sortField;
+  final String sortDirection;
+  final void Function(String field, String direction) onSortChanged;
 
   const _LibraryTab({
     required this.isOwnerOrAdmin,
     required this.isUploading,
     required this.onUpload,
+    required this.sortField,
+    required this.sortDirection,
+    required this.onSortChanged,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ebooksAsync =
-        ref.watch(ebooksProvider((search: null, format: null)));
+    final ebooksAsync = ref.watch(ebooksProvider((
+      search: null,
+      format: null,
+      sort: sortField,
+      direction: sortDirection,
+    )));
 
     return Column(
       children: [
@@ -195,6 +218,42 @@ class _LibraryTab extends ConsumerWidget {
               ),
             ),
           ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              const Text('Sort by: '),
+              DropdownButton<String>(
+                value: sortField,
+                underline: const SizedBox.shrink(),
+                items: const [
+                  DropdownMenuItem(value: 'title', child: Text('Name')),
+                  DropdownMenuItem(value: 'author', child: Text('Author')),
+                  DropdownMenuItem(
+                      value: 'createdAt', child: Text('Date Added')),
+                ],
+                onChanged: (value) {
+                  if (value != null) onSortChanged(value, sortDirection);
+                },
+              ),
+              IconButton(
+                icon: Icon(
+                  sortDirection == 'asc'
+                      ? Icons.arrow_upward
+                      : Icons.arrow_downward,
+                ),
+                tooltip:
+                    sortDirection == 'asc' ? 'Ascending' : 'Descending',
+                onPressed: () {
+                  onSortChanged(
+                    sortField,
+                    sortDirection == 'asc' ? 'desc' : 'asc',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: ebooksAsync.when(
             loading: () => const LoadingIndicator(),
@@ -246,8 +305,23 @@ class _EbookTileState extends ConsumerState<_EbookTile> {
   Widget build(BuildContext context) {
     final ebook = widget.ebook;
 
+    final baseUrl = ref.watch(apiClientProvider).baseUrl;
+
     return ListTile(
-      leading: Icon(_formatIcon(ebook.format)),
+      leading: ebook.hasCoverImage
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: CachedNetworkImage(
+                imageUrl:
+                    '$baseUrl${AppConstants.libraryBasePath}/ebooks/${ebook.id}/cover',
+                width: 40,
+                height: 56,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Icon(_formatIcon(ebook.format)),
+                errorWidget: (_, __, ___) => Icon(_formatIcon(ebook.format)),
+              ),
+            )
+          : Icon(_formatIcon(ebook.format)),
       title: Text(ebook.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [

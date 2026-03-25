@@ -74,16 +74,20 @@ class LibraryService {
 
   // ── eBooks ──────────────────────────────────────────────────────────────
 
-  /// Lists eBooks with optional search and format filter.
+  /// Lists eBooks with optional search, format filter, and sorting.
   Future<List<EbookModel>> listEbooks({
     String? search,
     String? format,
     int page = 0,
     int size = 20,
+    String sort = 'title',
+    String direction = 'asc',
   }) async {
     final queryParams = <String, dynamic>{
       'page': page,
       'size': size,
+      'sort': sort,
+      'direction': direction,
     };
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
     if (format != null && format.isNotEmpty) queryParams['format'] = format;
@@ -324,12 +328,17 @@ final zimFilesProvider =
   return service.listZimFiles();
 });
 
-/// Provider for the eBook list with optional search and format.
-final ebooksProvider = FutureProvider.autoDispose
-    .family<List<EbookModel>, ({String? search, String? format})>(
+/// Provider for the eBook list with optional search, format, and sorting.
+final ebooksProvider = FutureProvider.autoDispose.family<List<EbookModel>,
+    ({String? search, String? format, String sort, String direction})>(
   (ref, params) async {
     final service = ref.watch(libraryServiceProvider);
-    return service.listEbooks(search: params.search, format: params.format);
+    return service.listEbooks(
+      search: params.search,
+      format: params.format,
+      sort: params.sort,
+      direction: params.direction,
+    );
   },
 );
 
