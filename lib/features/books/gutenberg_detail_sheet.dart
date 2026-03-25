@@ -14,6 +14,9 @@ class GutenbergDetailSheet extends StatelessWidget {
   /// Whether the current user is an owner or admin (controls import visibility).
   final bool isOwnerOrAdmin;
 
+  /// Whether this book has already been imported into the local library.
+  final bool isImported;
+
   /// Whether an import is currently in progress for this book.
   final bool isImporting;
 
@@ -25,6 +28,7 @@ class GutenbergDetailSheet extends StatelessWidget {
     super.key,
     required this.book,
     required this.isOwnerOrAdmin,
+    this.isImported = false,
     required this.isImporting,
     required this.onImport,
   });
@@ -182,18 +186,25 @@ class GutenbergDetailSheet extends StatelessWidget {
               if (isOwnerOrAdmin)
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: isImporting ? null : onImport,
-                    icon: isImporting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.download),
-                    label:
-                        Text(isImporting ? 'Importing...' : 'Import to Library'),
-                  ),
+                  child: isImported
+                      ? FilledButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text('Already Imported'),
+                        )
+                      : FilledButton.icon(
+                          onPressed: isImporting ? null : onImport,
+                          icon: isImporting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
+                                )
+                              : const Icon(Icons.download),
+                          label: Text(
+                              isImporting ? 'Importing...' : 'Import to Library'),
+                        ),
                 ),
             ],
           ),

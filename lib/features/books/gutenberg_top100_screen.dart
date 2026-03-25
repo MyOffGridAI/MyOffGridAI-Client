@@ -62,13 +62,15 @@ class _GutenbergTop100ScreenState
     }
   }
 
-  void _showDetailSheet(GutenbergBookModel book, bool isOwnerOrAdmin) {
+  void _showDetailSheet(
+      GutenbergBookModel book, bool isOwnerOrAdmin, bool isImported) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => GutenbergDetailSheet(
         book: book,
         isOwnerOrAdmin: isOwnerOrAdmin,
+        isImported: isImported,
         isImporting: _isImporting[book.id] ?? false,
         onImport: () async {
           await _importBook(book.id);
@@ -110,9 +112,8 @@ class _GutenbergTop100ScreenState
           onRetry: () => ref.invalidate(gutenbergBrowseProvider),
         ),
         data: (result) {
-          final books = result.results
-              .where((b) => !_importedIds.contains(b.id))
-              .toList();
+          final books = result.results;
+          final importedIds = result.importedGutenbergIds;
           if (books.isEmpty) {
             return const EmptyStateView(
               icon: Icons.auto_stories,
@@ -131,12 +132,16 @@ class _GutenbergTop100ScreenState
             itemCount: books.length,
             itemBuilder: (context, index) {
               final book = books[index];
+              final isImported = importedIds.contains(book.id) ||
+                  _importedIds.contains(book.id);
               return GutenbergBookCard(
                 book: book,
                 isOwnerOrAdmin: isOwnerOrAdmin,
+                isImported: isImported,
                 isImporting: _isImporting[book.id] ?? false,
                 onImport: () => _importBook(book.id),
-                onTap: () => _showDetailSheet(book, isOwnerOrAdmin),
+                onTap: () =>
+                    _showDetailSheet(book, isOwnerOrAdmin, isImported),
               );
             },
           );

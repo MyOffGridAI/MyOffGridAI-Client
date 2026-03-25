@@ -15,6 +15,9 @@ class GutenbergBookCard extends StatelessWidget {
   /// Whether the current user is an owner or admin (controls import visibility).
   final bool isOwnerOrAdmin;
 
+  /// Whether this book has already been imported into the local library.
+  final bool isImported;
+
   /// Whether an import is currently in progress for this book.
   final bool isImporting;
 
@@ -29,6 +32,7 @@ class GutenbergBookCard extends StatelessWidget {
     super.key,
     required this.book,
     required this.isOwnerOrAdmin,
+    this.isImported = false,
     required this.isImporting,
     required this.onImport,
     required this.onTap,
@@ -115,25 +119,41 @@ class GutenbergBookCard extends StatelessWidget {
                     if (isOwnerOrAdmin)
                       SizedBox(
                         width: double.infinity,
-                        child: isImporting
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                ),
+                        child: isImported
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle,
+                                      size: 16,
+                                      color: theme.colorScheme.primary),
+                                  const SizedBox(width: 4),
+                                  Text('Imported',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                              color:
+                                                  theme.colorScheme.primary)),
+                                ],
                               )
-                            : FilledButton.tonal(
-                                onPressed: onImport,
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 4),
-                                  minimumSize: const Size(0, 30),
-                                  textStyle: theme.textTheme.labelSmall,
-                                ),
-                                child: const Text('Import'),
-                              ),
+                            : isImporting
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  )
+                                : FilledButton.tonal(
+                                    onPressed: onImport,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      minimumSize: const Size(0, 30),
+                                      textStyle: theme.textTheme.labelSmall,
+                                    ),
+                                    child: const Text('Import'),
+                                  ),
                       ),
                   ],
                 ),

@@ -230,12 +230,14 @@ class GutenbergSearchResultModel {
   final String? next;
   final String? previous;
   final List<GutenbergBookModel> results;
+  final Set<int> importedGutenbergIds;
 
   const GutenbergSearchResultModel({
     required this.count,
     this.next,
     this.previous,
     this.results = const [],
+    this.importedGutenbergIds = const {},
   });
 
   /// Creates a [GutenbergSearchResultModel] from a JSON map.
@@ -249,6 +251,10 @@ class GutenbergSearchResultModel {
                   GutenbergBookModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      importedGutenbergIds: (json['importedGutenbergIds'] as List<dynamic>?)
+              ?.map((e) => e as int)
+              .toSet() ??
+          {},
     );
   }
 }
