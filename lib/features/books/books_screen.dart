@@ -1503,9 +1503,9 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
 
     final AsyncValue<GutenbergSearchResultModel> resultAsync = isSearching
         ? ref.watch(
-            gutenbergSearchProvider((query: _searchQuery, limit: 32)))
+            gutenbergSearchProvider((query: _searchQuery, limit: 100)))
         : ref.watch(
-            gutenbergBrowseProvider((sort: 'popular', limit: 32)));
+            gutenbergBrowseProvider((sort: 'popular', limit: 100)));
 
     return Column(
       children: [
