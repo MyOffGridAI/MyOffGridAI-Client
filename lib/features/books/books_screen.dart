@@ -1337,6 +1337,7 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
   String _searchQuery = '';
   Timer? _debounce;
   final Map<int, bool> _isImporting = {};
+  final Set<int> _importedIds = {};
 
   @override
   void dispose() {
@@ -1373,6 +1374,7 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
       final ebook = await service.importGutenbergBook(gutenbergId);
       ref.invalidate(ebooksProvider);
       if (mounted) {
+        _importedIds.add(gutenbergId);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('"${ebook.title}" imported successfully'),
@@ -1407,11 +1409,16 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => GutenbergDetailSheet(
+      builder: (sheetContext) => GutenbergDetailSheet(
         book: book,
         isOwnerOrAdmin: widget.isOwnerOrAdmin,
         isImporting: _isImporting[book.id] ?? false,
-        onImport: () => _importBook(book.id),
+        onImport: () async {
+          await _importBook(book.id);
+          if (_importedIds.contains(book.id) && sheetContext.mounted) {
+            Navigator.of(sheetContext).pop();
+          }
+        },
       ),
     );
   }
@@ -1529,7 +1536,10 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
               },
             ),
             data: (result) {
-              if (result.results.isEmpty) {
+              final books = result.results
+                  .where((b) => !_importedIds.contains(b.id))
+                  .toList();
+              if (books.isEmpty) {
                 return EmptyStateView(
                   icon: Icons.auto_stories,
                   title: isSearching ? 'No results found' : 'No books available',
@@ -1547,9 +1557,9 @@ class _GutenbergTabState extends ConsumerState<_GutenbergTab> {
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
                 ),
-                itemCount: result.results.length,
+                itemCount: books.length,
                 itemBuilder: (context, index) {
-                  final book = result.results[index];
+                  final book = books[index];
                   return GutenbergBookCard(
                     book: book,
                     isOwnerOrAdmin: widget.isOwnerOrAdmin,
