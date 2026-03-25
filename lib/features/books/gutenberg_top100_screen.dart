@@ -92,7 +92,16 @@ class _GutenbergTop100ScreenState
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Top 100 Gutenberg Books')),
+      appBar: AppBar(
+        title: const Text('Top 100 Gutenberg Books'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: () => ref.invalidate(gutenbergBrowseProvider),
+          ),
+        ],
+      ),
       body: resultAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => ErrorView(
