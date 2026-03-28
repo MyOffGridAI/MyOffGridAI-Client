@@ -170,7 +170,7 @@ final knowledgeVaultScopeProvider = StateProvider<String>((ref) => 'MINE');
 final knowledgeDocumentsProvider = FutureProvider.autoDispose
     .family<List<KnowledgeDocumentModel>, String>((ref, scope) async {
   final service = ref.watch(knowledgeServiceProvider);
-  return service.listDocuments(scope: scope);
+  return service.listDocuments(scope: scope, size: 500);
 });
 
 /// Provider for a document's content.
